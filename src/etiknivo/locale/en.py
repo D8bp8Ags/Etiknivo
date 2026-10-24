@@ -556,4 +556,19 @@ EN: dict[str, str] = {
     "Nr": "No",
     "Aantal": "Count",
     "Lijn tussen tekstregels": "Line between text lines",
+    # updates
+    "Zoeken naar updates…": "Check for updates…",
+    "Bij opstarten naar updates zoeken": "Check for updates at start-up",
+    "Nieuwe versie": "New version",
+    "{app} {new} is beschikbaar. Je gebruikt versie {current}.":
+        "{app} {new} is available. You are using version {current}.",
+    "Downloadpagina openen": "Open download page",
+    "Zoeken naar updates": "Check for updates",
+    "Kon niet zoeken naar updates: {error}": "Could not check for updates: {error}",
+    "Er is nog geen versie gepubliceerd op GitHub.": "No version has been published on GitHub yet.",
+    "Je gebruikt de nieuwste versie ({version}).": "You are using the latest version ({version}).",
+    "Onbekend versienummer: {tag}": "Unknown version number: {tag}",
+    "GitHub antwoordde met fout {code}": "GitHub answered with error {code}",
+    "Geen verbinding met GitHub ({error})": "Cannot reach GitHub ({error})",
+    "Onverwacht antwoord van GitHub": "Unexpected answer from GitHub",
 }

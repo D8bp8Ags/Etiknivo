@@ -6,6 +6,7 @@ import json
 import logging
 import threading
 import time
+from datetime import date
 from pathlib import Path
 
 from PySide6.QtCore import QEvent, QObject, QSettings, QSize, Qt, QTimer, QUrl, Signal
@@ -32,7 +33,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from etiknivo import APP_NAME
+from etiknivo import APP_NAME, __version__, updates
 from etiknivo.gui import theme
 from etiknivo.gui.dialogs import (
     AboutDialog,
@@ -82,6 +83,7 @@ def _format_key(lbl: Label) -> str:
 
 class MainWindow(QMainWindow):
     fontsLoaded = Signal(list)
+    updateChecked = Signal(object, object, bool)  # Release | None, error | None, manual
 
     def __init__(self, library: Library, settings: Settings | None = None,
                  backend: PrinterBackend | None = None, poll_interval: float = 30.0) -> None:
@@ -181,6 +183,9 @@ class MainWindow(QMainWindow):
         theme.manager().changed.connect(self.apply_theme)
         self.properties.set_categories(self.library.categories())
         self._load_fonts_async()
+        if self.settings.check_updates and \
+                self.settings.last_update_check != date.today().isoformat():
+            QTimer.singleShot(3000, lambda: self.check_updates(manual=False))
         self.on_printer_state(self.bridge.state)
         self._update_queue_button()
         if self.bridge.manager.backend.simulated:
@@ -511,6 +516,13 @@ class MainWindow(QMainWindow):
         act(m, tr("Log tonen"), self.show_log, "Ctrl+L")
         act(m, tr("Logmap openen"), lambda: QDesktopServices.openUrl(
             QUrl.fromLocalFile(str(log_dir()))))
+        m.addSeparator()
+        act(m, tr("Zoeken naar updates…"), lambda: self.check_updates(manual=True))
+        self.act_auto_update = act(m, tr("Bij opstarten naar updates zoeken"),
+                                   self.set_auto_update)
+        self.act_auto_update.setCheckable(True)
+        self.act_auto_update.setChecked(self.settings.check_updates)
+        m.addSeparator()
         act(m, tr("Over {app}", app=APP_NAME), self.about)
 
     def set_language(self, choice: str) -> None:
@@ -575,6 +587,7 @@ class MainWindow(QMainWindow):
         self.bridge.queueChanged.connect(self._record_finished)
         self.bridge.taskFinished.connect(self.on_task_finished)
         self.fontsLoaded.connect(self.properties.set_families)
+        self.updateChecked.connect(self.on_update_checked)
 
     def _load_fonts_async(self) -> None:
         reg = default_registry()
@@ -1381,6 +1394,53 @@ class MainWindow(QMainWindow):
             return
         labels = self._with_draft([lbl for lbl, _ in found])
         self.print_labels(labels, [r.copies for _, r in found], found[-1][1].density)
+
+    # -- updates -------------------------------------------------------------------------
+
+    def set_auto_update(self, on: bool) -> None:
+        self.settings.check_updates = bool(on)
+        self._save_settings()
+
+    def check_updates(self, manual: bool = True) -> None:
+        """Ask GitHub for the newest release in the background."""
+        if manual:
+            self.statusBar().showMessage(tr("Zoeken naar updates…"), 5000)
+
+        def run() -> None:
+            try:
+                self.updateChecked.emit(updates.fetch_latest(), None, manual)
+            except updates.UpdateError as exc:
+                self.updateChecked.emit(None, exc, manual)
+
+        threading.Thread(target=run, daemon=True, name="update-check").start()
+
+    def on_update_checked(self, release: updates.Release | None, error: Exception | None,
+                          manual: bool) -> None:
+        if error is None:
+            self.settings.last_update_check = date.today().isoformat()
+            self._save_settings()
+        if release is not None and updates.is_newer(release.version):
+            box = QMessageBox(QMessageBox.Icon.Information, tr("Nieuwe versie"),
+                              tr("{app} {new} is beschikbaar. Je gebruikt versie {current}.",
+                                 app=APP_NAME, new=release.version, current=__version__),
+                              QMessageBox.StandardButton.Close, self)
+            open_btn = box.addButton(tr("Downloadpagina openen"),
+                                     QMessageBox.ButtonRole.AcceptRole)
+            box.exec()
+            if box.clickedButton() is open_btn:
+                QDesktopServices.openUrl(QUrl(release.url))
+        elif not manual:
+            return  # the automatic check stays silent unless there is news
+        elif error is not None:
+            QMessageBox.warning(self, tr("Zoeken naar updates"),
+                                tr("Kon niet zoeken naar updates: {error}", error=error))
+        elif release is None:
+            QMessageBox.information(self, tr("Zoeken naar updates"),
+                                    tr("Er is nog geen versie gepubliceerd op GitHub."))
+        else:
+            QMessageBox.information(self, tr("Zoeken naar updates"),
+                                    tr("Je gebruikt de nieuwste versie ({version}).",
+                                       version=__version__))
 
     def about(self) -> None:
         AboutDialog(self.profile, data_dir(), log_dir(), self).exec()

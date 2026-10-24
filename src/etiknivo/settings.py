@@ -76,6 +76,8 @@ class Settings:
     sort_key: str = "tray_id"
     theme: str = "system"  # system, light or dark
     language: str = "system"  # system, nl or en (applied at start-up)
+    check_updates: bool = False  # look for a new version on GitHub at start-up
+    last_update_check: str = ""  # ISO date; the automatic check runs once a day
     calibration: Calibration = field(default_factory=Calibration)
 
     @classmethod

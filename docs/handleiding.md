@@ -14,6 +14,7 @@ Etiknivo maakt en print etiketten op de Action Fichero 5836, standaard 30 × 14 
 - [De bibliotheek beheren](#de-bibliotheek-beheren)
 - [Importeren, exporteren en back-up](#importeren-exporteren-en-back-up)
 - [Taal en thema](#taal-en-thema)
+- [Nieuwe versies](#nieuwe-versies)
 - [Problemen oplossen](#problemen-oplossen)
 - [Sneltoetsen](#sneltoetsen)
 
@@ -238,6 +239,10 @@ Etiknivo bewaart alles lokaal op je eigen computer, zonder account. Bij elke kee
 - **Weergave → Taal / Language**: Nederlands, English, of de taal van je systeem. Herstart de app om te wisselen.
 - **Weergave → Thema**: licht, donker, of volgen wat macOS gebruikt.
 - **Weergave → Hulplijnen** toont of verbergt de marges in het ontwerpvoorbeeld.
+
+## Nieuwe versies
+
+**Help → Zoeken naar updates…** kijkt op GitHub of er een nieuwere versie van Etiknivo is. Is die er, dan kun je de downloadpagina openen; Etiknivo downloadt of installeert zelf niets. Zet je **Help → Bij opstarten naar updates zoeken** aan, dan kijkt de app hooguit één keer per dag bij het starten, en meldt alleen iets als er een nieuwe versie is. Standaard staat dit uit.
 
 ## Problemen oplossen
 
