@@ -11,6 +11,7 @@ from pathlib import Path
 
 from PIL import Image
 
+from etiknivo.i18n import tr
 from etiknivo.model import Label
 from etiknivo.rendering.engine import RenderEngine
 from etiknivo.storage.atomic import atomic_write_bytes
@@ -67,7 +68,7 @@ def export_pngs(engine: RenderEngine, labels: Iterable[Label], directory: Path,
 def export_pdf(engine: RenderEngine, labels: list[Label], path: Path) -> None:
     """One page per label at true physical size (30 × 14 mm at 203 dpi)."""
     if not labels:
-        raise ValueError("Geen labels om te exporteren")
+        raise ValueError(tr("Geen labels om te exporteren"))
     pages = [engine.render(lbl).mono.convert("L") for lbl in labels]
     buf = io.BytesIO()
     pages[0].save(buf, "PDF", resolution=float(engine.profile.dpi), save_all=True,

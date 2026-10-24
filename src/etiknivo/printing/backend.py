@@ -16,13 +16,14 @@ from enum import StrEnum
 
 from PIL import Image
 
+from etiknivo.i18n import tr
 from etiknivo.printing.profiles import FICHERO_5836, PrinterProfile
 
 ProgressCallback = Callable[[int, int], None]  # (copies_done, copies_total)
 
 
 class PrinterError(Exception):
-    """Base class for printer problems.  Messages are user-facing (Dutch)."""
+    """Base class for printer problems.  Messages are user-facing (translated)."""
 
 
 class PrinterConnectionError(PrinterError):
@@ -41,7 +42,7 @@ class PrinterNotReadyError(PrinterError):
     """The printer reports a condition that prevents printing."""
 
     def __init__(self, status: PrinterStatusInfo) -> None:
-        super().__init__(f"Printer niet gereed: {status.describe()}")
+        super().__init__(tr("Printer niet gereed: {status}", status=status.describe()))
         self.status = status
 
 
@@ -85,24 +86,24 @@ class PrinterStatusInfo:
     def problems(self) -> list[str]:
         out = []
         if self.cover_open:
-            out.append("deksel open")
+            out.append(tr("deksel open"))
         if self.no_paper:
-            out.append("papier op / geen etiket gedetecteerd")
+            out.append(tr("papier op / geen etiket gedetecteerd"))
         if self.overheated:
-            out.append("printkop oververhit")
+            out.append(tr("printkop oververhit"))
         if self.low_battery:
-            out.append("batterij bijna leeg")
+            out.append(tr("batterij bijna leeg"))
         return out
 
     def describe(self) -> str:
         if self.unknown:
-            return "onbekend (geen antwoord)"
+            return tr("onbekend (geen antwoord)")
         parts = self.problems()
         if self.printing:
-            parts.append("bezig met printen")
+            parts.append(tr("bezig met printen"))
         if self.charging:
-            parts.append("laadt op")
-        return ", ".join(parts) if parts else "gereed"
+            parts.append(tr("laadt op"))
+        return ", ".join(parts) if parts else tr("gereed")
 
 
 @dataclass
@@ -176,8 +177,9 @@ class PrinterBackend(ABC):
 
 def check_raster(raster: Image.Image, profile: PrinterProfile) -> None:
     if raster.mode != "1":
-        raise ValueError(f"Raster moet 1-bit zijn (mode '1'), niet '{raster.mode}'")
+        raise ValueError(tr("Raster moet 1-bit zijn (mode '1'), niet '{mode}'", mode=raster.mode))
     if raster.width != profile.printhead_px:
-        raise ValueError(f"Rasterbreedte {raster.width} ≠ printkopbreedte {profile.printhead_px}")
+        raise ValueError(tr("Rasterbreedte {width} ≠ printkopbreedte {head}", width=raster.width,
+                            head=profile.printhead_px))
     if not 1 <= raster.height <= 0xFFFF:
-        raise ValueError(f"Ongeldige rasterhoogte {raster.height}")
+        raise ValueError(tr("Ongeldige rasterhoogte {height}", height=raster.height))

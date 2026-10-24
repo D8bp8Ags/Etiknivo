@@ -20,10 +20,12 @@ from PySide6.QtWidgets import (
 )
 
 from etiknivo.gui import theme
+from etiknivo.i18n import N_, tr
 from etiknivo.logging_setup import LogEntry, MemoryLog, memory_log
 from etiknivo.settings import log_dir
 
-FILTERS = {"all": "Alles", "problems": "Waarschuwingen en fouten", "print": "Printopdrachten"}
+FILTERS = {"all": N_("Alles"), "problems": N_("Waarschuwingen en fouten"),
+           "print": N_("Printopdrachten")}
 
 
 class _Relay(QObject):
@@ -35,16 +37,16 @@ class _Relay(QObject):
 class LogWindow(QDialog):
     def __init__(self, log: MemoryLog | None = None, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self.setWindowTitle("Log")
+        self.setWindowTitle(tr("Log"))
         self.resize(820, 480)
         self.setWindowFlag(Qt.WindowType.WindowContextHelpButtonHint, False)
         self.log = log or memory_log()
 
         self.filter = QComboBox()
         for key, text in FILTERS.items():
-            self.filter.addItem(text, key)
+            self.filter.addItem(tr(text), key)
         self.search = QLineEdit()
-        self.search.setPlaceholderText("Zoeken in log…")
+        self.search.setPlaceholderText(tr("Zoeken in log…"))
         self.search.setClearButtonEnabled(True)
         self.count = QLabel()
         self.count.setObjectName("muted")
@@ -59,14 +61,14 @@ class LogWindow(QDialog):
         self.view.setFont(QFontDatabase.systemFont(QFontDatabase.SystemFont.FixedFont))
         self.view.setMaximumBlockCount(5000)
 
-        hint = QLabel("Bewaard in app.log en print.log, ook na afsluiten of een crash.")
+        hint = QLabel(tr("Bewaard in app.log en print.log, ook na afsluiten of een crash."))
         hint.setObjectName("hint")
-        self.copy_btn = QPushButton("Kopiëren")
-        self.copy_btn.setToolTip("Zichtbare regels naar het klembord, bv. voor een foutmelding")
-        folder = QPushButton("Logmap openen")
-        clear = QPushButton("Wissen")
-        clear.setToolTip("Leegt dit venster; de logbestanden blijven bewaard")
-        close = QPushButton("Sluiten")
+        self.copy_btn = QPushButton(tr("Kopiëren"))
+        self.copy_btn.setToolTip(tr("Zichtbare regels naar het klembord, bv. voor een foutmelding"))
+        folder = QPushButton(tr("Logmap openen"))
+        clear = QPushButton(tr("Wissen"))
+        clear.setToolTip(tr("Leegt dit venster; de logbestanden blijven bewaard"))
+        close = QPushButton(tr("Sluiten"))
         bottom = QHBoxLayout()
         bottom.addWidget(hint, 1)
         for b in (self.copy_btn, folder, clear, close):
@@ -128,7 +130,7 @@ class LogWindow(QDialog):
             bar.setValue(bar.maximum())
 
     def _update_count(self) -> None:
-        self.count.setText(f"{self._shown} regels")
+        self.count.setText(tr("{n} regels", n=self._shown))
 
     # -- actions -----------------------------------------------------------------------
 
@@ -137,7 +139,7 @@ class LogWindow(QDialog):
 
     def copy(self) -> None:
         QApplication.clipboard().setText(self.visible_text())
-        self.copy_btn.setText("Gekopieerd ✓")
+        self.copy_btn.setText(tr("Gekopieerd ✓"))
 
     def clear(self) -> None:
         self.log.clear()

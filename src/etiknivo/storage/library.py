@@ -17,6 +17,7 @@ from importlib import resources
 from pathlib import Path
 from typing import Any
 
+from etiknivo.i18n import tr
 from etiknivo.model import SCHEMA_VERSION, Label
 from etiknivo.storage.atomic import atomic_write_text
 
@@ -38,15 +39,15 @@ def labels_from_document(doc: Any) -> list[Label]:
     else:
         items = doc
     if not isinstance(items, list):
-        raise LibraryError("Ongeldig bibliotheekbestand: lijst 'labels' ontbreekt")
+        raise LibraryError(tr("Ongeldig bibliotheekbestand: lijst 'labels' ontbreekt"))
     labels: list[Label] = []
     for i, item in enumerate(items):
         if not isinstance(item, dict):
-            raise LibraryError(f"Ongeldig label op positie {i}")
+            raise LibraryError(tr("Ongeldig label op positie {n}", n=i))
         try:
             labels.append(Label.from_dict(item))
         except (ValueError, TypeError, KeyError) as exc:
-            raise LibraryError(f"Ongeldig label op positie {i}: {exc}") from exc
+            raise LibraryError(tr("Ongeldig label op positie {n}: {error}", n=i, error=exc)) from exc
     return labels
 
 
@@ -134,7 +135,7 @@ class Library:
             self._labels = []
             return
         except (OSError, ValueError) as exc:
-            raise LibraryError(f"Bibliotheek kon niet worden gelezen: {exc}") from exc
+            raise LibraryError(tr("Bibliotheek kon niet worden gelezen: {error}", error=exc)) from exc
         self._labels = labels_from_document(doc)
 
     def save(self) -> None:

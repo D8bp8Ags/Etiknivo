@@ -13,6 +13,8 @@ import logging
 from collections.abc import Callable
 from typing import Any
 
+from etiknivo.i18n import tr
+
 log = logging.getLogger(__name__)
 
 
@@ -66,7 +68,7 @@ class BleLink:
                 self._write_uuid, self._notify_uuid = write, notify
                 break
         else:
-            raise LinkError("Geen bekende printerdienst gevonden op dit Bluetooth-apparaat")
+            raise LinkError(tr("Geen bekende printerdienst gevonden op dit Bluetooth-apparaat"))
         char = available[self._write_uuid]
         max_len = getattr(char, "max_write_without_response_size", None)
         if isinstance(max_len, int) and max_len >= 20:
@@ -103,7 +105,8 @@ class BleLink:
             try:
                 await asyncio.wait_for(self._arrived.wait(), timeout)
             except TimeoutError as exc:
-                raise LinkTimeout(f"Geen antwoord op {data[:4].hex(' ')} binnen {timeout:g} s") from exc
+                raise LinkTimeout(tr("Geen antwoord op {cmd} binnen {s} s", cmd=data[:4].hex(" "),
+                                    s=f"{timeout:g}")) from exc
             # collect trailing fragments until the line goes quiet
             while True:
                 self._arrived.clear()

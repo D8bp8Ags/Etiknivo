@@ -29,6 +29,7 @@ Etiknivo is een desktopapplicatie (Python + PySide6) om etiketten te ontwerpen, 
 - **Afdrukken**: huidig label, selectie, een hele categorie of alles, met afdrukvoorbeeld en aantallen per label.
 - **Opslag en uitwisseling**: bibliotheek als JSON (met `.bak`), JSON import/export (samenvoegen of vervangen), CSV import/export, PNG-export van selecties (ontwerp of printerraster), PDF (ware grootte) en SVG, volledige back-up en herstel (zip).
 - **Simulatieprinter**: de hele applicatie werkt zonder hardware. De simulatie staat overal als zodanig vermeld en drukt niets echt af.
+- **Nederlands en Engels**: Weergave → Taal / Language kiest Nederlands, Engels of de taal van het systeem (na herstart). Vertalingen staan in `src/etiknivo/locale/en.py`; `uv run python scripts/i18n_strings.py --missing` toont teksten zonder vertaling, en een test bewaakt dat er geen ontbreken.
 - **23 vooraf ingevulde Raaco-labels** voor elektronicacomponenten bij de eerste start (startdata in `src/etiknivo/data/raaco_seed.csv`).
 
 ![De 23 voorbeeldlabels als 1-bit printeruitvoer](docs/img/raaco-labels.png)
@@ -150,16 +151,7 @@ uv run pytest
 
 De tests draaien zonder printer en zonder scherm (Qt `offscreen`). Ze dekken rendering (rasterafmetingen, oriëntatie, kalibratie, speciale tekens, kleine letters, lange tekst en overflow, alle 23 voorbeeldlabels), JSON/CSV/back-up, de printwachtrij (volgorde, exemplaren, dubbelklik, fout stopt de wachtrij, opnieuw proberen, deksel open, papier op, verbinding weg en opnieuw verbinden), het D11s-protocol en de backend via een nagebootste BLE-verbinding (exacte bytes, profielkeuze, gefragmenteerde antwoorden) en GUI-scenario's met de simulatieprinter.
 
-> **Let op:** de printer- en GUI-tests gebruiken een mock-printer of een nagebootste BLE-verbinding. Ze bewijzen niet dat een fysieke Bluetooth-print slaagt. Zie hieronder wat nog met een echte Fichero 5836 gecontroleerd moet worden.
-
-
-### Nog te verifiëren met een fysieke Fichero 5836
-
-- Zoeken en verbinden via CoreBluetooth op macOS, inclusief de toestemmingsdialoog.
-- Een echte afdruk: oriëntatie (niet gespiegeld/ondersteboven), positie op het etiket en gap-detectie tussen etiketten. Gebruik de kalibratietest.
-- Leesbaarheid van kleine tekst bij de drie dichtheden; eventueel de zwartdrempel bijstellen.
-- Meldingen van deksel open, papier op en lage batterij zoals de echte printer ze rapporteert.
-- Opnieuw verbinden nadat de printer uit- en aangezet is.
+Afdrukken is daarnaast getest met een echte Fichero 5836.
 
 ## macOS-app bouwen (optioneel)
 

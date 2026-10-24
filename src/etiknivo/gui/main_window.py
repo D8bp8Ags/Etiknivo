@@ -34,13 +34,15 @@ from PySide6.QtWidgets import (
 from etiknivo import APP_NAME
 from etiknivo.gui import theme
 from etiknivo.gui.dialogs import AboutDialog, CalibrationDialog, PrintPreviewDialog
-from etiknivo.gui.library_panel import ALL_CATEGORIES, LibraryPanel
+from etiknivo.gui.library_panel import LibraryPanel
 from etiknivo.gui.log_window import LogWindow
 from etiknivo.gui.preview import DesignView, RasterView
 from etiknivo.gui.printer_bridge import PrinterBridge
 from etiknivo.gui.printer_panel import PrinterPanel
 from etiknivo.gui.properties_panel import PropertiesPanel
 from etiknivo.gui.queue_panel import QueuePanel
+from etiknivo.i18n import LANGUAGES, language, tr
+from etiknivo.i18n import resolve as resolve_language
 from etiknivo.model import Label, make_label
 from etiknivo.printing.backend import ConnectionState, PrinterBackend
 from etiknivo.printing.manager import PrinterState
@@ -105,8 +107,8 @@ class MainWindow(QMainWindow):
         right = QTabWidget()
         right.setDocumentMode(True)
         self.design_tab = self._build_design_tab()
-        right.addTab(self.design_tab, "Ontwerp")
-        right.addTab(self.printer_panel, "Printer")
+        right.addTab(self.design_tab, tr("Ontwerp"))
+        right.addTab(self.printer_panel, tr("Printer"))
         self.right_tabs = right
         inspector = QWidget()
         inspector.setObjectName("inspector")
@@ -128,7 +130,7 @@ class MainWindow(QMainWindow):
         splitter.setSizes([340, 700, 360])
         self.setCentralWidget(splitter)
 
-        dock = QDockWidget("Printwachtrij", self)
+        dock = QDockWidget(tr("Printwachtrij"), self)
         dock.setObjectName("queue")
         dock.setWidget(self.queue_panel)
         dock.setFeatures(QDockWidget.DockWidgetFeature.DockWidgetClosable
@@ -171,7 +173,7 @@ class MainWindow(QMainWindow):
     # -- construction --------------------------------------------------------------------
 
     def _build_toolbar(self) -> None:
-        tb = QToolBar("Werkbalk", self)
+        tb = QToolBar(tr("Werkbalk"), self)
         tb.setObjectName("toolbar")
         tb.setMovable(False)
         tb.setFloatable(False)
@@ -181,10 +183,10 @@ class MainWindow(QMainWindow):
         self.addToolBar(Qt.ToolBarArea.TopToolBarArea, tb)
         self.toolbar = tb
 
-        self.act_new = QAction("Nieuw label", self, toolTip="Nieuw label (⌘N)")
-        self.act_dup = QAction("Dupliceren", self, toolTip="Dupliceren (⌘D)")
-        self.act_rename = QAction("Hernoemen", self, toolTip="Hernoemen (F2)")
-        self.act_del = QAction("Verwijderen", self, toolTip="Verwijderen")
+        self.act_new = QAction(tr("Nieuw label"), self, toolTip=tr("Nieuw label (⌘N)"))
+        self.act_dup = QAction(tr("Dupliceren"), self, toolTip=tr("Dupliceren (⌘D)"))
+        self.act_rename = QAction(tr("Hernoemen"), self, toolTip=tr("Hernoemen (F2)"))
+        self.act_del = QAction(tr("Verwijderen"), self, toolTip=tr("Verwijderen"))
         self.act_new.triggered.connect(self.new_label)
         self.act_dup.triggered.connect(self.duplicate_label)
         self.act_rename.triggered.connect(self.rename_label)
@@ -192,10 +194,10 @@ class MainWindow(QMainWindow):
         for a in (self.act_new, self.act_dup, self.act_rename, self.act_del):
             tb.addAction(a)
         tb.addSeparator()
-        self.act_undo = QAction("Ongedaan maken", self, toolTip="Ongedaan maken (⌘Z)")
+        self.act_undo = QAction(tr("Ongedaan maken"), self, toolTip=tr("Ongedaan maken (⌘Z)"))
         self.act_undo.setShortcut(QKeySequence.StandardKey.Undo)
         self.act_undo.triggered.connect(self.undo)
-        self.act_redo = QAction("Opnieuw", self, toolTip="Opnieuw (⇧⌘Z)")
+        self.act_redo = QAction(tr("Opnieuw"), self, toolTip=tr("Opnieuw (⇧⌘Z)"))
         redo_keys = QKeySequence.keyBindings(QKeySequence.StandardKey.Redo)
         if QKeySequence("Ctrl+Shift+Z") not in redo_keys:  # Windows/Linux default is Ctrl+Y
             redo_keys.append(QKeySequence("Ctrl+Shift+Z"))
@@ -227,32 +229,32 @@ class MainWindow(QMainWindow):
         self.printer_chip = QToolButton()
         self.printer_chip.setObjectName("chip")
         self.printer_chip.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
-        self.printer_chip.setToolTip("Printer beheren")
+        self.printer_chip.setToolTip(tr("Printer beheren"))
         self.printer_chip.clicked.connect(
             lambda: self.right_tabs.setCurrentWidget(self.printer_panel))
         tb.addWidget(self.printer_chip)
         self.queue_btn = QToolButton()
         self.queue_btn.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
-        self.queue_btn.setToolTip("Printwachtrij tonen of verbergen")
+        self.queue_btn.setToolTip(tr("Printwachtrij tonen of verbergen"))
         self.queue_btn.setCheckable(True)
         self.queue_btn.toggled.connect(lambda on: self.queue_dock.setVisible(on))
         self.queue_dock.visibilityChanged.connect(self.queue_btn.setChecked)
         tb.addWidget(self.queue_btn)
 
-        self.print_btn = QPushButton(" Afdrukken")
+        self.print_btn = QPushButton(tr(" Afdrukken"))
         self.print_btn.setProperty("primary", True)
-        self.print_btn.setToolTip("Huidig label afdrukken (⌘P)")
+        self.print_btn.setToolTip(tr("Huidig label afdrukken (⌘P)"))
         self.print_btn.setDefault(True)
         self.print_more = QToolButton()
-        self.print_more.setToolTip("Meer afdrukopties")
+        self.print_more.setToolTip(tr("Meer afdrukopties"))
         self.print_more.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
         more = QMenu(self.print_more)
-        self.print_sel_btn = more.addAction("Geselecteerde labels…", self.print_selected)
-        more.addAction("Alle labels uit categorie…", self.print_category)
-        more.addAction("Alle labels…", self.print_all)
+        self.print_sel_btn = more.addAction(tr("Geselecteerde labels…"), self.print_selected)
+        more.addAction(tr("Alle labels uit categorie…"), self.print_category)
+        more.addAction(tr("Alle labels…"), self.print_all)
         more.addSeparator()
-        more.addAction("Testlabel", self.print_test_label)
-        more.addAction("Kalibratietest", self.print_calibration)
+        more.addAction(tr("Testlabel"), self.print_test_label)
+        more.addAction(tr("Kalibratietest"), self.print_calibration)
         self.print_more.setMenu(more)
         holder = QWidget()
         hl = QHBoxLayout(holder)
@@ -276,12 +278,12 @@ class MainWindow(QMainWindow):
         row.setSpacing(6)
         self.dirty_lbl = QLabel()
         self.dirty_lbl.setObjectName("dirty")
-        self.revert_btn = QPushButton("Herstellen")
-        self.revert_btn.setToolTip("Wijzigingen aan dit label ongedaan maken")
+        self.revert_btn = QPushButton(tr("Herstellen"))
+        self.revert_btn.setToolTip(tr("Wijzigingen aan dit label ongedaan maken"))
         self.revert_btn.clicked.connect(self.revert_current)
-        self.save_btn = QPushButton("Opslaan")
+        self.save_btn = QPushButton(tr("Opslaan"))
         self.save_btn.setProperty("primary", True)
-        self.save_btn.setToolTip("Wijzigingen opslaan (⌘S)")
+        self.save_btn.setToolTip(tr("Wijzigingen opslaan (⌘S)"))
         self.save_btn.clicked.connect(self.save_current)
         row.addWidget(self.dirty_lbl, 1)
         row.addWidget(self.revert_btn)
@@ -303,16 +305,16 @@ class MainWindow(QMainWindow):
         bl = QVBoxLayout(body)
         bl.setContentsMargins(24, 28, 24, 24)
         bl.setSpacing(6)
-        h1 = QLabel("ONTWERP")
+        h1 = QLabel(tr("ONTWERP"))
         h1.setObjectName("caption")
-        h1.setToolTip("Bewerken met antialiasing. Gearceerd = wordt niet geprint (buiten de "
-                      "printkop of in de veilige marge); blauw = printbaar; groen = marges.")
+        h1.setToolTip(tr("Bewerken met antialiasing. Gearceerd = wordt niet geprint (buiten de "
+                         "printkop of in de veilige marge); blauw = printbaar; groen = marges."))
         self.design_view = DesignView(self.engine)
-        h2 = QLabel(f"PRINTERRASTER  ·  {self.profile.printhead_px} × "
-                    f"{self.profile.label_length_px} DOTS")
+        h2 = QLabel(tr("PRINTERRASTER  ·  {w} × {h} DOTS", w=self.profile.printhead_px,
+                       h=self.profile.label_length_px))
         h2.setObjectName("caption")
-        h2.setToolTip("1-bit: exact de dots die geprint worden, op de plek waar ze op het "
-                      "etiket komen (inclusief je kalibratie).")
+        h2.setToolTip(tr("1-bit: exact de dots die geprint worden, op de plek waar ze op het "
+                         "etiket komen (inclusief je kalibratie)."))
         self.raster_view = RasterView(self.engine)
         self.warnings = QLabel()
         self.warnings.setObjectName("pill")
@@ -339,21 +341,22 @@ class MainWindow(QMainWindow):
         row.setContentsMargins(12, 6, 12, 8)
         row.setSpacing(4)
         self.guides = QToolButton()
-        self.guides.setText("Hulplijnen")
-        self.guides.setToolTip("Printbaar gebied en marges tonen")
+        self.guides.setText(tr("Hulplijnen"))
+        self.guides.setToolTip(tr("Printbaar gebied en marges tonen"))
         self.guides.setCheckable(True)
         self.guides.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
         self.guides.setChecked(self.settings.show_printable_area)
         self.native = QToolButton()
-        self.native.setText("Native {} × {}".format(*self.profile.native_raster_size))
-        self.native.setToolTip("Printerraster in de oriëntatie van de printkop tonen")
+        self.native.setText(tr("Native {w} × {h}", w=self.profile.native_raster_size[0],
+                               h=self.profile.native_raster_size[1]))
+        self.native.setToolTip(tr("Printerraster in de oriëntatie van de printkop tonen"))
         self.native.setCheckable(True)
         self.native.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
         self.native.setChecked(self.settings.show_native_raster)
         self.zoom_out = QToolButton()
-        self.zoom_out.setToolTip("Uitzoomen")
+        self.zoom_out.setToolTip(tr("Uitzoomen"))
         self.zoom_in = QToolButton()
-        self.zoom_in.setToolTip("Inzoomen")
+        self.zoom_in.setToolTip(tr("Inzoomen"))
         self.zoom = QSlider(Qt.Orientation.Horizontal)
         self.zoom.setRange(6, 40)
         self.zoom.setValue(int(self.settings.zoom))
@@ -404,76 +407,94 @@ class MainWindow(QMainWindow):
             menu.addAction(a)
             return a
 
-        m = mb.addMenu("&Bestand")
-        act(m, "Nieuw label", self.new_label, QKeySequence.StandardKey.New)
-        self.act_save = act(m, "Label opslaan", self.save_current, QKeySequence.StandardKey.Save)
-        self.act_revert = act(m, "Wijzigingen herstellen", self.revert_current)
+        m = mb.addMenu(tr("&Bestand"))
+        act(m, tr("Nieuw label"), self.new_label, QKeySequence.StandardKey.New)
+        self.act_save = act(m, tr("Label opslaan"), self.save_current, QKeySequence.StandardKey.Save)
+        self.act_revert = act(m, tr("Wijzigingen herstellen"), self.revert_current)
         m.addSeparator()
-        act(m, "Bibliotheek importeren (JSON)…", self.import_json)
-        act(m, "Bibliotheek exporteren (JSON)…", self.export_json)
-        act(m, "Labels importeren (CSV)…", self.import_csv)
-        act(m, "Labels exporteren (CSV)…", self.export_csv)
+        act(m, tr("Bibliotheek importeren (JSON)…"), self.import_json)
+        act(m, tr("Bibliotheek exporteren (JSON)…"), self.export_json)
+        act(m, tr("Labels importeren (CSV)…"), self.import_csv)
+        act(m, tr("Labels exporteren (CSV)…"), self.export_csv)
         m.addSeparator()
-        act(m, "Selectie exporteren als PNG…", self.export_png)
-        act(m, "Selectie exporteren als PDF…", self.export_pdf)
-        act(m, "Huidig label exporteren als SVG…", self.export_svg)
+        act(m, tr("Selectie exporteren als PNG…"), self.export_png)
+        act(m, tr("Selectie exporteren als PDF…"), self.export_pdf)
+        act(m, tr("Huidig label exporteren als SVG…"), self.export_svg)
         m.addSeparator()
-        act(m, "Back-up maken…", self.backup)
-        act(m, "Back-up herstellen…", self.restore)
-        act(m, "Datamap openen", lambda: QDesktopServices.openUrl(
+        act(m, tr("Back-up maken…"), self.backup)
+        act(m, tr("Back-up herstellen…"), self.restore)
+        act(m, tr("Datamap openen"), lambda: QDesktopServices.openUrl(
             QUrl.fromLocalFile(str(data_dir()))))
         m.addSeparator()
-        act(m, "Afsluiten", self.close, QKeySequence.StandardKey.Quit)
+        act(m, tr("Afsluiten"), self.close, QKeySequence.StandardKey.Quit)
 
-        m = mb.addMenu("Be&werken")
+        m = mb.addMenu(tr("Be&werken"))
         m.addAction(self.act_undo)
         m.addAction(self.act_redo)
 
-        m = mb.addMenu("&Label")
-        act(m, "Nieuw", self.new_label)
-        act(m, "Dupliceren", self.duplicate_label, "Ctrl+D")
-        act(m, "Hernoemen…", self.rename_label, "F2")
-        act(m, "Verwijderen", self.delete_labels)
+        m = mb.addMenu(tr("&Label"))
+        act(m, tr("Nieuw"), self.new_label)
+        act(m, tr("Dupliceren"), self.duplicate_label, "Ctrl+D")
+        act(m, tr("Hernoemen…"), self.rename_label, "F2")
+        act(m, tr("Verwijderen"), self.delete_labels)
 
-        m = mb.addMenu("&Afdrukken")
-        self.act_print = act(m, "Huidig label…", self.print_current, QKeySequence.StandardKey.Print)
-        act(m, "Geselecteerde labels…", self.print_selected, "Ctrl+Shift+P")
-        act(m, "Alle labels uit categorie…", self.print_category)
-        act(m, "Alle labels…", self.print_all)
+        m = mb.addMenu(tr("&Afdrukken"))
+        self.act_print = act(m, tr("Huidig label…"), self.print_current, QKeySequence.StandardKey.Print)
+        act(m, tr("Geselecteerde labels…"), self.print_selected, "Ctrl+Shift+P")
+        act(m, tr("Alle labels uit categorie…"), self.print_category)
+        act(m, tr("Alle labels…"), self.print_all)
         m.addSeparator()
-        act(m, "Testlabel", self.print_test_label)
-        act(m, "Kalibratietest", self.print_calibration)
+        act(m, tr("Testlabel"), self.print_test_label)
+        act(m, tr("Kalibratietest"), self.print_calibration)
 
-        m = mb.addMenu("&Printer")
-        act(m, "Zoeken naar printers", self._scan)
-        act(m, "Verbinden", lambda: self._connect(self.printer_panel.selected_address()))
-        act(m, "Verbreken", self._disconnect)
-        act(m, "Status vernieuwen", self._refresh)
+        m = mb.addMenu(tr("&Printer"))
+        act(m, tr("Zoeken naar printers"), self._scan)
+        act(m, tr("Verbinden"), lambda: self._connect(self.printer_panel.selected_address()))
+        act(m, tr("Verbreken"), self._disconnect)
+        act(m, tr("Status vernieuwen"), self._refresh)
         m.addSeparator()
-        act(m, "Kalibratie-instellingen…", self.calibration_settings)
+        act(m, tr("Kalibratie-instellingen…"), self.calibration_settings)
         m.addSeparator()
-        act(m, "Printwachtrij tonen", lambda: (self.queue_dock.show(), self.queue_dock.raise_()))
+        act(m, tr("Printwachtrij tonen"), lambda: (self.queue_dock.show(), self.queue_dock.raise_()))
 
 
-        m = mb.addMenu("&Weergave")
+        m = mb.addMenu(tr("&Weergave"))
         m.addAction(self.guides.text(), self.guides.toggle)
-        m.addAction("Printwachtrij", lambda: self.queue_dock.setVisible(
+        m.addAction(tr("Printwachtrij"), lambda: self.queue_dock.setVisible(
             not self.queue_dock.isVisible()))
         m.addSeparator()
-        tm = m.addMenu("Thema")
+        tm = m.addMenu(tr("Thema"))
         group = QActionGroup(self)
         for key, text in theme.THEMES.items():
-            a = tm.addAction(text)
+            a = tm.addAction(tr(text))
             a.setCheckable(True)
             a.setChecked(key == self.settings.theme)
             a.triggered.connect(lambda _c=False, k=key: self.set_theme(k))
             group.addAction(a)
+        lm = m.addMenu(tr("Taal / Language"))
+        langs = QActionGroup(self)
+        for key, text in LANGUAGES.items():
+            a = lm.addAction(tr(text))
+            a.setCheckable(True)
+            a.setChecked(key == self.settings.language)
+            a.triggered.connect(lambda _c=False, k=key: self.set_language(k))
+            langs.addAction(a)
 
-        m = mb.addMenu("&Help")
-        act(m, "Log tonen", self.show_log, "Ctrl+L")
-        act(m, "Logmap openen", lambda: QDesktopServices.openUrl(
+        m = mb.addMenu(tr("&Help"))
+        act(m, tr("Log tonen"), self.show_log, "Ctrl+L")
+        act(m, tr("Logmap openen"), lambda: QDesktopServices.openUrl(
             QUrl.fromLocalFile(str(log_dir()))))
-        act(m, f"Over {APP_NAME}", self.about)
+        act(m, tr("Over {app}", app=APP_NAME), self.about)
+
+    def set_language(self, choice: str) -> None:
+        if choice == self.settings.language:
+            return
+        self.settings.language = choice
+        self._save_settings()
+        if resolve_language(choice) != language():
+            # every text is built once; a restart applies the new language everywhere
+            QMessageBox.information(self, APP_NAME, tr(
+                "De nieuwe taal wordt gebruikt zodra je {app} opnieuw start.", app=APP_NAME))
 
     def set_theme(self, mode: str) -> None:
         self.settings.theme = mode
@@ -586,15 +607,15 @@ class MainWindow(QMainWindow):
     def _ask_unsaved(self, lbl: Label) -> str:
         """Ask what to do with unsaved changes: 'save', 'discard' or 'cancel'."""
         box = QMessageBox(QMessageBox.Icon.Question, APP_NAME,
-                          f"Wijzigingen in “{lbl.name}” opslaan?", parent=self)
-        box.setInformativeText("Je wijzigingen gaan verloren als je ze niet opslaat.")
+                          tr("Wijzigingen in “{name}” opslaan?", name=lbl.name), parent=self)
+        box.setInformativeText(tr("Je wijzigingen gaan verloren als je ze niet opslaat."))
         box.setStandardButtons(QMessageBox.StandardButton.Save
                                | QMessageBox.StandardButton.Discard
                                | QMessageBox.StandardButton.Cancel)
         box.setDefaultButton(QMessageBox.StandardButton.Save)
-        box.button(QMessageBox.StandardButton.Discard).setText("Niet opslaan")
-        box.button(QMessageBox.StandardButton.Cancel).setText("Annuleren")
-        box.button(QMessageBox.StandardButton.Save).setText("Opslaan")
+        box.button(QMessageBox.StandardButton.Discard).setText(tr("Niet opslaan"))
+        box.button(QMessageBox.StandardButton.Cancel).setText(tr("Annuleren"))
+        box.button(QMessageBox.StandardButton.Save).setText(tr("Opslaan"))
         result = box.exec()
         if result == QMessageBox.StandardButton.Save:
             return "save"
@@ -616,7 +637,7 @@ class MainWindow(QMainWindow):
     def _update_dirty(self) -> None:
         dirty = self.is_dirty()
         self.setWindowModified(dirty)
-        self.dirty_lbl.setText("● Niet opgeslagen" if dirty else "")
+        self.dirty_lbl.setText(tr("● Niet opgeslagen") if dirty else "")
         self.save_btn.setEnabled(dirty)
         self.revert_btn.setEnabled(dirty)
         self.act_save.setEnabled(dirty)
@@ -646,8 +667,9 @@ class MainWindow(QMainWindow):
                 finally:
                     self._switching = False
                 if changed:
-                    where = self.current.category or "Alle categorieën"
-                    self.statusBar().showMessage(f"Opgeslagen en verplaatst naar {where}", 4000)
+                    where = self.current.category or tr("Alle categorieën")
+                    self.statusBar().showMessage(
+                        tr("Opgeslagen en verplaatst naar {where}", where=where), 4000)
             else:
                 self.library_panel.refresh()
         else:
@@ -660,7 +682,7 @@ class MainWindow(QMainWindow):
             return
         self._open(self.current.id)
         self._record()
-        self.statusBar().showMessage("Wijzigingen hersteld", 2000)
+        self.statusBar().showMessage(tr("Wijzigingen hersteld"), 2000)
 
     def _with_draft(self, labels: list[Label]) -> list[Label]:
         """*labels* with the open label replaced by its draft (print what you see)."""
@@ -669,7 +691,7 @@ class MainWindow(QMainWindow):
 
     def _update_title(self) -> None:
         lbl = self.current
-        self.title_lbl.setText(lbl.name if lbl else "Geen label geselecteerd")
+        self.title_lbl.setText(lbl.name if lbl else tr("Geen label geselecteerd"))
         self.subtitle_lbl.setText("  ·  ".join(x for x in (lbl.tray_id, lbl.category) if x)
                                   if lbl else "")
         for a in (self.act_dup, self.act_rename, self.act_del):
@@ -704,7 +726,7 @@ class MainWindow(QMainWindow):
             self.warnings.setText("<br>".join(f"⚠&nbsp; {w}" for w in r.warnings))
         else:
             self.warnings.setProperty("state", "ok")
-            self.warnings.setText("✓&nbsp; Alle tekst valt binnen het printbare gebied")
+            self.warnings.setText("✓&nbsp; " + tr("Alle tekst valt binnen het printbare gebied"))
         self.warnings.style().unpolish(self.warnings)
         self.warnings.style().polish(self.warnings)
 
@@ -720,10 +742,11 @@ class MainWindow(QMainWindow):
     def save_library(self) -> None:
         try:
             self.library.save()
-            self.statusBar().showMessage("Opgeslagen", 1500)
+            self.statusBar().showMessage(tr("Opgeslagen"), 1500)
         except OSError as exc:
             log.exception("Opslaan mislukt")
-            QMessageBox.critical(self, APP_NAME, f"Bibliotheek opslaan mislukt:\n{exc}")
+            QMessageBox.critical(self, APP_NAME,
+                                 tr("Bibliotheek opslaan mislukt:\n{error}", error=exc))
 
     def _save_view_settings(self) -> None:
         s = self.settings
@@ -766,10 +789,10 @@ class MainWindow(QMainWindow):
         self.act_redo.setEnabled(self.history.can_redo())
 
     def undo(self) -> None:
-        self._apply_snapshot(self.history.undo(), "Ongedaan gemaakt")
+        self._apply_snapshot(self.history.undo(), tr("Ongedaan gemaakt"))
 
     def redo(self) -> None:
-        self._apply_snapshot(self.history.redo(), "Opnieuw uitgevoerd")
+        self._apply_snapshot(self.history.redo(), tr("Opnieuw uitgevoerd"))
 
     def _apply_snapshot(self, state: Snapshot | None, message: str) -> None:
         if state is None:
@@ -809,10 +832,10 @@ class MainWindow(QMainWindow):
         return super().eventFilter(obj, event)
 
     def new_label(self) -> None:
-        cat = self.library_panel.category.currentText()
-        cat = "" if cat == ALL_CATEGORIES else cat
-        lbl = make_label("", cat, "Nieuw label", "")
-        lbl.name = "Nieuw label"
+        combo = self.library_panel.category
+        cat = combo.currentText() if combo.currentIndex() > 0 else ""
+        lbl = make_label("", cat, tr("Nieuw label"), "")
+        lbl.name = tr("Nieuw label")
         self.library.add(lbl)
         self.library_panel.pin(lbl.id)  # visible even when a search is active
         self._after_library_change([lbl.id])
@@ -830,7 +853,7 @@ class MainWindow(QMainWindow):
     def rename_label(self) -> None:
         if self.current is None:
             return
-        name, ok = QInputDialog.getText(self, "Label hernoemen", "Nieuwe naam:",
+        name, ok = QInputDialog.getText(self, tr("Label hernoemen"), tr("Nieuwe naam:"),
                                         text=self.current.name)
         if ok and name.strip():
             # renaming is a library action: saved at once, draft keeps its other edits
@@ -847,9 +870,10 @@ class MainWindow(QMainWindow):
         if not ids:
             return
         names = ", ".join(self.library.get(i).name for i in ids[:5] if self.library.get(i))
-        more = f" en {len(ids) - 5} andere" if len(ids) > 5 else ""
-        if QMessageBox.question(self, "Verwijderen", f"{len(ids)} label(s) verwijderen?\n\n"
-                                f"{names}{more}") != QMessageBox.StandardButton.Yes:
+        more = tr(" en {n} andere", n=len(ids) - 5) if len(ids) > 5 else ""
+        if QMessageBox.question(self, tr("Verwijderen"),
+                                tr("{n} label(s) verwijderen?", n=len(ids)) + f"\n\n{names}{more}"
+                                ) != QMessageBox.StandardButton.Yes:
             return
         visible = self.library_panel.visible_ids()
         nxt = next((i for i in visible[visible.index(ids[-1]) + 1:] if i not in ids), None) \
@@ -875,7 +899,7 @@ class MainWindow(QMainWindow):
             return
         st = self.bridge.state
         printer_text = (f"{st.backend_name}" + (f" ({st.address})" if st.address else "")
-                        if self._connected() else "niet verbonden")
+                        if self._connected() else tr("niet verbonden"))
         dlg = PrintPreviewDialog(self.engine, labels, self.printer_panel.copies.value(),
                                  self.printer_panel.density.currentIndex(), printer_text,
                                  self._connected(), self)
@@ -889,7 +913,7 @@ class MainWindow(QMainWindow):
 
     def _submit(self, jobs: list[PrintJob]) -> None:
         if not self._connected():
-            QMessageBox.warning(self, APP_NAME, "Er is geen printer verbonden.")
+            QMessageBox.warning(self, APP_NAME, tr("Er is geen printer verbonden."))
             return
         self.queue_dock.show()
         self.bridge.track("enqueue", self.bridge.manager.enqueue(jobs))
@@ -902,7 +926,7 @@ class MainWindow(QMainWindow):
 
     def _resume_queue(self) -> None:
         if not self._connected():
-            QMessageBox.warning(self, APP_NAME, "Verbind eerst de printer opnieuw.")
+            QMessageBox.warning(self, APP_NAME, tr("Verbind eerst de printer opnieuw."))
             return
         self.bridge.manager.queue_call("resume")
 
@@ -923,7 +947,7 @@ class MainWindow(QMainWindow):
         if not cats:
             return
         cur = self.current.category if self.current and self.current.category in cats else cats[0]
-        cat, ok = QInputDialog.getItem(self, "Categorie afdrukken", "Categorie:", cats,
+        cat, ok = QInputDialog.getItem(self, tr("Categorie afdrukken"), tr("Categorie:"), cats,
                                        cats.index(cur), False)
         if ok:
             self.print_labels(self._with_draft(self.library.by_category(cat)))
@@ -939,13 +963,13 @@ class MainWindow(QMainWindow):
             return
         d = self.printer_panel.density.currentIndex()
         lbl = test_label(self.profile.densities[d])
-        self._submit([PrintJob("test", "Testlabel", self.engine.render(lbl).raster, 1, d)])
+        self._submit([PrintJob("test", tr("Testlabel"), self.engine.render(lbl).raster, 1, d)])
 
     def print_calibration(self) -> None:
         if not self._guard():
             return
         _mono, raster = calibration_raster(self.engine)
-        self._submit([PrintJob("calibration", "Kalibratietest", raster, 1,
+        self._submit([PrintJob("calibration", tr("Kalibratietest"), raster, 1,
                                self.printer_panel.density.currentIndex())])
 
     def calibration_settings(self) -> None:
@@ -992,28 +1016,29 @@ class MainWindow(QMainWindow):
             return
         self.settings.printer_model = key
         self._save_settings()
-        QMessageBox.information(self, APP_NAME, f"Printer gewijzigd in "
-                                f"{get_model(key).display_name}. Start {APP_NAME} opnieuw "
-                                "om dit model te gebruiken.")
+        QMessageBox.information(self, APP_NAME, tr(
+            "Printer gewijzigd in {model}. Start {app} opnieuw om dit model te gebruiken.",
+            model=get_model(key).display_name, app=APP_NAME))
 
     def on_printer_state(self, st: PrinterState) -> None:
         self.printer_panel.set_state(st)
         t = theme.tokens()
-        text, tone = {ConnectionState.CONNECTED: ("Verbonden", t.success),
-                      ConnectionState.CONNECTING: ("Verbinden…", t.warning),
-                      ConnectionState.ERROR: ("Printerfout", t.danger),
-                      ConnectionState.DISCONNECTED: ("Geen printer", t.muted)}[st.connection]
+        text, tone = {ConnectionState.CONNECTED: (tr("Verbonden"), t.success),
+                      ConnectionState.CONNECTING: (tr("Verbinden…"), t.warning),
+                      ConnectionState.ERROR: (tr("Printerfout"), t.danger),
+                      ConnectionState.DISCONNECTED: (tr("Geen printer"), t.muted)}[st.connection]
         chip = text
         if st.connection == ConnectionState.CONNECTED and st.info:
             chip = st.info.model or text
         if st.simulated:
-            text += " (simulatie)"
-            if "simulatie" not in chip:
-                chip += " · simulatie"
+            sim = tr("simulatie")
+            text = tr("{state} (simulatie)", state=text)
+            if sim not in chip:
+                chip += f" · {sim}"
         battery = (st.info.battery if st.info and st.connection == ConnectionState.CONNECTED
                    else None)
         if battery is not None:
-            text += f" · batterij {battery}%"
+            text += tr(" · batterij {pct}%", pct=battery)
             chip += f" · {battery}%"
         self.printer_status.setText(text)
         self.printer_chip.setText(chip)
@@ -1026,13 +1051,14 @@ class MainWindow(QMainWindow):
     def _update_queue_button(self, snap: object = None) -> None:
         snap = snap or self.bridge.queue_snapshot()
         busy = snap.pending + (1 if snap.running else 0)
-        self.queue_btn.setText(f"Wachtrij  {busy}" if busy else "Wachtrij")
+        self.queue_btn.setText(tr("Wachtrij  {n}", n=busy) if busy else tr("Wachtrij"))
 
     def on_task_finished(self, tag: str, result: object, exc: object) -> None:
         if tag == "scan":
             self.printer_panel.scan_finished()
         if tag == "enqueue" and isinstance(result, list):
-            self.statusBar().showMessage(f"{len(result)} opdracht(en) in de wachtrij", 3000)
+            self.statusBar().showMessage(
+                tr("{n} opdracht(en) in de wachtrij", n=len(result)), 3000)
         if exc is not None:
             log.info("Taak %s mislukt: %s", tag, exc)
             self.statusBar().showMessage(f"{exc}", 8000)
@@ -1043,7 +1069,7 @@ class MainWindow(QMainWindow):
         return self._selected_in_view_order() or self._with_draft(self.library.labels)
 
     def import_json(self) -> None:
-        path, _ = QFileDialog.getOpenFileName(self, "Bibliotheek importeren", "", "JSON (*.json)")
+        path, _ = QFileDialog.getOpenFileName(self, tr("Bibliotheek importeren"), "", "JSON (*.json)")
         if not path:
             return
         try:
@@ -1051,19 +1077,19 @@ class MainWindow(QMainWindow):
         except LibraryError as exc:
             QMessageBox.critical(self, APP_NAME, str(exc))
             return
-        box = QMessageBox(QMessageBox.Icon.Question, "Importeren",
-                          f"{len(labels)} labels gevonden. Samenvoegen met de huidige "
-                          f"bibliotheek of de bibliotheek vervangen?", parent=self)
-        merge = box.addButton("Samenvoegen", QMessageBox.ButtonRole.AcceptRole)
-        replace = box.addButton("Vervangen", QMessageBox.ButtonRole.DestructiveRole)
+        box = QMessageBox(QMessageBox.Icon.Question, tr("Importeren"),
+                          tr("{n} labels gevonden. Samenvoegen met de huidige bibliotheek of "
+                             "de bibliotheek vervangen?", n=len(labels)), parent=self)
+        merge = box.addButton(tr("Samenvoegen"), QMessageBox.ButtonRole.AcceptRole)
+        replace = box.addButton(tr("Vervangen"), QMessageBox.ButtonRole.DestructiveRole)
         box.addButton(QMessageBox.StandardButton.Cancel)
         box.exec()
         if box.clickedButton() is merge:
             added, updated = self.library.merge(labels)
-            msg = f"{added} toegevoegd, {updated} bijgewerkt"
+            msg = tr("{added} toegevoegd, {updated} bijgewerkt", added=added, updated=updated)
         elif box.clickedButton() is replace:
             self.library.replace_all(labels)
-            msg = f"Bibliotheek vervangen ({len(labels)} labels)"
+            msg = tr("Bibliotheek vervangen ({n} labels)", n=len(labels))
         else:
             return
         self._after_library_change()
@@ -1072,62 +1098,67 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage(msg, 5000)
 
     def export_json(self) -> None:
-        path, _ = QFileDialog.getSaveFileName(self, "Bibliotheek exporteren",
+        path, _ = QFileDialog.getSaveFileName(self, tr("Bibliotheek exporteren"),
                                               "etiknivo-bibliotheek.json", "JSON (*.json)")
         if path:
             lio.export_json(self.library.labels, Path(path))
-            self.statusBar().showMessage(f"{len(self.library)} labels geëxporteerd", 4000)
+            self.statusBar().showMessage(tr("{n} labels geëxporteerd", n=len(self.library)),
+                                         4000)
 
     def import_csv(self) -> None:
-        path, _ = QFileDialog.getOpenFileName(self, "CSV importeren", "", "CSV (*.csv *.txt)")
+        path, _ = QFileDialog.getOpenFileName(self, tr("CSV importeren"), "", "CSV (*.csv *.txt)")
         if not path:
             return
         labels, errors = lio.import_csv(Path(path))
         for lbl in labels:
             self.library.add(lbl)
         self._after_library_change([lbl.id for lbl in labels])
-        msg = f"{len(labels)} labels geïmporteerd."
+        msg = tr("{n} labels geïmporteerd.", n=len(labels))
         if errors:
-            msg += "\n\nProblemen:\n" + "\n".join(errors[:20])
-        QMessageBox.information(self, "CSV-import", msg)
+            msg += "\n\n" + tr("Problemen:") + "\n" + "\n".join(errors[:20])
+        QMessageBox.information(self, tr("CSV-import"), msg)
 
     def export_csv(self) -> None:
-        path, _ = QFileDialog.getSaveFileName(self, "CSV exporteren", "etiknivo-labels.csv",
+        path, _ = QFileDialog.getSaveFileName(self, tr("CSV exporteren"), "etiknivo-labels.csv",
                                               "CSV (*.csv)")
         if path:
             lio.export_csv(self._selected_or_all(), Path(path))
-            self.statusBar().showMessage("CSV geëxporteerd", 4000)
+            self.statusBar().showMessage(tr("CSV geëxporteerd"), 4000)
 
     def export_png(self) -> None:
         labels = self._selected_or_all()
-        directory = QFileDialog.getExistingDirectory(self, f"Map kiezen voor {len(labels)} PNG's")
+        directory = QFileDialog.getExistingDirectory(
+            self, tr("Map kiezen voor {n} PNG's", n=len(labels)))
         if not directory:
             return
-        box = QMessageBox(QMessageBox.Icon.Question, "PNG-export",
-                          "Welke weergave exporteren?", parent=self)
+        box = QMessageBox(QMessageBox.Icon.Question, tr("PNG-export"),
+                          tr("Welke weergave exporteren?"), parent=self)
         dw, dh = self.engine.design_size
         rw, rh = self.profile.native_raster_size
-        design = box.addButton(f"Ontwerp ({dw} × {dh}, 4× vergroot)",
+        design = box.addButton(tr("Ontwerp ({w} × {h}, 4× vergroot)", w=dw, h=dh),
                                QMessageBox.ButtonRole.AcceptRole)
-        box.addButton(f"Printerraster ({rw} × {rh}, 1:1)", QMessageBox.ButtonRole.AcceptRole)
+        box.addButton(tr("Printerraster ({w} × {h}, 1:1)", w=rw, h=rh),
+                      QMessageBox.ButtonRole.AcceptRole)
         box.exec()
         view, scale = ((ExportView.DESIGN, 4) if box.clickedButton() is design
                        else (ExportView.RASTER, 1))
         paths = export_pngs(self.engine, labels, Path(directory), view, scale)
-        self.statusBar().showMessage(f"{len(paths)} PNG's opgeslagen in {directory}", 5000)
+        self.statusBar().showMessage(
+            tr("{n} PNG's opgeslagen in {folder}", n=len(paths), folder=directory), 5000)
 
     def export_pdf(self) -> None:
         labels = self._selected_or_all()
-        path, _ = QFileDialog.getSaveFileName(self, "PDF exporteren", "etiknivo-labels.pdf",
+        path, _ = QFileDialog.getSaveFileName(self, tr("PDF exporteren"), "etiknivo-labels.pdf",
                                               "PDF (*.pdf)")
         if path:
             export_pdf(self.engine, labels, Path(path))
-            self.statusBar().showMessage(f"PDF met {len(labels)} pagina's opgeslagen", 4000)
+            self.statusBar().showMessage(tr("PDF met {n} pagina's opgeslagen", n=len(labels)),
+                                         4000)
 
     def export_svg(self) -> None:
         if self.current is None:
             return
-        path, _ = QFileDialog.getSaveFileName(self, "SVG exporteren",
+        path, _ = QFileDialog.getSaveFileName(self, tr("SVG exporteren"),
                                               f"{safe_filename(self.current)}.svg", "SVG (*.svg)")
         if path:
             export_svg(self.engine, self.current, Path(path))
@@ -1135,18 +1166,20 @@ class MainWindow(QMainWindow):
     def backup(self) -> None:
         self.save_library()
         self._save_settings()
-        path, _ = QFileDialog.getSaveFileName(self, "Back-up maken", lio.default_backup_name(),
+        path, _ = QFileDialog.getSaveFileName(self, tr("Back-up maken"), lio.default_backup_name(),
                                               "Zip (*.zip)")
         if path:
             files = lio.create_backup(data_dir(), Path(path))
-            self.statusBar().showMessage(f"Back-up gemaakt ({', '.join(files)})", 5000)
+            self.statusBar().showMessage(tr("Back-up gemaakt ({files})", files=", ".join(files)),
+                                         5000)
 
     def restore(self) -> None:
-        path, _ = QFileDialog.getOpenFileName(self, "Back-up herstellen", "", "Zip (*.zip)")
+        path, _ = QFileDialog.getOpenFileName(self, tr("Back-up herstellen"), "", "Zip (*.zip)")
         if not path:
             return
-        if QMessageBox.question(self, "Herstellen", "De huidige bibliotheek en instellingen "
-                                "worden overschreven. Doorgaan?") != QMessageBox.StandardButton.Yes:
+        if QMessageBox.question(self, tr("Herstellen"), tr(
+                "De huidige bibliotheek en instellingen worden overschreven. Doorgaan?")
+                ) != QMessageBox.StandardButton.Yes:
             return
         try:
             lio.restore_backup(Path(path), data_dir())
@@ -1162,7 +1195,7 @@ class MainWindow(QMainWindow):
         first = self.library_panel.visible_ids()
         if first:
             self.library_panel.select_ids([first[0]])
-        self.statusBar().showMessage("Back-up hersteld", 5000)
+        self.statusBar().showMessage(tr("Back-up hersteld"), 5000)
 
     def show_log(self) -> None:
         if self._log_window is None or not self._log_window.isVisible():
@@ -1181,7 +1214,7 @@ class MainWindow(QMainWindow):
     def closeEvent(self, event: QCloseEvent) -> None:  # noqa: N802
         snap = self.bridge.queue_snapshot()
         if snap.running or snap.pending and not snap.paused:
-            if QMessageBox.question(self, APP_NAME, "Er wordt nog geprint. Toch afsluiten?") \
+            if QMessageBox.question(self, APP_NAME, tr("Er wordt nog geprint. Toch afsluiten?")) \
                     != QMessageBox.StandardButton.Yes:
                 event.ignore()
                 return

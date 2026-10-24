@@ -20,19 +20,26 @@ from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any
 
+from etiknivo.i18n import N_, tr
+
 SCHEMA_VERSION = 1
 
 #: Slot indices.  Slot 0 is the small top line (usually the category),
 #: slot 1 the large main line, slot 2 the specification line.
 SLOT_TOP, SLOT_MAIN, SLOT_BOTTOM = 0, 1, 2
-SLOT_NAMES = ("Bovenregel", "Hoofdregel", "Onderregel")
+SLOT_NAMES = (N_("Bovenregel"), N_("Hoofdregel"), N_("Onderregel"))  # tr() when shown
 
 DEFAULT_FONT = "DejaVu Sans"
 
 #: ``{Name}`` in a text line shows the value of that field on the label.
 FIELD_RE = re.compile(r"\{([^{}\n]+)\}")
-#: Fields every label has, besides its own specifications.
-BUILTIN_FIELDS = ("Naam", "Lade", "Categorie")
+#: Fields every label has, besides its own specifications: shown name and the
+#: names it answers to in either language.
+BUILTIN_FIELDS = {
+    "name": (N_("Naam"), ("naam", "name")),
+    "tray_id": (N_("Lade"), ("lade", "tray")),
+    "category": (N_("Categorie"), ("categorie", "category")),
+}
 
 
 class HAlign(StrEnum):
@@ -57,10 +64,10 @@ class LayoutPreset(StrEnum):
 
 
 LAYOUT_TITLES: dict[LayoutPreset, str] = {
-    LayoutPreset.SINGLE: "1 · Alleen grote naam",
-    LayoutPreset.MAIN_SPEC: "2 · Naam + specificatie",
-    LayoutPreset.CATEGORY_MAIN_SPEC: "3 · Categorie + naam + specificatie",
-    LayoutPreset.CUSTOM: "Aangepast",
+    LayoutPreset.SINGLE: N_("1 · Alleen grote naam"),
+    LayoutPreset.MAIN_SPEC: N_("2 · Naam + specificatie"),
+    LayoutPreset.CATEGORY_MAIN_SPEC: N_("3 · Categorie + naam + specificatie"),
+    LayoutPreset.CUSTOM: N_("Aangepast"),
 }
 
 
@@ -172,11 +179,13 @@ class Label:
     def field_names(self) -> list[str]:
         """Names usable as ``{Name}``: the specifications, then the built-ins."""
         own = [k for k in self.specs if k]
-        return own + [b for b in BUILTIN_FIELDS if b.casefold() not in
-                      {k.casefold() for k in own}]
+        taken = {k.casefold() for k in own}
+        return own + [tr(shown) for shown, _ in BUILTIN_FIELDS.values()
+                      if tr(shown).casefold() not in taken]
 
     def field_values(self) -> dict[str, str]:
-        values = {"naam": self.name, "lade": self.tray_id, "categorie": self.category}
+        values = {alias: getattr(self, attr) for attr, (_, aliases) in BUILTIN_FIELDS.items()
+                  for alias in aliases}
         values.update({k.strip().casefold(): v for k, v in self.specs.items()})
         return values
 

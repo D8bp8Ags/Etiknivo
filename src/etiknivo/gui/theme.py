@@ -23,7 +23,9 @@ from PySide6.QtGui import QColor, QGuiApplication, QIcon, QPainter, QPalette, QP
 from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtWidgets import QApplication
 
-THEMES = {"system": "Systeem", "light": "Licht", "dark": "Donker"}
+from etiknivo.i18n import N_
+
+THEMES = {"system": N_("Systeem"), "light": N_("Licht"), "dark": N_("Donker")}  # tr() when shown
 
 
 @dataclass(frozen=True)

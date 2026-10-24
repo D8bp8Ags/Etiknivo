@@ -11,6 +11,7 @@ from dataclasses import dataclass
 
 from PIL import Image
 
+from etiknivo.i18n import tr
 from etiknivo.printing.backend import (
     DiscoveredDevice,
     PrintCancelled,
@@ -40,7 +41,9 @@ class PrintedLabel:
 class MockPrinterBackend(PrinterBackend):
     """In-memory printer.  Failure modes can be injected by tests."""
 
-    display_name = "Simulatie (geen echte printer)"
+    @property
+    def display_name(self) -> str:  # type: ignore[override]
+        return tr("Simulatie (geen echte printer)")
     simulated = True
 
     def __init__(self, profile: PrinterProfile | None = None, *, delay: float = 0.0) -> None:
@@ -53,7 +56,8 @@ class MockPrinterBackend(PrinterBackend):
         # failure injection
         self.fail_connect: Exception | None = None
         self.fail_after_labels: int | None = None  # raise after N successful labels
-        self.fail_exception: Exception = PrinterConnectionError("Gesimuleerde Bluetooth-fout")
+        self.fail_exception: Exception = PrinterConnectionError(
+            tr("Gesimuleerde Bluetooth-fout"))
         self.calls: list[str] = []
 
     @property
@@ -67,7 +71,8 @@ class MockPrinterBackend(PrinterBackend):
     async def scan(self, timeout: float = 8.0) -> list[DiscoveredDevice]:
         self.calls.append("scan")
         await asyncio.sleep(min(self.delay, 0.2))
-        return [DiscoveredDevice(f"{self.profile.display_name} (simulatie)", MOCK_ADDRESS,
+        return [DiscoveredDevice(tr("{name} (simulatie)", name=self.profile.display_name),
+                                 MOCK_ADDRESS,
                                  -40, True)]
 
     async def connect(self, address: str | None = None) -> None:
@@ -89,7 +94,7 @@ class MockPrinterBackend(PrinterBackend):
 
     def _require(self) -> None:
         if not self._connected:
-            raise PrinterNotConnected("Geen printer verbonden")
+            raise PrinterNotConnected(tr("Geen printer verbonden"))
 
     async def get_status(self) -> PrinterStatusInfo:
         self._require()
@@ -101,7 +106,8 @@ class MockPrinterBackend(PrinterBackend):
 
     async def get_info(self) -> PrinterInfo:
         self._require()
-        return PrinterInfo(f"{self.profile.display_name} (simulatie)", "mock", "SIM-0001",
+        return PrinterInfo(tr("{name} (simulatie)", name=self.profile.display_name), "mock",
+                           "SIM-0001",
                            self.battery,
                            await self.get_status())
 
@@ -118,7 +124,7 @@ class MockPrinterBackend(PrinterBackend):
         data = raster_to_bytes(raster)
         for n in range(copies):
             if cancel is not None and cancel.is_set():
-                raise PrintCancelled("Afdrukken gestopt")
+                raise PrintCancelled(tr("Afdrukken gestopt"))
             self._require()
             status = self.status
             if not status.ok:

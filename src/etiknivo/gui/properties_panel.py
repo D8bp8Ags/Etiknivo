@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from etiknivo.i18n import N_, tr
 from etiknivo.model import (
     LAYOUT_TITLES,
     SLOT_NAMES,
@@ -31,8 +32,8 @@ from etiknivo.model import (
     VAlign,
 )
 
-ALIGN_TEXT = {HAlign.LEFT: "Links", HAlign.CENTER: "Midden", HAlign.RIGHT: "Rechts"}
-VALIGN_TEXT = {VAlign.TOP: "Boven", VAlign.CENTER: "Midden", VAlign.BOTTOM: "Onder"}
+ALIGN_TEXT = {HAlign.LEFT: N_("Links"), HAlign.CENTER: N_("Midden"), HAlign.RIGHT: N_("Rechts")}
+VALIGN_TEXT = {VAlign.TOP: N_("Boven"), VAlign.CENTER: N_("Midden"), VAlign.BOTTOM: N_("Onder")}
 
 
 def _spin(lo: float, hi: float, step: float, suffix: str, decimals: int = 1) -> QDoubleSpinBox:
@@ -51,17 +52,17 @@ class LineEditor(QGroupBox):
     changed = Signal()
 
     def __init__(self, slot: int, parent: QWidget | None = None) -> None:
-        super().__init__(SLOT_NAMES[slot], parent)
+        super().__init__(tr(SLOT_NAMES[slot]), parent)
         self.slot = slot
         self.setCheckable(True)
         self.text = QLineEdit()
-        self.text.setPlaceholderText("Tekst of {veld}…")
+        self.text.setPlaceholderText(tr("Tekst of {veld}…"))
         # inserts a {field} that shows a specification's value on the label
         self.fields: Callable[[], list[str]] = list
         self.field_btn = QToolButton()
         self.field_btn.setText("{ }")
-        self.field_btn.setToolTip("Veld invoegen: toont de waarde van een specificatie, "
-                                  "de naam, lade of categorie op het etiket")
+        self.field_btn.setToolTip(tr("Veld invoegen: toont de waarde van een specificatie, "
+                                     "de naam, lade of categorie op het etiket"))
         self.field_btn.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
         self._field_menu = QMenu(self.field_btn)
         self._field_menu.aboutToShow.connect(self._fill_field_menu)
@@ -70,11 +71,11 @@ class LineEditor(QGroupBox):
         self.font.setEditable(True)
         self.font.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
         self.size = _spin(3, 60, 0.5, " pt")
-        self.bold = QCheckBox("Vet")
-        self.italic = QCheckBox("Cursief")
+        self.bold = QCheckBox(tr("Vet"))
+        self.italic = QCheckBox(tr("Cursief"))
         self.align = QComboBox()
         for a, t in ALIGN_TEXT.items():
-            self.align.addItem(t, a)
+            self.align.addItem(tr(t), a)
         self.fitted = QLabel()
         self.fitted.setObjectName("hint")
 
@@ -84,14 +85,14 @@ class LineEditor(QGroupBox):
         text_row.setSpacing(4)
         text_row.addWidget(self.text, 1)
         text_row.addWidget(self.field_btn)
-        form.addRow("Tekst", text_row)
-        form.addRow("Lettertype", self.font)
+        form.addRow(tr("Tekst"), text_row)
+        form.addRow(tr("Lettertype"), self.font)
         row = QHBoxLayout()
         row.addWidget(self.size)
         row.addWidget(self.bold)
         row.addWidget(self.italic)
-        form.addRow("Grootte", row)
-        form.addRow("Uitlijning", self.align)
+        form.addRow(tr("Grootte"), row)
+        form.addRow(tr("Uitlijning"), self.align)
         form.addRow("", self.fitted)
 
         self.toggled.connect(self.changed)
@@ -107,7 +108,7 @@ class LineEditor(QGroupBox):
         for name in self.fields():
             self._field_menu.addAction(f"{{{name}}}", lambda n=name: self.insert_field(n))
         if not self._field_menu.actions():
-            self._field_menu.addAction("Nog geen velden").setEnabled(False)
+            self._field_menu.addAction(tr("Nog geen velden")).setEnabled(False)
 
     def insert_field(self, name: str) -> None:
         self.text.insert(f"{{{name}}}")
@@ -140,7 +141,7 @@ class PropertiesPanel(QScrollArea):
         lay.setContentsMargins(14, 0, 14, 14)
         lay.setSpacing(2)
 
-        gen = QGroupBox("Label")
+        gen = QGroupBox(tr("Label"))
         f = QFormLayout(gen)
         self.name = QLineEdit()
         self.tray = QLineEdit()
@@ -149,13 +150,13 @@ class PropertiesPanel(QScrollArea):
         self.category.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
         self.layout_combo = QComboBox()
         for preset, title in LAYOUT_TITLES.items():
-            self.layout_combo.addItem(title, preset)
-        f.addRow("Naam", self.name)
-        f.addRow("Lade-ID", self.tray)
-        f.addRow("Categorie", self.category)
-        f.addRow("Layout", self.layout_combo)
-        hint = QLabel("De lade-ID wordt niet op het etiket afgedrukt. Wisselen van layout "
-                      "bewaart de tekst van alle regels.")
+            self.layout_combo.addItem(tr(title), preset)
+        f.addRow(tr("Naam"), self.name)
+        f.addRow(tr("Lade-ID"), self.tray)
+        f.addRow(tr("Categorie"), self.category)
+        f.addRow(tr("Layout"), self.layout_combo)
+        hint = QLabel(tr("De lade-ID wordt niet op het etiket afgedrukt. Wisselen van layout "
+                         "bewaart de tekst van alle regels."))
         hint.setWordWrap(True)
         hint.setObjectName("hint")
         f.addRow(hint)
@@ -168,45 +169,45 @@ class PropertiesPanel(QScrollArea):
             lay.addWidget(le)
             le.changed.connect(lambda le=le: self._line_changed(le))
 
-        st = QGroupBox("Opmaak")
+        st = QGroupBox(tr("Opmaak"))
         f2 = QFormLayout(st)
         self.valign = QComboBox()
         for a, t in VALIGN_TEXT.items():
-            self.valign.addItem(t, a)
+            self.valign.addItem(tr(t), a)
         self.spacing = _spin(-3, 5, 0.1, " mm")
         self.margin_h = _spin(0, 10, 0.25, " mm", 2)
         self.margin_v = _spin(0, 5, 0.25, " mm", 2)
-        self.autofit = QCheckBox("Tekst automatisch passend maken")
+        self.autofit = QCheckBox(tr("Tekst automatisch passend maken"))
         self.rotation = QComboBox()
         self.rotation.addItem("0°", 0)
-        self.rotation.addItem("180° (ondersteboven)", 180)
-        self.border = QCheckBox("Rand rond printbaar gebied")
-        self.invert = QCheckBox("Wit op zwart")
-        f2.addRow("Verticaal", self.valign)
-        f2.addRow("Regelafstand", self.spacing)
-        f2.addRow("Marge horizontaal", self.margin_h)
-        f2.addRow("Marge verticaal", self.margin_v)
-        f2.addRow("Rotatie", self.rotation)
+        self.rotation.addItem(tr("180° (ondersteboven)"), 180)
+        self.border = QCheckBox(tr("Rand rond printbaar gebied"))
+        self.invert = QCheckBox(tr("Wit op zwart"))
+        f2.addRow(tr("Verticaal"), self.valign)
+        f2.addRow(tr("Regelafstand"), self.spacing)
+        f2.addRow(tr("Marge horizontaal"), self.margin_h)
+        f2.addRow(tr("Marge verticaal"), self.margin_v)
+        f2.addRow(tr("Rotatie"), self.rotation)
         f2.addRow(self.autofit)
         f2.addRow(self.border)
         f2.addRow(self.invert)
         lay.addWidget(st)
 
-        meta = QGroupBox("Specificaties en notities")
+        meta = QGroupBox(tr("Specificaties en notities"))
         f3 = QFormLayout(meta)
         self.specs = QPlainTextEdit()
-        self.specs.setPlaceholderText("Eén per regel, bv.\nSpanning: 50 V\nTolerantie: 10%")
+        self.specs.setPlaceholderText(tr("Eén per regel, bv.\nSpanning: 50 V\nTolerantie: 10%"))
         self.specs.setFixedHeight(80)
         self.notes = QPlainTextEdit()
-        self.notes.setPlaceholderText("Alleen voor jezelf, bv. waar besteld")
+        self.notes.setPlaceholderText(tr("Alleen voor jezelf, bv. waar besteld"))
         self.notes.setFixedHeight(60)
-        spec_hint = QLabel("Typ {Spanning} in een tekstregel (of gebruik de knop { }) om de "
-                           "waarde op het etiket te tonen. Pas je de specificatie aan, dan "
-                           "verandert het etiket mee. Notities komen niet op het etiket.")
+        spec_hint = QLabel(tr("Typ {Spanning} in een tekstregel (of gebruik de knop { }) om de "
+                              "waarde op het etiket te tonen. Pas je de specificatie aan, dan "
+                              "verandert het etiket mee. Notities komen niet op het etiket."))
         spec_hint.setWordWrap(True)
         spec_hint.setObjectName("hint")
-        f3.addRow("Specificaties", self.specs)
-        f3.addRow("Notities", self.notes)
+        f3.addRow(tr("Specificaties"), self.specs)
+        f3.addRow(tr("Notities"), self.notes)
         f3.addRow(spec_hint)
         lay.addWidget(meta)
         lay.addStretch(1)
@@ -288,7 +289,7 @@ class PropertiesPanel(QScrollArea):
         for le in self.lines:
             fitted = sizes.get(le.slot)
             if fitted and fitted[0] < fitted[1] - 0.05:
-                le.fitted.setText(f"Automatisch verkleind tot {fitted[0]:.1f} pt")
+                le.fitted.setText(tr("Automatisch verkleind tot {pt} pt", pt=f"{fitted[0]:.1f}"))
             else:
                 le.fitted.setText("")
 
