@@ -946,7 +946,7 @@ class MainWindow(QMainWindow):
                                self.printer_panel.density.currentIndex())])
 
     def calibration_settings(self) -> None:
-        dlg = CalibrationDialog(self.engine.calibration, self)
+        dlg = CalibrationDialog(self.engine.calibration, self, self.profile.dots_per_mm)
         if dlg.exec() == CalibrationDialog.DialogCode.Accepted:
             self.settings.calibration = dlg.calibration(self.settings.calibration)
             self.engine.calibration = self.settings.calibration

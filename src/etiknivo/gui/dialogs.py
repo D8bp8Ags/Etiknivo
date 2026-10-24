@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
     QDialog,
     QDialogButtonBox,
     QFormLayout,
+    QGroupBox,
     QHBoxLayout,
     QHeaderView,
     QLabel,
@@ -122,17 +123,53 @@ class PrintPreviewDialog(QDialog):
 
 
 class CalibrationDialog(QDialog):
-    def __init__(self, cal: Calibration, parent: QWidget | None = None) -> None:
+    """Fine-tuning of position and print quality, explained step by step."""
+
+    def __init__(self, cal: Calibration, parent: QWidget | None = None,
+                 dots_per_mm: int = 8) -> None:
         super().__init__(parent)
         self.setWindowTitle("Kalibratie")
+        self.setMinimumWidth(520)
+        self._dpm = dots_per_mm
         lay = QVBoxLayout(self)
-        info = QLabel(
-            "Druk een kalibratietest af. Het kader (26 × 12 mm) hoort met aan beide uiteinden "
-            "evenveel witruimte (ca. 2 mm) op het etiket te staan. Verschuif zo nodig. "
-            "8 dots = 1 mm. <i>Langs rol</i> = 30 mm-zijde, <i>dwars</i> = 14 mm-zijde.")
-        info.setWordWrap(True)
-        lay.addWidget(info)
-        f = QFormLayout()
+        lay.setSpacing(10)
+
+        intro = QLabel(
+            "<b>Zo kalibreer je</b>"
+            "<ol style='margin-left:-20px'>"
+            "<li>Kies <i>Afdrukken → Kalibratietest</i>. Er komt een kader met middellijnen "
+            "en een millimeterliniaal op het etiket.</li>"
+            "<li>Kijk of er links en rechts evenveel wit naast het kader staat (ongeveer 2 mm), "
+            "en boven en onder ook.</li>"
+            "<li>Staat het scheef? Verschuif hieronder, druk opnieuw af en herhaal tot het "
+            "klopt.</li></ol>"
+            "Bekende afwijkingen van je printer worden al automatisch gecorrigeerd. Meestal is "
+            "alles hier 0 goed.")
+        intro.setWordWrap(True)
+        intro.setTextFormat(Qt.TextFormat.RichText)
+        lay.addWidget(intro)
+
+        def hint(text: str) -> QLabel:
+            lbl = QLabel(text)
+            lbl.setObjectName("hint")
+            lbl.setWordWrap(True)
+            return lbl
+
+        def add(box: QVBoxLayout, title: str, control: QWidget, below: QLabel) -> None:
+            # title + control on one line, the explanation underneath it
+            line = QHBoxLayout()
+            if title:
+                cap = QLabel(title)
+                cap.setMinimumWidth(130)
+                line.addWidget(cap)
+            line.addWidget(control, 1)
+            box.addLayout(line)
+            box.addWidget(below)
+            box.addSpacing(6)
+
+        pos = QGroupBox("Positie op het etiket")
+        f = QVBoxLayout(pos)
+        f.setSpacing(3)
         self.feed = QSpinBox()
         self.feed.setRange(-40, 40)
         self.feed.setValue(cal.offset_feed_px)
@@ -141,23 +178,36 @@ class CalibrationDialog(QDialog):
         self.head.setRange(-16, 16)
         self.head.setValue(cal.offset_head_px)
         self.head.setSuffix(" dots")
+        self.feed_hint = hint("")
+        self.head_hint = hint("")
+        add(f, "Links / rechts", self.feed, self.feed_hint)
+        add(f, "Omhoog / omlaag", self.head, self.head_hint)
+        self.feed.valueChanged.connect(self._update_hints)
+        self.head.valueChanged.connect(self._update_hints)
+        lay.addWidget(pos)
+
+        quality = QGroupBox("Afdrukkwaliteit")
+        q = QVBoxLayout(quality)
+        q.setSpacing(3)
         self.threshold = QSpinBox()
         self.threshold.setRange(40, 230)
         self.threshold.setValue(cal.threshold)
-        self.threshold.setToolTip("Hoger = dikkere letters (meer zwart), lager = dunner")
         self.supersample = QComboBox()
         for n in (1, 2, 3, 4, 6, 8):
             self.supersample.addItem(f"{n}×", n)
         self.supersample.setCurrentIndex(max(0, self.supersample.findData(cal.supersample)))
-        self.clockwise = QCheckBox("Afdrukrichting omdraaien (label komt ondersteboven uit)")
+        self.clockwise = QCheckBox("Etiket ondersteboven afdrukken")
         self.clockwise.setChecked(cal.rotate_clockwise)
-        f.addRow("Verschuiving langs rol", self.feed)
-        f.addRow("Verschuiving dwars", self.head)
-        f.addRow("Zwartdrempel (0–255)", self.threshold)
-        f.addRow("Antialiasing (supersampling)", self.supersample)
-        f.addRow(self.clockwise)
-        lay.addLayout(f)
-        row = QHBoxLayout()
+        add(q, "Zwartdrempel", self.threshold, hint(
+            "Bepaalt hoe dik letters worden. Hoger = dikker en zwarter, lager = dunner. "
+            "Standaard 140; pas aan als kleine tekst dichtloopt of wegvalt."))
+        add(q, "Gladde randen", self.supersample, hint(
+            "Hoe nauwkeurig letters naar printerdots worden omgezet. 4× is scherp en snel "
+            "genoeg; hoger maakt weinig verschil."))
+        add(q, "", self.clockwise, hint(
+            "Alleen nodig als je labels op hun kop uit de printer komen."))
+        lay.addWidget(quality)
+
         bb = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok
                               | QDialogButtonBox.StandardButton.Cancel
                               | QDialogButtonBox.StandardButton.RestoreDefaults)
@@ -165,8 +215,32 @@ class CalibrationDialog(QDialog):
         bb.rejected.connect(self.reject)
         bb.button(QDialogButtonBox.StandardButton.RestoreDefaults).setText("Standaardwaarden")
         bb.button(QDialogButtonBox.StandardButton.RestoreDefaults).clicked.connect(self._defaults)
-        row.addWidget(bb)
-        lay.addLayout(row)
+        bb.button(QDialogButtonBox.StandardButton.Cancel).setText("Annuleren")
+        lay.addWidget(bb)
+        self._update_hints()
+
+    def showEvent(self, event) -> None:  # noqa: ANN001, N802 - Qt API
+        # wrapped explanations need the height that belongs to the width
+        super().showEvent(event)
+        h = self.layout().totalHeightForWidth(self.width())
+        if h > self.height():
+            self.resize(self.width(), h)
+
+    def _shift_text(self, dots: int, plus: str, minus: str, ask: str) -> str:
+        if dots == 0:
+            return f"Geen verschuiving. {ask}"
+        mm = abs(dots) / self._dpm
+        side = plus if dots > 0 else minus
+        mm_text = f"{mm:.2f}".rstrip("0").rstrip(".").replace(".", ",")
+        return f"Afdruk schuift {mm_text} mm naar {side} ({self._dpm} dots = 1 mm)."
+
+    def _update_hints(self) -> None:
+        self.feed_hint.setText(self._shift_text(
+            self.feed.value(), "rechts", "links",
+            "Meer wit links dan rechts? Kies een negatief getal; meer wit rechts: positief."))
+        self.head_hint.setText(self._shift_text(
+            self.head.value(), "onder", "boven",
+            "Meer wit boven dan onder? Kies een negatief getal; meer wit onder: positief."))
 
     def _defaults(self) -> None:
         d = Calibration()
