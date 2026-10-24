@@ -518,4 +518,21 @@ EN: dict[str, str] = {
     "Schroef": "Screw",
     "Moer": "Nut",
     "Kabel": "Cable",
+    # copy format
+    "Opmaak overnemen": "Copy format",
+    "De opmaak van <b>{name}</b> overnemen. De tekst, specificaties en notities van de andere "
+    "labels blijven zoals ze zijn.":
+        "Copy the format of <b>{name}</b>. The text, specifications and notes of the other "
+        "labels stay as they are.",
+    "Wat": "What",
+    "Op welke labels": "To which labels",
+    "Geselecteerde labels ({n})": "Selected labels ({n})",
+    "Alle labels in categorie": "All labels in category",
+    "Alle labels": "All labels",
+    "Toepassen": "Apply",
+    "Toepassen op {n} label(s)": "Apply to {n} label(s)",
+    "Opmaak overnemen…": "Copy format…",
+    "Opmaak overgenomen op {n} label(s)": "Format copied to {n} label(s)",
+    "Layout en lettertypen": "Layout and fonts",
+    "Opmaak (uitlijning, marges, rand, rotatie)": "Style (alignment, margins, border, rotation)",
 }

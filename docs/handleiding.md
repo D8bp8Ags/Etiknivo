@@ -180,6 +180,17 @@ Druk daarna opnieuw een kalibratietest af om te controleren. De Fichero begint u
 - **Dupliceren** (⌘D) maakt een kopie om snel een vergelijkbaar label te maken.
 - **Hernoemen** (F2) en **Verwijderen** werken ook op meerdere geselecteerde labels; verwijderen kun je ongedaan maken.
 
+### Opmaak overnemen
+
+Wil je dat een hele categorie er hetzelfde uitziet, maak dan één label mooi en kies **Label → Opmaak overnemen…** (of rechtsklik in de bibliotheek). Vink aan wat er mee moet:
+
+- **Layout en lettertypen**: welke regels zichtbaar zijn, lettertype, grootte, vet, cursief en uitlijning per regel.
+- **Opmaak**: verticale uitlijning, regelafstand, marges, automatisch passend maken, rotatie, rand en wit-op-zwart.
+- **QR-code of barcode**: soort, plaats en inhoud. Velden zoals `{Lade}` vullen zich per label in.
+- **Pictogram**: symbool of afbeelding en de plaats.
+
+Kies daarna op welke labels het moet: de geselecteerde labels, alle labels in een categorie, of alle labels. De knop laat zien hoeveel labels er veranderen. De tekst, specificaties en notities van die labels blijven zoals ze waren. Klopt het resultaat niet, dan zet ⌘Z alles in één keer terug.
+
 Bij de eerste start staan er 23 voorbeeldlabels voor Raaco-laden met elektronicaonderdelen in. Die kun je gewoon aanpassen of verwijderen.
 
 ## Importeren, exporteren en back-up

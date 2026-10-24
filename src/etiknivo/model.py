@@ -350,6 +350,35 @@ class Label:
         return hashlib.sha1(json.dumps(d, sort_keys=True, default=str).encode()).hexdigest()
 
 
+#: Parts of a label's look that "Opmaak overnemen" can copy; the text stays.
+FORMAT_PARTS = {
+    "layout": N_("Layout en lettertypen"),
+    "style": N_("Opmaak (uitlijning, marges, rand, rotatie)"),
+    "code": N_("QR-code of barcode"),
+    "picture": N_("Pictogram"),
+}
+
+
+def copy_format(src: Label, dst: Label, parts: set[str] | list[str]) -> None:
+    """Give *dst* the look of *src* for the chosen *parts*; texts, names,
+    specifications and notes stay as they are."""
+    if "layout" in parts:
+        dst.layout = src.layout
+        for s_line, d_line in zip(src.lines, dst.lines):
+            d_line.enabled = s_line.enabled
+            d_line.font_family = s_line.font_family
+            d_line.font_size_pt = s_line.font_size_pt
+            d_line.bold = s_line.bold
+            d_line.italic = s_line.italic
+            d_line.align = s_line.align
+    if "style" in parts:
+        dst.style = copy.deepcopy(src.style)
+    if "code" in parts:
+        dst.code = copy.deepcopy(src.code)
+    if "picture" in parts:
+        dst.picture = copy.deepcopy(src.picture)
+
+
 def make_label(
     tray_id: str,
     category: str,

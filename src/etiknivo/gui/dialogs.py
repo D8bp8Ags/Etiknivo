@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import html
+from collections.abc import Callable
 from dataclasses import replace
 from pathlib import Path
 
@@ -21,6 +23,7 @@ from PySide6.QtWidgets import (
     QHeaderView,
     QLabel,
     QPushButton,
+    QRadioButton,
     QSpinBox,
     QTableWidget,
     QTableWidgetItem,
@@ -32,7 +35,7 @@ from etiknivo import APP_NAME, __version__
 from etiknivo.gui import theme
 from etiknivo.gui.qt_util import pil_to_pixmap
 from etiknivo.i18n import N_, language, tr
-from etiknivo.model import Label
+from etiknivo.model import FORMAT_PARTS, Label
 from etiknivo.printing.profiles import LABEL_HEIGHT_RANGE, LABEL_LENGTH_RANGE, PrinterProfile
 from etiknivo.rendering.engine import RenderEngine
 from etiknivo.settings import Calibration
@@ -267,6 +270,81 @@ class CalibrationDialog(QDialog):
                        threshold=self.threshold.value(),
                        supersample=int(self.supersample.currentData()),
                        rotate_clockwise=self.clockwise.isChecked())
+
+
+class CopyFormatDialog(QDialog):
+    """'Opmaak overnemen': which parts of the open label's look go to which labels."""
+
+    def __init__(self, source: Label, selected: int, categories: list[str],
+                 count: Callable[[str, str], int], parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setWindowTitle(tr("Opmaak overnemen"))
+        self._count = count
+        lay = QVBoxLayout(self)
+        intro = QLabel(tr("De opmaak van <b>{name}</b> overnemen. De tekst, specificaties en "
+                          "notities van de andere labels blijven zoals ze zijn.",
+                          name=html.escape(source.name)))
+        intro.setWordWrap(True)
+        lay.addWidget(intro)
+
+        what = QGroupBox(tr("Wat"))
+        wl = QVBoxLayout(what)
+        self.parts: dict[str, QCheckBox] = {}
+        for key, text in FORMAT_PARTS.items():
+            box = QCheckBox(tr(text))
+            box.setChecked(key in ("layout", "style"))
+            box.toggled.connect(self._update)
+            wl.addWidget(box)
+            self.parts[key] = box
+        lay.addWidget(what)
+
+        where = QGroupBox(tr("Op welke labels"))
+        gl = QVBoxLayout(where)
+        self.on_selection = QRadioButton(tr("Geselecteerde labels ({n})", n=selected))
+        self.on_category = QRadioButton(tr("Alle labels in categorie"))
+        self.category = QComboBox()
+        self.category.addItems(categories)
+        if source.category in categories:
+            self.category.setCurrentText(source.category)
+        self.on_all = QRadioButton(tr("Alle labels"))
+        cat_row = QHBoxLayout()
+        cat_row.addWidget(self.on_category)
+        cat_row.addWidget(self.category, 1)
+        gl.addWidget(self.on_selection)
+        gl.addLayout(cat_row)
+        gl.addWidget(self.on_all)
+        self.on_selection.setEnabled(selected > 0)
+        self.on_category.setEnabled(bool(categories))
+        (self.on_selection if selected else self.on_category if categories
+         else self.on_all).setChecked(True)
+        for w in (self.on_selection, self.on_category, self.on_all):
+            w.toggled.connect(self._update)
+        self.category.currentIndexChanged.connect(self._update)
+        lay.addWidget(where)
+
+        bb = QDialogButtonBox(QDialogButtonBox.StandardButton.Cancel)
+        self.ok = bb.addButton(tr("Toepassen"), QDialogButtonBox.ButtonRole.AcceptRole)
+        bb.accepted.connect(self.accept)
+        bb.rejected.connect(self.reject)
+        lay.addWidget(bb)
+        self._update()
+
+    def target(self) -> tuple[str, str]:
+        """('selection' | 'category' | 'all', category name)."""
+        if self.on_selection.isChecked():
+            return "selection", ""
+        if self.on_category.isChecked():
+            return "category", self.category.currentText()
+        return "all", ""
+
+    def chosen_parts(self) -> set[str]:
+        return {k for k, box in self.parts.items() if box.isChecked()}
+
+    def _update(self) -> None:
+        self.category.setEnabled(self.on_category.isChecked())
+        n = self._count(*self.target())
+        self.ok.setText(tr("Toepassen op {n} label(s)", n=n))
+        self.ok.setEnabled(n > 0 and bool(self.chosen_parts()))
 
 
 class LabelSizeDialog(QDialog):

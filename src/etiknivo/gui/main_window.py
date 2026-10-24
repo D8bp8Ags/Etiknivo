@@ -33,7 +33,12 @@ from PySide6.QtWidgets import (
 
 from etiknivo import APP_NAME
 from etiknivo.gui import theme
-from etiknivo.gui.dialogs import AboutDialog, CalibrationDialog, PrintPreviewDialog
+from etiknivo.gui.dialogs import (
+    AboutDialog,
+    CalibrationDialog,
+    CopyFormatDialog,
+    PrintPreviewDialog,
+)
 from etiknivo.gui.library_panel import LibraryPanel
 from etiknivo.gui.log_window import LogWindow
 from etiknivo.gui.preview import DesignView, RasterView
@@ -43,7 +48,7 @@ from etiknivo.gui.properties_panel import PropertiesPanel
 from etiknivo.gui.queue_panel import QueuePanel
 from etiknivo.i18n import LANGUAGES, language, tr
 from etiknivo.i18n import resolve as resolve_language
-from etiknivo.model import Label, make_label
+from etiknivo.model import Label, copy_format, make_label
 from etiknivo.printing.backend import ConnectionState, PrinterBackend
 from etiknivo.printing.manager import PrinterState
 from etiknivo.printing.profiles import PrinterProfile
@@ -436,6 +441,8 @@ class MainWindow(QMainWindow):
         act(m, tr("Dupliceren"), self.duplicate_label, "Ctrl+D")
         act(m, tr("Hernoemen…"), self.rename_label, "F2")
         act(m, tr("Verwijderen"), self.delete_labels)
+        m.addSeparator()
+        self.act_copy_format = act(m, tr("Opmaak overnemen…"), self.copy_format)
 
         m = mb.addMenu(tr("&Afdrukken"))
         self.act_print = act(m, tr("Huidig label…"), self.print_current, QKeySequence.StandardKey.Print)
@@ -505,6 +512,7 @@ class MainWindow(QMainWindow):
         lp.currentLabelChanged.connect(self.set_current)
         lp.newRequested.connect(self.new_label)
         lp.duplicateRequested.connect(self.duplicate_label)
+        lp.copyFormatRequested.connect(self.copy_format)
         lp.renameRequested.connect(self.rename_label)
         lp.deleteRequested.connect(self.delete_labels)
         lp.printSelectedRequested.connect(self.print_selected)
@@ -864,6 +872,44 @@ class MainWindow(QMainWindow):
             self._after_library_change([self.current.id])
             self.properties.set_label(self.current)
             self._update_title()
+
+    def _format_targets(self, kind: str, category: str) -> list[str]:
+        """Ids of the labels 'Opmaak overnemen' would change (never the source)."""
+        src = self.current.id if self.current else ""
+        if kind == "selection":
+            ids = self.library_panel.selected_ids()
+        elif kind == "category":
+            ids = [lbl.id for lbl in self.library.labels if lbl.category == category]
+        else:
+            ids = [lbl.id for lbl in self.library.labels]
+        return [i for i in ids if i != src]
+
+    def copy_format(self) -> None:
+        """Give other labels the look of the open label (its draft as shown)."""
+        if self.current is None:
+            return
+        selected = len([i for i in self.library_panel.selected_ids() if i != self.current.id])
+        dlg = CopyFormatDialog(self.current, selected, self.library.categories(),
+                               lambda k, c: len(self._format_targets(k, c)), self)
+        if dlg.exec() != CopyFormatDialog.DialogCode.Accepted:
+            return
+        self.apply_format(self._format_targets(*dlg.target()), dlg.chosen_parts())
+
+    def apply_format(self, ids: list[str], parts: set[str]) -> int:
+        if self.current is None or not ids or not parts:
+            return 0
+        changed = 0
+        for lid in ids:
+            lbl = self.library.get(lid)
+            if lbl is None:
+                continue
+            copy_format(self.current, lbl, parts)
+            lbl.touch()
+            changed += 1
+        self.library_panel.invalidate_thumbnails()
+        self._after_library_change(None)
+        self.statusBar().showMessage(tr("Opmaak overgenomen op {n} label(s)", n=changed), 5000)
+        return changed
 
     def delete_labels(self) -> None:
         ids = self.library_panel.selected_ids()
