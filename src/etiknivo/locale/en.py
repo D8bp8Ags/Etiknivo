@@ -12,21 +12,16 @@ EN: dict[str, str] = {
     "Printwachtrij": "Print queue",
     "Werkbalk": "Toolbar",
     "Nieuw label": "New label",
-    "Nieuw label (⌘N)": "New label (⌘N)",
     "Dupliceren": "Duplicate",
-    "Dupliceren (⌘D)": "Duplicate (⌘D)",
     "Hernoemen": "Rename",
     "Hernoemen (F2)": "Rename (F2)",
     "Hernoemen…": "Rename…",
     "Verwijderen": "Delete",
     "Ongedaan maken": "Undo",
-    "Ongedaan maken (⌘Z)": "Undo (⌘Z)",
     "Opnieuw": "Redo",
-    "Opnieuw (⇧⌘Z)": "Redo (⇧⌘Z)",
     "Printer beheren": "Manage printer",
     "Printwachtrij tonen of verbergen": "Show or hide the print queue",
     " Afdrukken": " Print",
-    "Huidig label afdrukken (⌘P)": "Print current label (⌘P)",
     "Meer afdrukopties": "More print options",
     "Geselecteerde labels…": "Selected labels…",
     "Alle labels uit categorie…": "All labels in category…",
@@ -36,7 +31,6 @@ EN: dict[str, str] = {
     "Herstellen": "Revert",
     "Wijzigingen aan dit label ongedaan maken": "Discard the changes to this label",
     "Opslaan": "Save",
-    "Wijzigingen opslaan (⌘S)": "Save changes (⌘S)",
     "ONTWERP": "DESIGN",
     "Bewerken met antialiasing. Gearceerd = wordt niet geprint (buiten de printkop of in de "
     "veilige marge); blauw = printbaar; groen = marges.":
@@ -344,8 +338,8 @@ EN: dict[str, str] = {
     "DejaVu Sans, vrije licentie": "DejaVu Sans, free licence",
     "© {app}-bijdragers · MIT-licentie": "© {app} contributors · MIT licence",
     "Systeeminfo kopiëren": "Copy system info",
-    "Versies van Etiknivo, Python, Qt en macOS, handig bij een foutmelding":
-        "Versions of Etiknivo, Python, Qt and macOS, useful for a bug report",
+    "Versies van Etiknivo, Python, Qt en het besturingssysteem, handig bij een foutmelding":
+        "Versions of Etiknivo, Python, Qt and the operating system, useful for a bug report",
     "Sluiten": "Close",
     "Gekopieerd ✓": "Copied ✓",
     # -- log window ------------------------------------------------------------------
@@ -571,4 +565,6 @@ EN: dict[str, str] = {
     "GitHub antwoordde met fout {code}": "GitHub answered with error {code}",
     "Geen verbinding met GitHub ({error})": "Cannot reach GitHub ({error})",
     "Onverwacht antwoord van GitHub": "Unexpected answer from GitHub",
+    "Huidig label afdrukken": "Print current label",
+    "Wijzigingen opslaan": "Save changes",
 }

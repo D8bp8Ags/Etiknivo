@@ -473,7 +473,8 @@ class AboutDialog(QDialog):
 
         bb = QDialogButtonBox()
         copy = bb.addButton(tr("Systeeminfo kopiëren"), QDialogButtonBox.ButtonRole.ActionRole)
-        copy.setToolTip(tr("Versies van Etiknivo, Python, Qt en macOS, handig bij een foutmelding"))
+        copy.setToolTip(tr("Versies van Etiknivo, Python, Qt en het besturingssysteem, "
+                           "handig bij een foutmelding"))
         copy.clicked.connect(self._copy_info)
         close = bb.addButton(tr("Sluiten"), QDialogButtonBox.ButtonRole.AcceptRole)
         close.setProperty("primary", True)

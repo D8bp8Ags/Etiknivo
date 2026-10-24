@@ -28,6 +28,13 @@ def main(argv: list[str] | None = None) -> int:
     setup_logging(logging.DEBUG if args.debug else logging.INFO)
     log = logging.getLogger("etiknivo")
 
+    if sys.platform == "win32":  # own taskbar entry and icon instead of python.exe's
+        import ctypes
+
+        try:
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("Etiknivo.Etiknivo")
+        except (AttributeError, OSError):
+            pass
     app = QApplication.instance() or QApplication(sys.argv)
     app.setApplicationName(APP_NAME)
     app.setApplicationDisplayName(APP_NAME)

@@ -22,8 +22,8 @@ Etiknivo is een desktopapplicatie (Python + PySide6) om etiketten te ontwerpen, 
   - *Ontwerpweergave* (antialiased, met de printbare band, marges en overflow gemarkeerd);
   - *Printerraster*: de exacte 1-bit bitmap van 96 × 240 dots die naar de printer gaat, inclusief kalibratie. Optioneel in native oriëntatie.
   - Zoom, waarschuwingen bij tekst buiten het printbare gebied.
-- **Eigenschappen**: 1 tot 3 tekstregels, per regel lettertype (systeemlettertypen + meegeleverde DejaVu Sans), grootte, vet/cursief en uitlijning; verticale uitlijning, regelafstand, marges, automatisch passend maken, rotatie 0°/180°, rand, wit-op-zwart, technische specificaties en notities.
-- **Gekoppelde velden**: zet `{Spanning}` in een tekstregel (of kies het via de knop `{ }`) en het etiket toont de waarde uit de specificaties van dat label. Pas je de specificatie aan, dan verandert het etiket mee. Ook `{Naam}`, `{Lade}` en `{Categorie}` werken. Specificaties en notities verschijnen als tooltip in de bibliotheek en zijn doorzoekbaar.
+- **Eigenschappen**: 1 tot 3 tekstregels, per regel lettertype (systeemlettertypen + meegeleverde DejaVu Sans), grootte, vet/cursief en uitlijning; verticale uitlijning, regelafstand, marges, automatisch passend maken, rotatie 0°/90°/180°/270°, rand, lijn tussen regels, wit-op-zwart, technische specificaties en notities.
+- **Gekoppelde velden**: zet `{Spanning}` in een tekstregel (of kies het via de knop `{ }`) en het etiket toont de waarde uit de specificaties van dat label. Pas je de specificatie aan, dan verandert het etiket mee. Ook `{Naam}`, `{Lade}` en `{Categorie}` werken, en bij het afdrukken `{Datum}`, `{Nr}` (exemplaar 1, 2, 3 …) en `{Aantal}`. Specificaties en notities verschijnen als tooltip in de bibliotheek en zijn doorzoekbaar.
 - **Andere etiketrollen**: op het tabblad Printer kies je de rol (30 × 14, 40 × 14, 50 × 14, 22 × 14, 40 × 12, 30 × 12 mm of een eigen maat). Alles volgt die maat: ontwerp, raster, kaartjes, export en afdrukken.
 - **Pictogrammen**: 18 eigen elektronica-symbolen (weerstand, condensator, diode, LED, transistor, IC, zekering, schroef, moer …) of een eigen PNG/JPG/SVG, links of rechts van de tekst. Eigen afbeeldingen worden zwart-wit in het label zelf bewaard.
 - **QR-code en barcode**: per label een QR-code links of rechts van de tekst, of een Code 128-barcode op de plaats van de onderregel. De inhoud mag velden bevatten (`{Lade}`, `{Datasheet}`). Beide encoders zijn eigen code (`rendering/codes.py`); de tests lezen elke code terug met zxing-cpp.
@@ -33,6 +33,8 @@ Etiknivo is een desktopapplicatie (Python + PySide6) om etiketten te ontwerpen, 
 - **Bluetooth-printerbeheer**: zoeken, verbinden/verbreken, opnieuw verbinden na een fout, batterij, status (deksel open, papier op, oververhit), printdichtheid licht/normaal/donker, aantal exemplaren, testlabel, kalibratietest en kalibratie-instellingen. Alle Bluetooth-I/O draait op een aparte asyncio-thread; de GUI blokkeert nooit.
 - **Printwachtrij**: sequentieel, voortgang per opdracht, stopt bij een fout, mislukte opdrachten opnieuw uitvoeren, wachtende annuleren, dubbelklikbescherming. Resultaten en fouten gaan naar `print.log`.
 - **Afdrukken**: huidig label, selectie, een hele categorie of alles, met afdrukvoorbeeld en aantallen per label.
+- **Afdrukgeschiedenis**: wat wanneer is geprint, met zoeken en opnieuw afdrukken (`print_history.json`, laatste 1000 opdrachten).
+- **Updates**: Help → Zoeken naar updates kijkt naar de nieuwste release op GitHub (automatisch bij opstarten is optioneel en staat uit).
 - **Opslag en uitwisseling**: bibliotheek als JSON (met `.bak`), JSON import/export (samenvoegen of vervangen), CSV import/export, PNG-export van selecties (ontwerp of printerraster), PDF (ware grootte) en SVG, volledige back-up en herstel (zip).
 - **Simulatieprinter**: de hele applicatie werkt zonder hardware. De simulatie staat overal als zodanig vermeld en drukt niets echt af.
 - **Nederlands en Engels**: Weergave → Taal / Language kiest Nederlands, Engels of de taal van het systeem (na herstart). Vertalingen staan in `src/etiknivo/locale/en.py`; `uv run python scripts/i18n_strings.py --missing` toont teksten zonder vertaling, en een test bewaakt dat er geen ontbreken.
@@ -40,7 +42,11 @@ Etiknivo is een desktopapplicatie (Python + PySide6) om etiketten te ontwerpen, 
 
 ![De 23 voorbeeldlabels als 1-bit printeruitvoer](docs/img/raaco-labels.png)
 
-## Installatie op macOS (Apple Silicon)
+## Installatie
+
+Etiknivo is ontwikkeld en getest op macOS (Apple Silicon). Windows 10/11 en Linux werken met dezelfde code; zie [Windows en Linux](#windows-en-linux) voor de verschillen.
+
+### macOS
 
 1. Installeer [uv](https://docs.astral.sh/uv/) als je het nog niet hebt:
    ```bash
@@ -63,9 +69,18 @@ uv run etiknivo --debug    # uitgebreide logging
 uv run etiknivo --version
 ```
 
-### Bluetooth-toestemming
+#### Bluetooth-toestemming
 
 macOS vraagt de eerste keer om Bluetooth-toegang. Bij `uv run` geldt die toestemming voor de app waarin je het commando start (Terminal, iTerm, VS Code). Werkt zoeken niet, controleer dan **Systeeminstellingen → Privacy en beveiliging → Bluetooth** en zet de terminal-app aan. Op macOS zijn Bluetooth-adressen UUID's in plaats van MAC-adressen; dat is normaal.
+
+### Windows en Linux
+
+De stappen zijn hetzelfde: installeer [uv](https://docs.astral.sh/uv/getting-started/installation/), clone de repository en start met `uv run etiknivo`.
+
+- **Windows 10/11**: installeer uv in PowerShell met `powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"`. Bluetooth moet aan staan in *Instellingen → Bluetooth en apparaten*. Je hoeft de printer niet eerst te koppelen; Etiknivo zoekt hem zelf.
+- **Linux**: Bluetooth loopt via BlueZ (`bluetoothd`), dat op de meeste distributies standaard draait. Werkt zoeken niet, controleer dan `bluetoothctl show` (*Powered: yes*). Op sommige distributies moet je gebruiker in de groep `bluetooth` staan. Voor een menu-item kopieer je `packaging/etiknivo.desktop` naar `~/.local/share/applications/` en `src/etiknivo/gui/appicon/etiknivo.png` naar `~/.local/share/icons/`.
+- Sneltoetsen gebruiken **Ctrl** waar macOS **⌘** gebruikt (Ctrl+S, Ctrl+P, Ctrl+Z, en Ctrl+Y of Ctrl+Shift+Z voor opnieuw).
+- Het afdrukken zelf (protocol, raster, wachtrij) is op alle systemen dezelfde code. Getest met een echte printer is alleen macOS; Windows en Linux zijn getest met de automatische tests en de simulatieprinter.
 
 ## Eerste keer afdrukken
 
@@ -101,11 +116,18 @@ Andere printers van hetzelfde platform gebruiken `10 FF F1 03` / `10 FF F1 45` o
 
 Alles staat lokaal, zonder account of cloud:
 
-| Wat | macOS-locatie |
+| Wat | Bestand |
 |---|---|
-| Bibliotheek | `~/Library/Application Support/Etiknivo/library.json` (+ `library.json.bak`) |
-| Instellingen en kalibratie | `~/Library/Application Support/Etiknivo/settings.json` |
-| Logs | `~/Library/Logs/Etiknivo/app.log` en `print.log` |
+| Bibliotheek | `library.json` (+ `library.json.bak`) in de datamap |
+| Instellingen en kalibratie | `settings.json` in de datamap |
+| Afdrukgeschiedenis | `print_history.json` in de datamap |
+| Logs | `app.log` en `print.log` in de logmap |
+
+| Systeem | Datamap | Logmap |
+|---|---|---|
+| macOS | `~/Library/Application Support/Etiknivo` | `~/Library/Logs/Etiknivo` |
+| Windows | `%LOCALAPPDATA%\Etiknivo` | `%LOCALAPPDATA%\Etiknivo\Logs` |
+| Linux | `~/.local/share/Etiknivo` | `~/.local/state/Etiknivo/log` |
 
 Met `ETIKNIVO_DATA_DIR=/pad` gebruik je een andere map (handig voor testen). Via het menu **Bestand → Datamap openen** en **Help → Logmap openen** kom je er snel. **Help → Log tonen** (⌘L) laat de log live in de app zien, met een filter op waarschuwingen/fouten of printopdrachten, zoeken en een knop om te kopiëren.
 
@@ -159,15 +181,22 @@ De tests draaien zonder printer en zonder scherm (Qt `offscreen`). Ze dekken ren
 
 Afdrukken is daarnaast getest met een echte Fichero 5836.
 
-## macOS-app bouwen (optioneel)
+## App bouwen (optioneel)
+
+Hetzelfde spec-bestand werkt op macOS, Windows en Linux. PyInstaller bouwt alleen voor het systeem waarop het draait, dus bouw de Windows-versie op Windows.
 
 ```bash
 uv sync --group build
 uv run pyinstaller packaging/etiknivo.spec --noconfirm
-open dist/Etiknivo.app
 ```
 
-De bundle bevat het app-icoon (`packaging/etiknivo.icns`) en de vereiste `NSBluetoothAlwaysUsageDescription`. Omdat de app niet ondertekend is, start je hem de eerste keer met rechtermuisklik → **Open**.
+| Systeem | Resultaat |
+|---|---|
+| macOS | `dist/Etiknivo.app`, met het app-icoon (`packaging/etiknivo.icns`) en de vereiste `NSBluetoothAlwaysUsageDescription` |
+| Windows | `dist/Etiknivo/Etiknivo.exe` met icoon (`packaging/etiknivo.ico`); zip de map `dist/Etiknivo` om hem te delen |
+| Linux | `dist/Etiknivo/Etiknivo` |
+
+De app is niet ondertekend. Op macOS start je hem de eerste keer met rechtermuisklik → **Open**; Windows SmartScreen vraagt eenmalig om **Meer info → Toch uitvoeren**.
 
 ## Licentie
 

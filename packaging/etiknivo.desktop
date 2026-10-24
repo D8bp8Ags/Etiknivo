@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Etiknivo
+Comment=Labels ontwerpen en printen voor de Fichero 5836
+Comment[en]=Design and print labels for the Fichero 5836
+Exec=etiknivo
+Icon=etiknivo
+Terminal=false
+Categories=Office;Utility;

@@ -40,7 +40,7 @@ Bovenaan staat de werkbalk met nieuw, dupliceren, hernoemen, verwijderen, ongeda
 
 Onder *Status* zie je de batterij en of de printer klaar is. Is het deksel open of het papier op, dan staat dat daar ook, en stopt het afdrukken tot het opgelost is.
 
-De eerste keer vraagt macOS om toestemming voor Bluetooth. Geef die aan de app waarmee je Etiknivo start (de app zelf, of Terminal als je `uv run` gebruikt).
+De eerste keer vraagt macOS om toestemming voor Bluetooth. Geef die aan de app waarmee je Etiknivo start (de app zelf, of Terminal als je `uv run` gebruikt). Op Windows en Linux hoeft dat niet; zet daar alleen Bluetooth aan.
 
 **Zonder printer werken.** Zet *Simulatieprinter gebruiken* aan. De app doet dan alles alsof er een printer is, maar drukt niets af. Overal staat "(simulatie)" bij, zodat je het niet vergeet.
 
@@ -237,7 +237,7 @@ Etiknivo bewaart alles lokaal op je eigen computer, zonder account. Bij elke kee
 ## Taal en thema
 
 - **Weergave → Taal / Language**: Nederlands, English, of de taal van je systeem. Herstart de app om te wisselen.
-- **Weergave → Thema**: licht, donker, of volgen wat macOS gebruikt.
+- **Weergave → Thema**: licht, donker, of volgen wat het systeem gebruikt.
 - **Weergave → Hulplijnen** toont of verbergt de marges in het ontwerpvoorbeeld.
 
 ## Nieuwe versies

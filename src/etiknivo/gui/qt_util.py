@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from PIL import Image
-from PySide6.QtGui import QImage, QPixmap
+from PySide6.QtGui import QImage, QKeySequence, QPixmap
 
 
 def pil_to_qimage(img: Image.Image) -> QImage:
@@ -23,3 +23,9 @@ def pil_to_qimage(img: Image.Image) -> QImage:
 
 def pil_to_pixmap(img: Image.Image) -> QPixmap:
     return QPixmap.fromImage(pil_to_qimage(img))
+
+
+def with_shortcut(text: str, key: str | QKeySequence.StandardKey) -> str:
+    """'Opslaan (⌘S)' on macOS, 'Opslaan (Ctrl+S)' on Windows and Linux."""
+    seq = QKeySequence(key)
+    return f"{text} ({seq.toString(QKeySequence.SequenceFormat.NativeText)})"

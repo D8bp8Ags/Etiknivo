@@ -48,6 +48,7 @@ from etiknivo.gui.preview import DesignView, RasterView
 from etiknivo.gui.printer_bridge import PrinterBridge
 from etiknivo.gui.printer_panel import PrinterPanel, size_text
 from etiknivo.gui.properties_panel import PropertiesPanel
+from etiknivo.gui.qt_util import with_shortcut
 from etiknivo.gui.queue_panel import QueuePanel
 from etiknivo.i18n import LANGUAGES, language, tr
 from etiknivo.i18n import resolve as resolve_language
@@ -213,8 +214,8 @@ class MainWindow(QMainWindow):
         self.addToolBar(Qt.ToolBarArea.TopToolBarArea, tb)
         self.toolbar = tb
 
-        self.act_new = QAction(tr("Nieuw label"), self, toolTip=tr("Nieuw label (⌘N)"))
-        self.act_dup = QAction(tr("Dupliceren"), self, toolTip=tr("Dupliceren (⌘D)"))
+        self.act_new = QAction(tr("Nieuw label"), self, toolTip=with_shortcut(tr("Nieuw label"), "Ctrl+N"))
+        self.act_dup = QAction(tr("Dupliceren"), self, toolTip=with_shortcut(tr("Dupliceren"), "Ctrl+D"))
         self.act_rename = QAction(tr("Hernoemen"), self, toolTip=tr("Hernoemen (F2)"))
         self.act_del = QAction(tr("Verwijderen"), self, toolTip=tr("Verwijderen"))
         self.act_new.triggered.connect(self.new_label)
@@ -224,10 +225,11 @@ class MainWindow(QMainWindow):
         for a in (self.act_new, self.act_dup, self.act_rename, self.act_del):
             tb.addAction(a)
         tb.addSeparator()
-        self.act_undo = QAction(tr("Ongedaan maken"), self, toolTip=tr("Ongedaan maken (⌘Z)"))
+        self.act_undo = QAction(tr("Ongedaan maken"), self,
+                                toolTip=with_shortcut(tr("Ongedaan maken"), "Ctrl+Z"))
         self.act_undo.setShortcut(QKeySequence.StandardKey.Undo)
         self.act_undo.triggered.connect(self.undo)
-        self.act_redo = QAction(tr("Opnieuw"), self, toolTip=tr("Opnieuw (⇧⌘Z)"))
+        self.act_redo = QAction(tr("Opnieuw"), self, toolTip=with_shortcut(tr("Opnieuw"), "Ctrl+Shift+Z"))
         redo_keys = QKeySequence.keyBindings(QKeySequence.StandardKey.Redo)
         if QKeySequence("Ctrl+Shift+Z") not in redo_keys:  # Windows/Linux default is Ctrl+Y
             redo_keys.append(QKeySequence("Ctrl+Shift+Z"))
@@ -273,7 +275,7 @@ class MainWindow(QMainWindow):
 
         self.print_btn = QPushButton(tr(" Afdrukken"))
         self.print_btn.setProperty("primary", True)
-        self.print_btn.setToolTip(tr("Huidig label afdrukken (⌘P)"))
+        self.print_btn.setToolTip(with_shortcut(tr("Huidig label afdrukken"), "Ctrl+P"))
         self.print_btn.setDefault(True)
         self.print_more = QToolButton()
         self.print_more.setToolTip(tr("Meer afdrukopties"))
@@ -313,7 +315,7 @@ class MainWindow(QMainWindow):
         self.revert_btn.clicked.connect(self.revert_current)
         self.save_btn = QPushButton(tr("Opslaan"))
         self.save_btn.setProperty("primary", True)
-        self.save_btn.setToolTip(tr("Wijzigingen opslaan (⌘S)"))
+        self.save_btn.setToolTip(with_shortcut(tr("Wijzigingen opslaan"), "Ctrl+S"))
         self.save_btn.clicked.connect(self.save_current)
         row.addWidget(self.dirty_lbl, 1)
         row.addWidget(self.revert_btn)
