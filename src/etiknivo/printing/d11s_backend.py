@@ -20,6 +20,7 @@ from bleak import BleakClient, BleakScanner
 from bleak.exc import BleakError
 from PIL import Image
 
+from etiknivo.i18n import tr
 from etiknivo.printing import d11s_protocol as proto
 from etiknivo.printing.backend import (
     DiscoveredDevice,
@@ -100,8 +101,8 @@ class D11sBackend(PrinterBackend):
             found = await BleakScanner.discover(timeout=timeout, return_adv=True)
         except (BleakError, OSError) as exc:
             raise PrinterConnectionError(
-                f"Bluetooth-scan mislukt: {exc}. Staat Bluetooth aan en heeft de app "
-                "Bluetooth-toestemming?") from exc
+                tr("Bluetooth-scan mislukt: {error}. Staat Bluetooth aan en heeft de app "
+                   "Bluetooth-toestemming?", error=exc)) from exc
         devices = []
         for address, (dev, adv) in found.items():
             name = dev.name or adv.local_name or "(naamloos)"
@@ -121,8 +122,8 @@ class D11sBackend(PrinterBackend):
         if self._factory is _bleak_factory:
             target = await BleakScanner.find_device_by_address(address, timeout=10.0)
             if target is None:
-                raise PrinterConnectionError(f"Printer {address} niet gevonden. Staat hij aan "
-                                             "en binnen bereik?")
+                raise PrinterConnectionError(tr("Printer {address} niet gevonden. Staat hij "
+                                                "aan en binnen bereik?", address=address))
         client = self._factory(target, self._dropped)
         await client.connect()
         link = BleLink(client, chunk_pause=self._t.chunk_pause)
@@ -140,7 +141,7 @@ class D11sBackend(PrinterBackend):
         if not address:
             candidates = [d for d in await self.scan() if d.supported]
             if not candidates:
-                raise PrinterConnectionError("Geen ondersteunde labelprinter gevonden. Staat hij aan?")
+                raise PrinterConnectionError(tr("Geen ondersteunde labelprinter gevonden. Staat hij aan?"))
             address = candidates[0].address
         problem: Exception | None = None
         for attempt in range(self._attempts):
@@ -154,7 +155,8 @@ class D11sBackend(PrinterBackend):
                 log.warning("Verbindingspoging %d/%d mislukt: %s", attempt + 1, self._attempts, exc)
                 if attempt + 1 < self._attempts:
                     await asyncio.sleep(self._t.reconnect_base * (2 ** attempt))
-        raise PrinterConnectionError(f"Verbinden mislukt na {self._attempts} pogingen: {problem}")
+        raise PrinterConnectionError(tr("Verbinden mislukt na {n} pogingen: {error}",
+                                        n=self._attempts, error=problem))
 
     async def disconnect(self) -> None:
         link, self._link = self._link, None
@@ -163,7 +165,7 @@ class D11sBackend(PrinterBackend):
 
     def _require(self) -> BleLink:
         if self._link is None or not self._link.is_connected:
-            raise PrinterNotConnected("Geen printer verbonden")
+            raise PrinterNotConnected(tr("Geen printer verbonden"))
         return self._link
 
     async def _call(self, coro):  # type: ignore[no-untyped-def]
@@ -171,9 +173,9 @@ class D11sBackend(PrinterBackend):
         try:
             return await coro
         except LinkTimeout as exc:
-            raise PrinterTimeoutError("Printer antwoordt niet (time-out)") from exc
+            raise PrinterTimeoutError(tr("Printer antwoordt niet (time-out)")) from exc
         except (BleakError, OSError) as exc:
-            raise PrinterConnectionError(f"Bluetooth-fout: {exc}") from exc
+            raise PrinterConnectionError(tr("Bluetooth-fout: {error}", error=exc)) from exc
 
     # -- queries ----------------------------------------------------------------------
 
@@ -223,7 +225,7 @@ class D11sBackend(PrinterBackend):
             await asyncio.sleep(t.after_settings)
             for done in range(copies):
                 if cancel is not None and cancel.is_set():
-                    raise PrintCancelled("Afdrukken gestopt")
+                    raise PrintCancelled(tr("Afdrukken gestopt"))
                 status = await self._status(link)
                 if not status.ok:
                     raise PrinterNotReadyError(status)

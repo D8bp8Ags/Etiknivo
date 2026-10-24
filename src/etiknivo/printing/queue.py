@@ -24,6 +24,7 @@ from enum import StrEnum
 
 from PIL import Image
 
+from etiknivo.i18n import N_, tr
 from etiknivo.logging_setup import PRINT_LOGGER
 from etiknivo.printing.backend import PrintCancelled, PrinterBackend, PrinterError
 from etiknivo.rendering.engine import raster_to_bytes
@@ -43,11 +44,11 @@ class JobStatus(StrEnum):
 
 
 JOB_STATUS_NL = {
-    JobStatus.PENDING: "Wachtend",
-    JobStatus.PRINTING: "Bezig",
-    JobStatus.DONE: "Klaar",
-    JobStatus.FAILED: "Mislukt",
-    JobStatus.CANCELLED: "Geannuleerd",
+    JobStatus.PENDING: N_("Wachtend"),
+    JobStatus.PRINTING: N_("Bezig"),
+    JobStatus.DONE: N_("Klaar"),
+    JobStatus.FAILED: N_("Mislukt"),
+    JobStatus.CANCELLED: N_("Geannuleerd"),
 }
 
 
@@ -67,7 +68,7 @@ class PrintJob:
 
     def __post_init__(self) -> None:
         if self.copies < 1:
-            raise ValueError("Aantal exemplaren moet minimaal 1 zijn")
+            raise ValueError(tr("Aantal exemplaren moet minimaal 1 zijn"))
         if not self.fingerprint:
             h = hashlib.sha1(raster_to_bytes(self.raster))
             h.update(f"|{self.copies}|{self.density}|{self.label_id}".encode())
@@ -259,7 +260,7 @@ class PrintQueue:
 
         try:
             if backend is None or not backend.connected:
-                raise PrinterError("Geen printer verbonden")
+                raise PrinterError(tr("Geen printer verbonden"))
             await backend.print_raster(job.raster, density=job.density, copies=job.copies,
                                        progress=progress, cancel=self._cancel)
         except PrintCancelled as exc:
@@ -271,11 +272,11 @@ class PrintQueue:
             print_log.error("FOUT    %s  (%d/%d): %s", job.title, job.copies_done, job.copies,
                             job.error)
         except asyncio.CancelledError:
-            job.status, job.error = JobStatus.CANCELLED, "Afgebroken"
+            job.status, job.error = JobStatus.CANCELLED, tr("Afgebroken")
             raise
         except Exception as exc:  # noqa: BLE001 - unexpected, but keep the app alive
             log.exception("Onverwachte fout tijdens printen")
-            job.status, job.error = JobStatus.FAILED, f"Onverwachte fout: {exc}"
+            job.status, job.error = JobStatus.FAILED, tr("Onverwachte fout: {error}", error=exc)
             self.paused = True
             print_log.error("FOUT    %s: %s", job.title, job.error)
         else:

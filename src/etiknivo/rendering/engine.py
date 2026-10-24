@@ -30,6 +30,7 @@ from dataclasses import dataclass, field
 
 from PIL import Image, ImageDraw, ImageOps
 
+from etiknivo.i18n import tr
 from etiknivo.model import HAlign, Label, TextLine, VAlign
 from etiknivo.printing.profiles import FICHERO_5836, PrinterProfile
 from etiknivo.rendering.fonts import (
@@ -85,7 +86,7 @@ class RenderResult:
 def raster_to_bytes(img: Image.Image) -> bytes:
     """PIL mode '1' stores white as 1; the printer wants black as 1."""
     if img.mode != "1":
-        raise ValueError(f"Verwacht mode '1', kreeg '{img.mode}'")
+        raise ValueError(tr("Verwacht mode '1', kreeg '{mode}'", mode=img.mode))
     return ImageOps.invert(img.convert("L")).convert("1").tobytes()
 
 
@@ -189,14 +190,16 @@ class RenderEngine:
                     lb.overflow = True
         for lb in line_boxes:
             if lb.overflow:
-                warnings.append(f"Regel '{lb.text}' valt buiten het printbare gebied")
+                warnings.append(tr("Regel '{text}' valt buiten het printbare gebied",
+                                   text=lb.text))
             elif lb.size_pt < lb.requested_pt - 0.05:
                 pass  # shrunk to fit: expected behaviour, not a warning
         if style.autofit and any(lb.overflow for lb in line_boxes):
-            warnings.append(f"Tekst past niet, zelfs niet bij de minimale lettergrootte "
-                            f"({MIN_FONT_PT:g} pt). Kort de tekst in of verklein de marges.")
+            warnings.append(tr("Tekst past niet, zelfs niet bij de minimale lettergrootte "
+                               "({pt} pt). Kort de tekst in of verklein de marges.",
+                               pt=f"{MIN_FONT_PT:g}"))
         if not prepared:
-            warnings.append("Label bevat geen zichtbare tekst")
+            warnings.append(tr("Label bevat geen zichtbare tekst"))
 
         if style.border:
             draw.rectangle((px0 * ss, py0 * ss, px1 * ss - 1, py1 * ss - 1), outline=0, width=ss)
@@ -267,22 +270,24 @@ class RenderEngine:
         for slot, line in label.visible_lines():
             resolved, unknown = label.resolve(line.text)
             for name in unknown:
-                warnings.append(f"Onbekend veld {{{name}}}: voeg '{name}' toe bij "
-                                "Specificaties")
+                warnings.append(tr("Onbekend veld {{{name}}}: voeg '{name}' toe bij "
+                                   "Specificaties", name=name))
             text = " ".join(resolved.split("\n")).strip()
             face = self.fonts.resolve(line.font_family, line.bold, line.italic)
             missing = missing_glyphs(face, text)
             if missing:
                 fb = self.fonts.fallback(line.bold, line.italic)
                 if not missing_glyphs(fb, text):
-                    warnings.append(f"Lettertype '{line.font_family}' mist teken(s) {missing}; "
-                                    f"'{fb.family}' gebruikt voor deze regel")
+                    warnings.append(tr("Lettertype '{font}' mist teken(s) {chars}; '{fallback}' "
+                                       "gebruikt voor deze regel", font=line.font_family,
+                                       chars=missing, fallback=fb.family))
                     face = fb
                 else:
-                    warnings.append(f"Teken(s) {missing} kunnen niet worden weergegeven")
+                    warnings.append(tr("Teken(s) {chars} kunnen niet worden weergegeven",
+                                       chars=missing))
             elif face.family != line.font_family:
-                warnings.append(f"Lettertype '{line.font_family}' niet gevonden; "
-                                f"'{face.family}' gebruikt")
+                warnings.append(tr("Lettertype '{font}' niet gevonden; '{used}' gebruikt",
+                                   font=line.font_family, used=face.family))
             out.append(_Prepared(slot, line, face, text))
         return out
 

@@ -20,16 +20,17 @@ from PySide6.QtWidgets import (
 )
 
 from etiknivo.gui import theme
+from etiknivo.i18n import N_, tr
 from etiknivo.printing import registry
 from etiknivo.printing.backend import ConnectionState
 from etiknivo.printing.manager import PrinterState
 from etiknivo.printing.profiles import PrinterProfile
 
 STATE_TEXT = {
-    ConnectionState.DISCONNECTED: ("Niet verbonden", "muted"),
-    ConnectionState.CONNECTING: ("Verbinden…", "warning"),
-    ConnectionState.CONNECTED: ("Verbonden", "success"),
-    ConnectionState.ERROR: ("Fout", "danger"),
+    ConnectionState.DISCONNECTED: (N_("Niet verbonden"), "muted"),
+    ConnectionState.CONNECTING: (N_("Verbinden…"), "warning"),
+    ConnectionState.CONNECTED: (N_("Verbonden"), "success"),
+    ConnectionState.ERROR: (N_("Fout"), "danger"),
 }
 
 
@@ -50,7 +51,7 @@ class PrinterPanel(QWidget):
         lay.setContentsMargins(14, 0, 14, 14)
         lay.setSpacing(2)
 
-        conn = QGroupBox("Bluetooth-printer")
+        conn = QGroupBox(tr("Bluetooth-printer"))
         cl = QVBoxLayout(conn)
         # printer model choice: only shown once there is more than one model
         self.model = QComboBox()
@@ -59,20 +60,20 @@ class PrinterPanel(QWidget):
         self.model.setCurrentIndex(max(0, self.model.findData(profile.key)))
         self.model.setVisible(len(registry.MODELS) > 1)
         self.model.activated.connect(lambda: self.modelChanged.emit(self.model.currentData()))
-        self.mock = QCheckBox("Simulatieprinter gebruiken (geen hardware)")
-        self.mock.setToolTip("Voor testen zonder printer. Er wordt niets echt afgedrukt.")
-        self.only_printers = QCheckBox("Alleen labelprinters tonen")
+        self.mock = QCheckBox(tr("Simulatieprinter gebruiken (geen hardware)"))
+        self.mock.setToolTip(tr("Voor testen zonder printer. Er wordt niets echt afgedrukt."))
+        self.only_printers = QCheckBox(tr("Alleen labelprinters tonen"))
         self.only_printers.setChecked(True)
         self.devices = QListWidget()
         self.devices.setMaximumHeight(110)
-        self.scan_btn = QPushButton("Zoeken")
+        self.scan_btn = QPushButton(tr("Zoeken"))
         self.scan_busy = QProgressBar()
         self.scan_busy.setRange(0, 0)
         self.scan_busy.setMaximumHeight(6)
         self.scan_busy.setTextVisible(False)
         self.scan_busy.hide()
-        self.connect_btn = QPushButton("Verbinden")
-        self.disconnect_btn = QPushButton("Verbreken")
+        self.connect_btn = QPushButton(tr("Verbinden"))
+        self.disconnect_btn = QPushButton(tr("Verbreken"))
         row = QHBoxLayout()
         row.addWidget(self.scan_btn)
         row.addWidget(self.connect_btn)
@@ -85,7 +86,7 @@ class PrinterPanel(QWidget):
         cl.addLayout(row)
         lay.addWidget(conn)
 
-        st = QGroupBox("Status")
+        st = QGroupBox(tr("Status"))
         f = QFormLayout(st)
         self.state_lbl = QLabel()
         self.state_lbl.setTextFormat(Qt.TextFormat.RichText)
@@ -100,29 +101,29 @@ class PrinterPanel(QWidget):
         self.message = QLabel()
         self.message.setWordWrap(True)
         self.message.setObjectName("hint")
-        self.refresh_btn = QPushButton("Status vernieuwen")
-        f.addRow("Verbinding", self.state_lbl)
-        f.addRow("Printer", self.model_lbl)
+        self.refresh_btn = QPushButton(tr("Status vernieuwen"))
+        f.addRow(tr("Verbinding"), self.state_lbl)
+        f.addRow(tr("Printer"), self.model_lbl)
         bat = QHBoxLayout()
         bat.addWidget(self.battery, 1)
         bat.addWidget(self.battery_lbl)
-        f.addRow("Batterij", bat)
-        f.addRow("Toestand", self.status_lbl)
+        f.addRow(tr("Batterij"), bat)
+        f.addRow(tr("Toestand"), self.status_lbl)
         f.addRow(self.message)
         f.addRow(self.refresh_btn)
         lay.addWidget(st)
 
-        pr = QGroupBox("Afdrukinstellingen")
+        pr = QGroupBox(tr("Afdrukinstellingen"))
         f2 = QFormLayout(pr)
         self.density = QComboBox()
         self.density.addItems(list(profile.densities))
         self.copies = QSpinBox()
         self.copies.setRange(1, 99)
-        self.test_btn = QPushButton("Testlabel afdrukken")
-        self.cal_btn = QPushButton("Kalibratietest afdrukken")
-        self.cal_settings_btn = QPushButton("Kalibratie-instellingen…")
-        f2.addRow("Printdichtheid", self.density)
-        f2.addRow("Exemplaren", self.copies)
+        self.test_btn = QPushButton(tr("Testlabel afdrukken"))
+        self.cal_btn = QPushButton(tr("Kalibratietest afdrukken"))
+        self.cal_settings_btn = QPushButton(tr("Kalibratie-instellingen…"))
+        f2.addRow(tr("Printdichtheid"), self.density)
+        f2.addRow(tr("Exemplaren"), self.copies)
         f2.addRow(self.test_btn)
         f2.addRow(self.cal_btn)
         f2.addRow(self.cal_settings_btn)
@@ -193,8 +194,9 @@ class PrinterPanel(QWidget):
         self._state = st
         t = theme.tokens()
         text, tone = STATE_TEXT[st.connection]
+        text = tr(text)
         if st.simulated:
-            text += " (simulatie)"
+            text = tr("{state} (simulatie)", state=text)
         self.state_lbl.setText(f"<span style='color:{getattr(t, tone)}'>●</span>&nbsp; {text}")
         connected = st.connection == ConnectionState.CONNECTED
         busy = st.connection == ConnectionState.CONNECTING
@@ -208,7 +210,7 @@ class PrinterPanel(QWidget):
             self.model_lbl.setText(f"{info.model} · fw {info.firmware}")
             if info.battery is None:
                 self.battery.setValue(0)
-                self.battery_lbl.setText("onbekend")
+                self.battery_lbl.setText(tr("onbekend"))
             else:
                 self.battery.setValue(info.battery)
                 self.battery_lbl.setText(f"{info.battery}%")

@@ -30,6 +30,7 @@ from PySide6.QtWidgets import (
 from etiknivo import APP_NAME, __version__
 from etiknivo.gui import theme
 from etiknivo.gui.qt_util import pil_to_pixmap
+from etiknivo.i18n import N_, language, tr
 from etiknivo.model import Label
 from etiknivo.printing.profiles import PrinterProfile
 from etiknivo.rendering.engine import RenderEngine
@@ -42,17 +43,19 @@ class PrintPreviewDialog(QDialog):
     def __init__(self, engine: RenderEngine, labels: list[Label], copies: int, density: int,
                  printer_text: str, can_print: bool, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self.setWindowTitle("Afdrukvoorbeeld")
+        self.setWindowTitle(tr("Afdrukvoorbeeld"))
         self.labels = labels
         self.resize(720, 520)
         lay = QVBoxLayout(self)
-        intro = QLabel(f"<b>{len(labels)} label(s)</b> — dit is de 1-bit printerraster zoals "
-                       f"die naar de printer gaat. Printer: {printer_text}")
+        intro = QLabel(tr("<b>{n} label(s)</b> — dit is de 1-bit printerraster zoals die naar "
+                          "de printer gaat. Printer: {printer}", n=len(labels),
+                          printer=printer_text))
         intro.setWordWrap(True)
         lay.addWidget(intro)
 
         self.table = QTableWidget(len(labels), 4)
-        self.table.setHorizontalHeaderLabels(["Voorbeeld", "Label", "Exemplaren", "Let op"])
+        self.table.setHorizontalHeaderLabels([tr("Voorbeeld"), tr("Label"), tr("Exemplaren"),
+                                              tr("Let op")])
         self.table.verticalHeader().hide()
         self.table.setIconSize(QSize(180, 84))
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.NoSelection)
@@ -97,21 +100,22 @@ class PrintPreviewDialog(QDialog):
         self.density.addItems(list(engine.profile.densities))
         self.density.setCurrentIndex(density)
         self.total = QLabel()
-        form.addRow("Printdichtheid", self.density)
-        form.addRow("Totaal", self.total)
+        form.addRow(tr("Printdichtheid"), self.density)
+        form.addRow(tr("Totaal"), self.total)
         lay.addLayout(form)
         if self.overflow:
-            w = QLabel(f"⚠ {self.overflow} label(s) hebben tekst buiten het printbare gebied.")
+            w = QLabel("⚠ " + tr("{n} label(s) hebben tekst buiten het printbare gebied.",
+                                 n=self.overflow))
             w.setStyleSheet(f"color: {theme.tokens().danger};")
             lay.addWidget(w)
         if not can_print:
-            w = QLabel("⚠ Geen printer verbonden. Verbind eerst in het printerpaneel "
-                       "(of zet de simulatieprinter aan).")
+            w = QLabel("⚠ " + tr("Geen printer verbonden. Verbind eerst in het printerpaneel "
+                                 "(of zet de simulatieprinter aan)."))
             w.setStyleSheet(f"color: {theme.tokens().danger};")
             w.setWordWrap(True)
             lay.addWidget(w)
         bb = QDialogButtonBox(QDialogButtonBox.StandardButton.Cancel)
-        self.ok = bb.addButton("Afdrukken", QDialogButtonBox.ButtonRole.AcceptRole)
+        self.ok = bb.addButton(tr("Afdrukken"), QDialogButtonBox.ButtonRole.AcceptRole)
         self.ok.setProperty("primary", True)
         self.ok.setIcon(theme.icon("printer", theme.tokens().on_accent, 16))
         self.ok.setEnabled(can_print)
@@ -121,7 +125,7 @@ class PrintPreviewDialog(QDialog):
         self._update_total()
 
     def _update_total(self) -> None:
-        self.total.setText(f"{sum(s.value() for s in self.spins)} etiketten")
+        self.total.setText(tr("{n} etiketten", n=sum(s.value() for s in self.spins)))
 
     def copies_per_label(self) -> list[int]:
         return [s.value() for s in self.spins]
@@ -133,23 +137,22 @@ class CalibrationDialog(QDialog):
     def __init__(self, cal: Calibration, parent: QWidget | None = None,
                  dots_per_mm: int = 8) -> None:
         super().__init__(parent)
-        self.setWindowTitle("Kalibratie")
+        self.setWindowTitle(tr("Kalibratie"))
         self.setMinimumWidth(520)
         self._dpm = dots_per_mm
         lay = QVBoxLayout(self)
         lay.setSpacing(10)
 
         intro = QLabel(
-            "<b>Zo kalibreer je</b>"
-            "<ol style='margin-left:-20px'>"
-            "<li>Kies <i>Afdrukken → Kalibratietest</i>. Er komt een kader met middellijnen "
-            "en een millimeterliniaal op het etiket.</li>"
-            "<li>Kijk of er links en rechts evenveel wit naast het kader staat (ongeveer 2 mm), "
-            "en boven en onder ook.</li>"
-            "<li>Staat het scheef? Verschuif hieronder, druk opnieuw af en herhaal tot het "
-            "klopt.</li></ol>"
-            "Bekende afwijkingen van je printer worden al automatisch gecorrigeerd. Meestal is "
-            "alles hier 0 goed.")
+            "<b>" + tr("Zo kalibreer je") + "</b><ol style='margin-left:-20px'><li>"
+            + tr("Kies <i>Afdrukken → Kalibratietest</i>. Er komt een kader met middellijnen "
+                 "en een millimeterliniaal op het etiket.") + "</li><li>"
+            + tr("Kijk of er links en rechts evenveel wit naast het kader staat (ongeveer "
+                 "2 mm), en boven en onder ook.") + "</li><li>"
+            + tr("Staat het scheef? Verschuif hieronder, druk opnieuw af en herhaal tot het "
+                 "klopt.") + "</li></ol>"
+            + tr("Bekende afwijkingen van je printer worden al automatisch gecorrigeerd. "
+                 "Meestal is alles hier 0 goed."))
         intro.setWordWrap(True)
         intro.setTextFormat(Qt.TextFormat.RichText)
         lay.addWidget(intro)
@@ -172,7 +175,7 @@ class CalibrationDialog(QDialog):
             box.addWidget(below)
             box.addSpacing(6)
 
-        pos = QGroupBox("Positie op het etiket")
+        pos = QGroupBox(tr("Positie op het etiket"))
         f = QVBoxLayout(pos)
         f.setSpacing(3)
         self.feed = QSpinBox()
@@ -185,13 +188,13 @@ class CalibrationDialog(QDialog):
         self.head.setSuffix(" dots")
         self.feed_hint = hint("")
         self.head_hint = hint("")
-        add(f, "Links / rechts", self.feed, self.feed_hint)
-        add(f, "Omhoog / omlaag", self.head, self.head_hint)
+        add(f, tr("Links / rechts"), self.feed, self.feed_hint)
+        add(f, tr("Omhoog / omlaag"), self.head, self.head_hint)
         self.feed.valueChanged.connect(self._update_hints)
         self.head.valueChanged.connect(self._update_hints)
         lay.addWidget(pos)
 
-        quality = QGroupBox("Afdrukkwaliteit")
+        quality = QGroupBox(tr("Afdrukkwaliteit"))
         q = QVBoxLayout(quality)
         q.setSpacing(3)
         self.threshold = QSpinBox()
@@ -201,16 +204,16 @@ class CalibrationDialog(QDialog):
         for n in (1, 2, 3, 4, 6, 8):
             self.supersample.addItem(f"{n}×", n)
         self.supersample.setCurrentIndex(max(0, self.supersample.findData(cal.supersample)))
-        self.clockwise = QCheckBox("Etiket ondersteboven afdrukken")
+        self.clockwise = QCheckBox(tr("Etiket ondersteboven afdrukken"))
         self.clockwise.setChecked(cal.rotate_clockwise)
-        add(q, "Zwartdrempel", self.threshold, hint(
+        add(q, tr("Zwartdrempel"), self.threshold, hint(tr(
             "Bepaalt hoe dik letters worden. Hoger = dikker en zwarter, lager = dunner. "
-            "Standaard 140; pas aan als kleine tekst dichtloopt of wegvalt."))
-        add(q, "Gladde randen", self.supersample, hint(
+            "Standaard 140; pas aan als kleine tekst dichtloopt of wegvalt.")))
+        add(q, tr("Gladde randen"), self.supersample, hint(tr(
             "Hoe nauwkeurig letters naar printerdots worden omgezet. 4× is scherp en snel "
-            "genoeg; hoger maakt weinig verschil."))
-        add(q, "", self.clockwise, hint(
-            "Alleen nodig als je labels op hun kop uit de printer komen."))
+            "genoeg; hoger maakt weinig verschil.")))
+        add(q, "", self.clockwise, hint(tr(
+            "Alleen nodig als je labels op hun kop uit de printer komen.")))
         lay.addWidget(quality)
 
         bb = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok
@@ -218,9 +221,9 @@ class CalibrationDialog(QDialog):
                               | QDialogButtonBox.StandardButton.RestoreDefaults)
         bb.accepted.connect(self.accept)
         bb.rejected.connect(self.reject)
-        bb.button(QDialogButtonBox.StandardButton.RestoreDefaults).setText("Standaardwaarden")
+        bb.button(QDialogButtonBox.StandardButton.RestoreDefaults).setText(tr("Standaardwaarden"))
         bb.button(QDialogButtonBox.StandardButton.RestoreDefaults).clicked.connect(self._defaults)
-        bb.button(QDialogButtonBox.StandardButton.Cancel).setText("Annuleren")
+        bb.button(QDialogButtonBox.StandardButton.Cancel).setText(tr("Annuleren"))
         lay.addWidget(bb)
         self._update_hints()
 
@@ -233,19 +236,22 @@ class CalibrationDialog(QDialog):
 
     def _shift_text(self, dots: int, plus: str, minus: str, ask: str) -> str:
         if dots == 0:
-            return f"Geen verschuiving. {ask}"
+            return tr("Geen verschuiving.") + " " + ask
         mm = abs(dots) / self._dpm
         side = plus if dots > 0 else minus
-        mm_text = f"{mm:.2f}".rstrip("0").rstrip(".").replace(".", ",")
-        return f"Afdruk schuift {mm_text} mm naar {side} ({self._dpm} dots = 1 mm)."
+        mm_text = f"{mm:.2f}".rstrip("0").rstrip(".")
+        if language() == "nl":
+            mm_text = mm_text.replace(".", ",")
+        return tr("Afdruk schuift {mm} mm {direction} ({dpm} dots = 1 mm).", mm=mm_text,
+                  direction=tr(side), dpm=self._dpm)
 
     def _update_hints(self) -> None:
         self.feed_hint.setText(self._shift_text(
-            self.feed.value(), "rechts", "links",
-            "Meer wit links dan rechts? Kies een negatief getal; meer wit rechts: positief."))
+            self.feed.value(), N_("naar rechts"), N_("naar links"),
+            tr("Meer wit links dan rechts? Kies een negatief getal; meer wit rechts: positief.")))
         self.head_hint.setText(self._shift_text(
-            self.head.value(), "onder", "boven",
-            "Meer wit boven dan onder? Kies een negatief getal; meer wit onder: positief."))
+            self.head.value(), N_("naar onder"), N_("naar boven"),
+            tr("Meer wit boven dan onder? Kies een negatief getal; meer wit onder: positief.")))
 
     def _defaults(self) -> None:
         d = Calibration()
@@ -270,7 +276,7 @@ class AboutDialog(QDialog):
     def __init__(self, profile: PrinterProfile, data_path: Path, log_path: Path,
                  parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self.setWindowTitle(f"Over {APP_NAME}")
+        self.setWindowTitle(tr("Over {app}", app=APP_NAME))
         self.setMinimumWidth(460)
         t = theme.tokens()
         lay = QVBoxLayout(self)
@@ -282,10 +288,10 @@ class AboutDialog(QDialog):
         logo.setAlignment(Qt.AlignmentFlag.AlignHCenter)
         name = QLabel(APP_NAME)
         name.setStyleSheet("font-size: 22px; font-weight: 700;")
-        version = QLabel(f"Versie {__version__}")
+        version = QLabel(tr("Versie {version}", version=__version__))
         version.setObjectName("muted")
-        tagline = QLabel("Etiketten ontwerpen, beheren en afdrukken.\n"
-                         "Open source, lokaal, zonder account.")
+        tagline = QLabel(tr("Etiketten ontwerpen, beheren en afdrukken.\n"
+                            "Open source, lokaal, zonder account."))
         tagline.setWordWrap(True)
         for w in (logo, name, version, tagline):
             w.setAlignment(Qt.AlignmentFlag.AlignHCenter)
@@ -312,40 +318,40 @@ class AboutDialog(QDialog):
             lay.addSpacing(10)
 
         p = profile
-        section("Printer", [
-            ("Model", p.display_name),
-            ("Printkop", f"{p.printhead_px} dots · {p.dpi} dpi"),
-            ("Etiket", f"{p.label_width_mm:g} × {p.label_height_mm:g} mm, veilig gebied "
-                       f"{p.label_width_mm - 2 * p.feed_margin_mm:g} × "
-                       f"{p.printable_across_px / p.dots_per_mm:g} mm"),
+        section(tr("Printer"), [
+            (tr("Model"), p.display_name),
+            (tr("Printkop"), f"{p.printhead_px} dots · {p.dpi} dpi"),
+            (tr("Etiket"), tr("{w} × {h} mm, veilig gebied {sw} × {sh} mm",
+                              w=f"{p.label_width_mm:g}", h=f"{p.label_height_mm:g}",
+                              sw=f"{p.label_width_mm - 2 * p.feed_margin_mm:g}",
+                              sh=f"{p.printable_across_px / p.dots_per_mm:g}")),
         ])
         link = f"color:{t.accent}; text-decoration:none"
-        section("Gegevens", [
-            ("Bibliotheek", f"<a style='{link}' href='{QUrl.fromLocalFile(str(data_path)).toString()}'>"
+        section(tr("Gegevens"), [
+            (tr("Bibliotheek"), f"<a style='{link}' href='{QUrl.fromLocalFile(str(data_path)).toString()}'>"
                             f"{data_path}</a>"),
-            ("Logs", f"<a style='{link}' href='{QUrl.fromLocalFile(str(log_path)).toString()}'>"
+            (tr("Logs"), f"<a style='{link}' href='{QUrl.fromLocalFile(str(log_path)).toString()}'>"
                      f"{log_path}</a>"),
-            ("Broncode", f"<a style='{link}' href='{self.REPO_URL}'>"
+            (tr("Broncode"), f"<a style='{link}' href='{self.REPO_URL}'>"
                          f"{self.REPO_URL.removeprefix('https://')}</a>"),
         ])
-        section("Met dank aan", [
-            ("Interface", "Qt for Python (PySide6), LGPL"),
-            ("Bluetooth", "Bleak, MIT"),
-            ("Beeldbewerking", "Pillow, MIT-CMU"),
-            ("Lettertype", "DejaVu Sans, vrije licentie"),
-            ("Pictogrammen", "Lucide, ISC"),
+        section(tr("Met dank aan"), [
+            (tr("Interface"), "Qt for Python (PySide6), LGPL"),
+            (tr("Bluetooth"), "Bleak, MIT"),
+            (tr("Beeldbewerking"), "Pillow, MIT-CMU"),
+            (tr("Lettertype"), tr("DejaVu Sans, vrije licentie")),
         ])
-        lic = QLabel(f"© {APP_NAME}-bijdragers · MIT-licentie")
+        lic = QLabel(tr("© {app}-bijdragers · MIT-licentie", app=APP_NAME))
         lic.setObjectName("hint")
         lic.setAlignment(Qt.AlignmentFlag.AlignHCenter)
         lay.addWidget(lic)
         lay.addSpacing(8)
 
         bb = QDialogButtonBox()
-        copy = bb.addButton("Systeeminfo kopiëren", QDialogButtonBox.ButtonRole.ActionRole)
-        copy.setToolTip("Versies van Etiknivo, Python, Qt en macOS, handig bij een foutmelding")
+        copy = bb.addButton(tr("Systeeminfo kopiëren"), QDialogButtonBox.ButtonRole.ActionRole)
+        copy.setToolTip(tr("Versies van Etiknivo, Python, Qt en macOS, handig bij een foutmelding"))
         copy.clicked.connect(self._copy_info)
-        close = bb.addButton("Sluiten", QDialogButtonBox.ButtonRole.AcceptRole)
+        close = bb.addButton(tr("Sluiten"), QDialogButtonBox.ButtonRole.AcceptRole)
         close.setProperty("primary", True)
         close.setDefault(True)
         bb.accepted.connect(self.accept)
@@ -370,4 +376,4 @@ class AboutDialog(QDialog):
         QApplication.clipboard().setText(self.system_info())
         sender = self.sender()
         if isinstance(sender, QPushButton):
-            sender.setText("Gekopieerd ✓")
+            sender.setText(tr("Gekopieerd ✓"))

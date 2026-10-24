@@ -10,6 +10,7 @@ from collections.abc import Iterable
 from datetime import datetime
 from pathlib import Path
 
+from etiknivo.i18n import tr
 from etiknivo.model import Label, LayoutPreset, make_label
 from etiknivo.storage.atomic import atomic_write_bytes, atomic_write_text
 from etiknivo.storage.library import LibraryError, labels_from_document, labels_to_document
@@ -80,7 +81,7 @@ def parse_csv_labels(text: str) -> tuple[list[Label], list[str]]:
         return [], ["CSV-bestand bevat geen kopregel"]
     colmap = {name: _norm(name) for name in reader.fieldnames}
     if "main" not in colmap.values():
-        return [], ["Kolom 'main' (of 'hoofdtekst') ontbreekt in de kopregel"]
+        return [], [tr("Kolom 'main' (of 'hoofdtekst') ontbreekt in de kopregel")]
 
     labels: list[Label] = []
     errors: list[str] = []
@@ -89,14 +90,15 @@ def parse_csv_labels(text: str) -> tuple[list[Label], list[str]]:
         if not any(row.values()):
             continue
         if not row.get("main"):
-            errors.append(f"Regel {lineno}: hoofdtekst ontbreekt")
+            errors.append(tr("Regel {n}: hoofdtekst ontbreekt", n=lineno))
             continue
         layout = None
         if row.get("layout"):
             try:
                 layout = LayoutPreset(row["layout"])
             except ValueError:
-                errors.append(f"Regel {lineno}: onbekende layout '{row['layout']}', standaard gebruikt")
+                errors.append(tr("Regel {n}: onbekende layout '{layout}', standaard gebruikt",
+                                 n=lineno, layout=row["layout"]))
         lbl = make_label(
             row.get("tray_id", ""),
             row.get("category", ""),
@@ -172,16 +174,16 @@ def restore_backup(archive: Path, data_dir: Path) -> list[str]:
         with zipfile.ZipFile(archive) as zf:
             names = set(zf.namelist())
             if "library.json" not in names:
-                raise LibraryError("Back-up bevat geen library.json")
+                raise LibraryError(tr("Back-up bevat geen library.json"))
             contents = {n: zf.read(n) for n in BACKUP_MEMBERS if n in names}
     except zipfile.BadZipFile as exc:
-        raise LibraryError(f"Geen geldig back-upbestand: {exc}") from exc
+        raise LibraryError(tr("Geen geldig back-upbestand: {error}", error=exc)) from exc
     try:
         labels_from_document(json.loads(contents["library.json"].decode("utf-8")))
         if "settings.json" in contents:
             json.loads(contents["settings.json"].decode("utf-8"))
     except ValueError as exc:
-        raise LibraryError(f"Back-up is beschadigd: {exc}") from exc
+        raise LibraryError(tr("Back-up is beschadigd: {error}", error=exc)) from exc
     for name, data in contents.items():
         atomic_write_bytes(Path(data_dir) / name, data)
     return sorted(contents)

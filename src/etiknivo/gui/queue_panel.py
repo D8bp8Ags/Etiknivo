@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
 )
 
 from etiknivo.gui import theme
+from etiknivo.i18n import tr
 from etiknivo.printing.queue import JOB_STATUS_NL, JobStatus, QueueSnapshot
 
 STATUS_TONE = {
@@ -40,8 +41,8 @@ class QueuePanel(QWidget):
         super().__init__(parent)
         self.densities = densities
         self.table = QTableWidget(0, 5)
-        self.table.setHorizontalHeaderLabels(["Label", "Exemplaren", "Dichtheid", "Status",
-                                              "Melding"])
+        self.table.setHorizontalHeaderLabels([tr("Label"), tr("Exemplaren"), tr("Dichtheid"),
+                                              tr("Status"), tr("Melding")])
         self.table.verticalHeader().hide()
         self.table.verticalHeader().setDefaultSectionSize(30)
         self.table.setShowGrid(False)
@@ -54,7 +55,7 @@ class QueuePanel(QWidget):
         self.progress = QProgressBar()
         self.progress.setTextVisible(False)
         self.progress.setMaximumWidth(260)
-        self.summary = QLabel("Wachtrij leeg")
+        self.summary = QLabel(tr("Wachtrij leeg"))
         self.summary.setTextFormat(Qt.TextFormat.RichText)
 
         def tool(text: str, tip: str) -> QToolButton:
@@ -64,11 +65,12 @@ class QueuePanel(QWidget):
             b.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
             return b
 
-        self.pause_btn = tool("Stop", "Printen stoppen na het huidige etiket")
-        self.resume_btn = tool("Hervat", "Wachtrij hervatten")
-        self.retry_btn = tool("Opnieuw", "Mislukte en geannuleerde opdrachten opnieuw proberen")
-        self.cancel_btn = tool("Annuleer", "Wachtende opdrachten annuleren")
-        self.clear_btn = tool("Wis klaar", "Afgeronde opdrachten uit de lijst halen")
+        self.pause_btn = tool(tr("Stop"), tr("Printen stoppen na het huidige etiket"))
+        self.resume_btn = tool(tr("Hervat"), tr("Wachtrij hervatten"))
+        self.retry_btn = tool(tr("Opnieuw"),
+                              tr("Mislukte en geannuleerde opdrachten opnieuw proberen"))
+        self.cancel_btn = tool(tr("Annuleer"), tr("Wachtende opdrachten annuleren"))
+        self.clear_btn = tool(tr("Wis klaar"), tr("Afgeronde opdrachten uit de lijst halen"))
         lay = QVBoxLayout(self)
         lay.setContentsMargins(12, 6, 12, 10)
         lay.setSpacing(6)
@@ -108,7 +110,7 @@ class QueuePanel(QWidget):
         for row, j in enumerate(jobs):
             cells = [j.title, f"{j.copies_done}/{j.copies}", self.densities[j.density]
                      if 0 <= j.density < len(self.densities) else str(j.density),
-                     JOB_STATUS_NL[j.status], j.error]
+                     tr(JOB_STATUS_NL[j.status]), j.error]
             for col, text in enumerate(cells):
                 it = QTableWidgetItem(text)
                 if col == 3:
@@ -123,14 +125,16 @@ class QueuePanel(QWidget):
         self.progress.setValue(done)
         pend, failed = snap.pending, snap.failed
         if not jobs:
-            text = "Wachtrij leeg"
+            text = tr("Wachtrij leeg")
         elif snap.paused and (pend or failed):
-            text = (f"<b style='color:{t.danger}'>Gestopt</b> · {pend} wachtend · "
-                    f"{failed} mislukt")
+            text = tr("<b style='color:{color}'>Gestopt</b> · {pending} wachtend · {failed} "
+                      "mislukt", color=t.danger, pending=pend, failed=failed)
         elif snap.running:
-            text = f"Bezig met printen · {pend} wachtend"
+            text = tr("Bezig met printen · {pending} wachtend", pending=pend)
         else:
-            text = f"{done}/{total} etiketten klaar" + (f" · {failed} mislukt" if failed else "")
+            text = tr("{done}/{total} etiketten klaar", done=done, total=total)
+            if failed:
+                text += tr(" · {failed} mislukt", failed=failed)
         self.summary.setText(text)
         self.pause_btn.setEnabled(snap.running or (pend > 0 and not snap.paused))
         self.resume_btn.setEnabled(snap.paused)

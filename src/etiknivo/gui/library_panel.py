@@ -25,6 +25,7 @@ from PySide6.QtWidgets import (
 
 from etiknivo.gui import theme
 from etiknivo.gui.qt_util import pil_to_pixmap
+from etiknivo.i18n import N_, tr
 from etiknivo.model import Label
 from etiknivo.rendering.engine import RenderEngine
 from etiknivo.storage.library import Library
@@ -33,12 +34,12 @@ ID_ROLE = Qt.ItemDataRole.UserRole + 1
 SUBTITLE_ROLE = Qt.ItemDataRole.UserRole + 2
 HEADER_ROLE = Qt.ItemDataRole.UserRole + 3
 DIRTY_ROLE = Qt.ItemDataRole.UserRole + 4  # label has unsaved changes
-ALL_CATEGORIES = "Alle categorieën"
+ALL_CATEGORIES = N_("Alle categorieën")  # always the first filter entry
 SORT_KEYS: dict[str, tuple[str, Callable[[Label], object]]] = {
-    "tray_id": ("Lade-ID", lambda lbl: (lbl.tray_id == "", lbl.tray_id.casefold(), lbl.name)),
-    "name": ("Naam", lambda lbl: lbl.name.casefold()),
-    "category": ("Categorie", lambda lbl: (lbl.category.casefold(), lbl.tray_id.casefold())),
-    "modified": ("Laatst gewijzigd", lambda lbl: lbl.modified),
+    "tray_id": (N_("Lade-ID"), lambda lbl: (lbl.tray_id == "", lbl.tray_id.casefold(), lbl.name)),
+    "name": (N_("Naam"), lambda lbl: lbl.name.casefold()),
+    "category": (N_("Categorie"), lambda lbl: (lbl.category.casefold(), lbl.tray_id.casefold())),
+    "modified": (N_("Laatst gewijzigd"), lambda lbl: lbl.modified),
 }
 THUMB = QSize(86, 40)
 ROW_H = THUMB.height() + 16
@@ -142,24 +143,24 @@ class LibraryPanel(QWidget):
 
         self.setObjectName("sidebar")
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
-        title = QLabel("Bibliotheek")
+        title = QLabel(tr("Bibliotheek"))
         title.setObjectName("heading")
         self.count = QLabel()
         self.count.setObjectName("muted")
-        self.search = QLineEdit(placeholderText="Zoeken op naam, tekst, lade-ID…")
+        self.search = QLineEdit(placeholderText=tr("Zoeken op naam, tekst, lade-ID…"))
         self.search.setClearButtonEnabled(True)
         self._search_icon = self.search.addAction(QIcon(), QLineEdit.ActionPosition.LeadingPosition)
         self.category = QComboBox()
         self.sort = QComboBox()
-        self.sort.setToolTip("Sorteren")
+        self.sort.setToolTip(tr("Sorteren"))
         for key, (text, _fn) in SORT_KEYS.items():
-            self.sort.addItem(text, key)
+            self.sort.addItem(tr(text), key)
         self.options = QToolButton()
-        self.options.setToolTip("Weergaveopties")
+        self.options.setToolTip(tr("Weergaveopties"))
         self.options.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
         opt_menu = QMenu(self.options)
-        self.descending = QAction("Aflopend sorteren", self, checkable=True)
-        self.group = QAction("Groeperen per categorie", self, checkable=True)
+        self.descending = QAction(tr("Aflopend sorteren"), self, checkable=True)
+        self.group = QAction(tr("Groeperen per categorie"), self, checkable=True)
         self.group.setChecked(True)
         opt_menu.addAction(self.group)
         opt_menu.addAction(self.descending)
@@ -312,7 +313,7 @@ class LibraryPanel(QWidget):
         cur_cat = self.category.currentText()
         self.category.blockSignals(True)
         self.category.clear()
-        self.category.addItem(ALL_CATEGORIES)
+        self.category.addItem(tr(ALL_CATEGORIES))
         self.category.addItems(cats)
         idx = self.category.findText(cur_cat)
         self.category.setCurrentIndex(idx if idx >= 0 else 0)
@@ -328,7 +329,7 @@ class LibraryPanel(QWidget):
         if self.group.isChecked():
             groups: dict[str, list[Label]] = {}
             for lbl in labels:
-                groups.setdefault(lbl.category or "(zonder categorie)", []).append(lbl)
+                groups.setdefault(lbl.category or tr("(zonder categorie)"), []).append(lbl)
             for cat in sorted(groups, key=str.casefold, reverse=self.descending.isChecked()):
                 head = QTreeWidgetItem([f"{cat}  ·  {len(groups[cat])}"])
                 head.setFlags(Qt.ItemFlag.ItemIsEnabled)
@@ -340,8 +341,9 @@ class LibraryPanel(QWidget):
         else:
             for lbl in labels:
                 self.tree.addTopLevelItem(self._make_item(lbl))
-        self.count.setText(f"{len(labels)} van {len(self.library)}" if len(labels) != len(self.library)
-                           else f"{len(labels)} labels")
+        self.count.setText(tr("{n} van {total}", n=len(labels), total=len(self.library))
+                           if len(labels) != len(self.library)
+                           else tr("{n} labels", n=len(labels)))
         self._building = False
         self._restoring = True  # restoring the old selection must not drop the pin
         try:
@@ -429,12 +431,12 @@ class LibraryPanel(QWidget):
 
     def _context_menu(self, pos) -> None:  # noqa: ANN001
         m = QMenu(self)
-        m.addAction("Nieuw label", self.newRequested.emit)
+        m.addAction(tr("Nieuw label"), self.newRequested.emit)
         if self.selected_ids():
-            m.addAction("Dupliceren", self.duplicateRequested.emit)
-            m.addAction("Hernoemen…", self.renameRequested.emit)
-            m.addAction("Verwijderen", self.deleteRequested.emit)
+            m.addAction(tr("Dupliceren"), self.duplicateRequested.emit)
+            m.addAction(tr("Hernoemen…"), self.renameRequested.emit)
+            m.addAction(tr("Verwijderen"), self.deleteRequested.emit)
             m.addSeparator()
-            m.addAction("Selectie afdrukken…", self.printSelectedRequested.emit)
-            m.addAction("Selectie exporteren als PNG…", self.exportPngRequested.emit)
+            m.addAction(tr("Selectie afdrukken…"), self.printSelectedRequested.emit)
+            m.addAction(tr("Selectie exporteren als PNG…"), self.exportPngRequested.emit)
         m.exec(self.tree.viewport().mapToGlobal(pos))

@@ -13,6 +13,7 @@ import logging
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
+from etiknivo.i18n import tr
 from etiknivo.printing.backend import (
     ConnectionState,
     DiscoveredDevice,
@@ -81,7 +82,7 @@ class PrinterManager:
 
     def _lost(self) -> None:
         self._emit(connection=ConnectionState.DISCONNECTED,
-                   message="Verbinding verbroken. Je kunt opnieuw verbinden.")
+                   message=tr("Verbinding verbroken. Je kunt opnieuw verbinden."))
 
     # -- public (thread-safe, return futures) ------------------------------------------
 
@@ -92,12 +93,12 @@ class PrinterManager:
             self._backend = backend
             self._attach(backend)
             self._emit(connection=ConnectionState.DISCONNECTED, address=None, info=None,
-                       devices=[], message=f"Backend: {backend.display_name}")
+                       devices=[], message=tr("Backend: {name}", name=backend.display_name))
         return self.runner.submit(_swap())
 
     def scan(self, timeout: float = 8.0) -> concurrent.futures.Future[list[DiscoveredDevice]]:
         async def _scan() -> list[DiscoveredDevice]:
-            self._emit(message="Zoeken naar Bluetooth-apparaten…")
+            self._emit(message=tr("Zoeken naar Bluetooth-apparaten…"))
             try:
                 devices = await self._backend.scan(timeout)
             except PrinterError as exc:
@@ -111,7 +112,7 @@ class PrinterManager:
 
     def connect(self, address: str | None) -> concurrent.futures.Future[None]:
         async def _connect() -> None:
-            self._emit(connection=ConnectionState.CONNECTING, message="Verbinden…")
+            self._emit(connection=ConnectionState.CONNECTING, message=tr("Verbinden…"))
             try:
                 await self._backend.connect(address)
                 info = await self._backend.get_info()
@@ -120,16 +121,17 @@ class PrinterManager:
                 raise
             except Exception as exc:  # noqa: BLE001 - keep reconnect possible
                 log.exception("Verbinden mislukt")
-                self._emit(connection=ConnectionState.ERROR, message=f"Verbinden mislukt: {exc}")
+                self._emit(connection=ConnectionState.ERROR,
+                           message=tr("Verbinden mislukt: {error}", error=exc))
                 raise PrinterError(str(exc)) from exc
             self._emit(connection=ConnectionState.CONNECTED, address=self._backend.address,
-                       info=info, message="Verbonden")
+                       info=info, message=tr("Verbonden"))
         return self.runner.submit(_connect())
 
     def disconnect(self) -> concurrent.futures.Future[None]:
         async def _disc() -> None:
             await self._backend.disconnect()
-            self._emit(connection=ConnectionState.DISCONNECTED, info=None, message="Verbroken")
+            self._emit(connection=ConnectionState.DISCONNECTED, info=None, message=tr("Verbroken"))
         return self.runner.submit(_disc())
 
     def refresh(self) -> concurrent.futures.Future[PrinterInfo | None]:
@@ -139,11 +141,11 @@ class PrinterManager:
             try:
                 info = await self._backend.get_info()
             except PrinterError as exc:
-                self._emit(message=f"Status opvragen mislukt: {exc}")
+                self._emit(message=tr("Status opvragen mislukt: {error}", error=exc))
                 if not self._backend.connected:
                     self._lost()
                 raise
-            self._emit(info=info, message="Status bijgewerkt")
+            self._emit(info=info, message=tr("Status bijgewerkt"))
             return info
         return self.runner.submit(_refresh())
 
