@@ -44,14 +44,11 @@ def label_sheet(out: Path) -> None:
     sheet.save(out)
 
 
-def main(target: str) -> None:
-    out = Path(target)
-    out.mkdir(parents=True, exist_ok=True)
-    label_sheet(out / "raaco-labels.png")
-    app = QApplication(sys.argv)
+def window_shots(app: QApplication, out: Path, theme: str, suffix: str) -> None:
     lib, _ = open_library(data_dir() / "library.json")
     backend = MockPrinterBackend(delay=0.05)
-    win = mw.MainWindow(lib, Settings(use_mock_printer=True), backend, poll_interval=3600)
+    win = mw.MainWindow(lib, Settings(use_mock_printer=True, theme=theme), backend,
+                        poll_interval=3600)
     win.resize(1500, 950)
     win.show()
 
@@ -64,7 +61,7 @@ def main(target: str) -> None:
     ids = win.library_panel.visible_ids()
     win.library_panel.select_ids([ids[3]])
     pump(5)
-    win.grab().save(str(out / "main-window.png"))
+    win.grab().save(str(out / f"main-window{suffix}.png"))
     win._connect("")
     pump(40)
     PrintPreviewDialog.exec = lambda self: QDialog.DialogCode.Accepted  # type: ignore[method-assign]
@@ -73,8 +70,17 @@ def main(target: str) -> None:
     pump(80)
     win.right_tabs.setCurrentWidget(win.printer_panel)
     pump(5)
-    win.grab().save(str(out / "printer-and-queue.png"))
+    win.grab().save(str(out / f"printer-and-queue{suffix}.png"))
     win.close()
+
+
+def main(target: str) -> None:
+    out = Path(target)
+    out.mkdir(parents=True, exist_ok=True)
+    label_sheet(out / "raaco-labels.png")
+    app = QApplication(sys.argv)
+    window_shots(app, out, "light", "")
+    window_shots(app, out, "dark", "-dark")
 
 
 if __name__ == "__main__":

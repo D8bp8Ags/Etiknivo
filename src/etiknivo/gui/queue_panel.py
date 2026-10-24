@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import Signal
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -10,22 +10,23 @@ from PySide6.QtWidgets import (
     QHeaderView,
     QLabel,
     QProgressBar,
-    QPushButton,
     QTableWidget,
     QTableWidgetItem,
+    QToolButton,
     QVBoxLayout,
     QWidget,
 )
 
+from etiknivo.gui import theme
 from etiknivo.gui.printer_panel import DENSITIES
 from etiknivo.printing.queue import JOB_STATUS_NL, JobStatus, QueueSnapshot
 
-STATUS_COLOR = {
-    JobStatus.PENDING: QColor("#777"),
-    JobStatus.PRINTING: QColor("#c80"),
-    JobStatus.DONE: QColor("#2a2"),
-    JobStatus.FAILED: QColor("#d22"),
-    JobStatus.CANCELLED: QColor("#777"),
+STATUS_TONE = {
+    JobStatus.PENDING: "muted",
+    JobStatus.PRINTING: "warning",
+    JobStatus.DONE: "success",
+    JobStatus.FAILED: "danger",
+    JobStatus.CANCELLED: "muted",
 }
 
 
@@ -42,28 +43,48 @@ class QueuePanel(QWidget):
         self.table.setHorizontalHeaderLabels(["Label", "Exemplaren", "Dichtheid", "Status",
                                               "Melding"])
         self.table.verticalHeader().hide()
+        self.table.verticalHeader().setDefaultSectionSize(30)
+        self.table.setShowGrid(False)
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         h = self.table.horizontalHeader()
+        h.setDefaultAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         h.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
         h.setSectionResizeMode(4, QHeaderView.ResizeMode.Stretch)
         self.progress = QProgressBar()
+        self.progress.setTextVisible(False)
+        self.progress.setMaximumWidth(260)
         self.summary = QLabel("Wachtrij leeg")
-        self.pause_btn = QPushButton("Stoppen")
-        self.resume_btn = QPushButton("Hervatten")
-        self.retry_btn = QPushButton("Mislukte opnieuw")
-        self.cancel_btn = QPushButton("Wachtende annuleren")
-        self.clear_btn = QPushButton("Afgeronde wissen")
+        self.summary.setTextFormat(Qt.TextFormat.RichText)
+
+        def tool(text: str, tip: str) -> QToolButton:
+            b = QToolButton()
+            b.setText(text)
+            b.setToolTip(tip)
+            b.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+            return b
+
+        self.pause_btn = tool("Stop", "Printen stoppen na het huidige etiket")
+        self.resume_btn = tool("Hervat", "Wachtrij hervatten")
+        self.retry_btn = tool("Opnieuw", "Mislukte en geannuleerde opdrachten opnieuw proberen")
+        self.cancel_btn = tool("Annuleer", "Wachtende opdrachten annuleren")
+        self.clear_btn = tool("Wis klaar", "Afgeronde opdrachten uit de lijst halen")
         lay = QVBoxLayout(self)
-        lay.setContentsMargins(6, 4, 6, 4)
+        lay.setContentsMargins(12, 6, 12, 10)
+        lay.setSpacing(6)
         top = QHBoxLayout()
-        top.addWidget(self.summary, 1)
+        top.setSpacing(4)
+        top.addWidget(self.summary)
+        top.addSpacing(10)
         top.addWidget(self.progress, 1)
+        top.addStretch(1)
         for b in (self.pause_btn, self.resume_btn, self.retry_btn, self.cancel_btn,
                   self.clear_btn):
             top.addWidget(b)
         lay.addLayout(top)
         lay.addWidget(self.table)
+        self.apply_theme()
+        theme.manager().changed.connect(self.apply_theme)
         self.pause_btn.clicked.connect(self.pauseRequested)
         self.resume_btn.clicked.connect(self.resumeRequested)
         self.retry_btn.clicked.connect(self.retryRequested)
@@ -71,7 +92,17 @@ class QueuePanel(QWidget):
         self.clear_btn.clicked.connect(self.clearRequested)
         self.set_snapshot(QueueSnapshot((), False, False))
 
+    def apply_theme(self) -> None:
+        for b, name in ((self.pause_btn, "pause"), (self.resume_btn, "play"),
+                        (self.retry_btn, "rotate-ccw"), (self.cancel_btn, "x"),
+                        (self.clear_btn, "eraser")):
+            b.setIcon(theme.icon(name, size=16))
+        if hasattr(self, "_snap"):
+            self.set_snapshot(self._snap)
+
     def set_snapshot(self, snap: QueueSnapshot) -> None:
+        self._snap = snap
+        t = theme.tokens()
         jobs = snap.jobs
         self.table.setRowCount(len(jobs))
         for row, j in enumerate(jobs):
@@ -80,7 +111,7 @@ class QueuePanel(QWidget):
             for col, text in enumerate(cells):
                 it = QTableWidgetItem(text)
                 if col == 3:
-                    it.setForeground(STATUS_COLOR[j.status])
+                    it.setForeground(QColor(getattr(t, STATUS_TONE[j.status])))
                 if col == 4 and j.error:
                     it.setToolTip(j.error)
                 self.table.setItem(row, col, it)
@@ -93,7 +124,8 @@ class QueuePanel(QWidget):
         if not jobs:
             text = "Wachtrij leeg"
         elif snap.paused and (pend or failed):
-            text = f"<b style='color:#d22'>Gestopt</b> · {pend} wachtend · {failed} mislukt"
+            text = (f"<b style='color:{t.danger}'>Gestopt</b> · {pend} wachtend · "
+                    f"{failed} mislukt")
         elif snap.running:
             text = f"Bezig met printen · {pend} wachtend"
         else:

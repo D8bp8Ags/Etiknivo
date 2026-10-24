@@ -62,7 +62,7 @@ class LineEditor(QGroupBox):
         for a, t in ALIGN_TEXT.items():
             self.align.addItem(t, a)
         self.fitted = QLabel()
-        self.fitted.setStyleSheet("color: palette(mid); font-size: 11px;")
+        self.fitted.setObjectName("hint")
 
         form = QFormLayout(self)
         form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
@@ -101,11 +101,14 @@ class PropertiesPanel(QScrollArea):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setWidgetResizable(True)
+        self.setObjectName("inspectorScroll")
+        self.setFrameShape(QScrollArea.Shape.NoFrame)
         self.label: Label | None = None
         self._loading = False
         body = QWidget()
         lay = QVBoxLayout(body)
-        lay.setContentsMargins(6, 6, 6, 6)
+        lay.setContentsMargins(14, 0, 14, 14)
+        lay.setSpacing(2)
 
         gen = QGroupBox("Label")
         f = QFormLayout(gen)
@@ -124,7 +127,7 @@ class PropertiesPanel(QScrollArea):
         hint = QLabel("De lade-ID wordt niet op het etiket afgedrukt. Wisselen van layout "
                       "bewaart de tekst van alle regels.")
         hint.setWordWrap(True)
-        hint.setStyleSheet("color: palette(mid); font-size: 11px;")
+        hint.setObjectName("hint")
         f.addRow(hint)
         lay.addWidget(gen)
 

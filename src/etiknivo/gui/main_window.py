@@ -7,27 +7,31 @@ import threading
 import time
 from pathlib import Path
 
-from PySide6.QtCore import QSettings, Qt, QTimer, QUrl, Signal
-from PySide6.QtGui import QAction, QCloseEvent, QDesktopServices, QKeySequence
+from PySide6.QtCore import QSettings, QSize, Qt, QTimer, QUrl, Signal
+from PySide6.QtGui import QAction, QActionGroup, QCloseEvent, QDesktopServices, QKeySequence
 from PySide6.QtWidgets import (
-    QCheckBox,
     QDockWidget,
     QFileDialog,
     QHBoxLayout,
     QInputDialog,
     QLabel,
     QMainWindow,
+    QMenu,
     QMessageBox,
     QPushButton,
     QScrollArea,
+    QSizePolicy,
     QSlider,
     QSplitter,
     QTabWidget,
+    QToolBar,
+    QToolButton,
     QVBoxLayout,
     QWidget,
 )
 
 from etiknivo import APP_NAME, __version__
+from etiknivo.gui import theme
 from etiknivo.gui.dialogs import CalibrationDialog, PrintPreviewDialog
 from etiknivo.gui.library_panel import ALL_CATEGORIES, LibraryPanel
 from etiknivo.gui.preview import DesignView, RasterView
@@ -66,8 +70,10 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle(APP_NAME)
         self.resize(1400, 860)
+        self.setUnifiedTitleAndToolBarOnMac(True)
         self.library = library
         self.settings = settings or load_settings()
+        theme.apply(self.settings.theme)
         self.profile = get_profile(self.settings.printer_model)
         self.engine = RenderEngine(self.profile, self.settings.calibration)
         self.current: Label | None = None
@@ -89,30 +95,43 @@ class MainWindow(QMainWindow):
         self.printer_panel.remember_address(self.settings.printer_address)
         self.queue_panel = QueuePanel()
 
+        self.printer_panel.setObjectName("inspector")
+        self.printer_panel.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         right = QTabWidget()
-        right.addTab(self.properties, "Eigenschappen")
+        right.setDocumentMode(True)
+        right.addTab(self.properties, "Ontwerp")
         right.addTab(self.printer_panel, "Printer")
         self.right_tabs = right
+        inspector = QWidget()
+        inspector.setObjectName("inspector")
+        inspector.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        il = QVBoxLayout(inspector)
+        il.setContentsMargins(0, 0, 0, 0)
+        il.addWidget(right)
 
         center = self._build_editor()
         splitter = QSplitter(Qt.Orientation.Horizontal)
+        splitter.setHandleWidth(1)
+        splitter.setChildrenCollapsible(False)
         splitter.addWidget(self.library_panel)
         splitter.addWidget(center)
-        splitter.addWidget(right)
+        splitter.addWidget(inspector)
         splitter.setStretchFactor(0, 0)
         splitter.setStretchFactor(1, 1)
         splitter.setStretchFactor(2, 0)
-        splitter.setSizes([440, 600, 370])
+        splitter.setSizes([340, 700, 360])
         self.setCentralWidget(splitter)
 
         dock = QDockWidget("Printwachtrij", self)
         dock.setObjectName("queue")
         dock.setWidget(self.queue_panel)
-        dock.setFeatures(QDockWidget.DockWidgetFeature.DockWidgetMovable
+        dock.setFeatures(QDockWidget.DockWidgetFeature.DockWidgetClosable
+                         | QDockWidget.DockWidgetFeature.DockWidgetMovable
                          | QDockWidget.DockWidgetFeature.DockWidgetFloatable)
         self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, dock)
         self.queue_dock = dock
         self.resizeDocks([dock], [190], Qt.Orientation.Vertical)
+        dock.hide()
 
         self.printer_status = QLabel()
         self.statusBar().addPermanentWidget(self.printer_status)
@@ -122,11 +141,15 @@ class MainWindow(QMainWindow):
         self._render_timer = QTimer(self, singleShot=True, interval=30)
         self._render_timer.timeout.connect(self.update_preview)
 
+        self._build_toolbar()
         self._build_menus()
         self._connect_signals()
+        self.apply_theme()
+        theme.manager().changed.connect(self.apply_theme)
         self.properties.set_categories(self.library.categories())
         self._load_fonts_async()
         self.on_printer_state(self.bridge.state)
+        self._update_queue_button()
 
         first = self.library_panel.visible_ids()
         if first:
@@ -135,72 +158,187 @@ class MainWindow(QMainWindow):
 
     # -- construction --------------------------------------------------------------------
 
+    def _build_toolbar(self) -> None:
+        tb = QToolBar("Werkbalk", self)
+        tb.setObjectName("toolbar")
+        tb.setMovable(False)
+        tb.setFloatable(False)
+        tb.setIconSize(QSize(18, 18))
+        tb.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
+        tb.setContextMenuPolicy(Qt.ContextMenuPolicy.PreventContextMenu)
+        self.addToolBar(Qt.ToolBarArea.TopToolBarArea, tb)
+        self.toolbar = tb
+
+        self.act_new = QAction("Nieuw label", self, toolTip="Nieuw label (⌘N)")
+        self.act_dup = QAction("Dupliceren", self, toolTip="Dupliceren (⌘D)")
+        self.act_rename = QAction("Hernoemen", self, toolTip="Hernoemen (F2)")
+        self.act_del = QAction("Verwijderen", self, toolTip="Verwijderen")
+        self.act_new.triggered.connect(self.new_label)
+        self.act_dup.triggered.connect(self.duplicate_label)
+        self.act_rename.triggered.connect(self.rename_label)
+        self.act_del.triggered.connect(self.delete_labels)
+        for a in (self.act_new, self.act_dup, self.act_rename, self.act_del):
+            tb.addAction(a)
+
+        spacer = QWidget()
+        spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        tb.addWidget(spacer)
+        title = QWidget()
+        tl = QVBoxLayout(title)
+        tl.setContentsMargins(0, 0, 0, 0)
+        tl.setSpacing(0)
+        self.title_lbl = QLabel()
+        self.title_lbl.setObjectName("title")
+        self.title_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.subtitle_lbl = QLabel()
+        self.subtitle_lbl.setObjectName("subtitle")
+        self.subtitle_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        tl.addWidget(self.title_lbl)
+        tl.addWidget(self.subtitle_lbl)
+        tb.addWidget(title)
+        spacer2 = QWidget()
+        spacer2.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        tb.addWidget(spacer2)
+
+        self.printer_chip = QToolButton()
+        self.printer_chip.setObjectName("chip")
+        self.printer_chip.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+        self.printer_chip.setToolTip("Printer beheren")
+        self.printer_chip.clicked.connect(
+            lambda: self.right_tabs.setCurrentWidget(self.printer_panel))
+        tb.addWidget(self.printer_chip)
+        self.queue_btn = QToolButton()
+        self.queue_btn.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+        self.queue_btn.setToolTip("Printwachtrij tonen of verbergen")
+        self.queue_btn.setCheckable(True)
+        self.queue_btn.toggled.connect(lambda on: self.queue_dock.setVisible(on))
+        self.queue_dock.visibilityChanged.connect(self.queue_btn.setChecked)
+        tb.addWidget(self.queue_btn)
+
+        self.print_btn = QPushButton(" Afdrukken")
+        self.print_btn.setProperty("primary", True)
+        self.print_btn.setToolTip("Huidig label afdrukken (⌘P)")
+        self.print_btn.setDefault(True)
+        self.print_more = QToolButton()
+        self.print_more.setToolTip("Meer afdrukopties")
+        self.print_more.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
+        more = QMenu(self.print_more)
+        self.print_sel_btn = more.addAction("Geselecteerde labels…", self.print_selected)
+        more.addAction("Alle labels uit categorie…", self.print_category)
+        more.addAction("Alle labels…", self.print_all)
+        more.addSeparator()
+        more.addAction("Testlabel", self.print_test_label)
+        more.addAction("Kalibratietest", self.print_calibration)
+        self.print_more.setMenu(more)
+        holder = QWidget()
+        hl = QHBoxLayout(holder)
+        hl.setContentsMargins(8, 0, 0, 0)
+        hl.setSpacing(2)
+        hl.addWidget(self.print_more)
+        hl.addWidget(self.print_btn)
+        tb.addWidget(holder)
+
     def _build_editor(self) -> QWidget:
         w = QWidget()
+        w.setObjectName("canvas")
+        w.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         lay = QVBoxLayout(w)
-        lay.setContentsMargins(6, 6, 6, 6)
-        bar = QHBoxLayout()
-        self.title_lbl = QLabel("<b>Labeleditor</b>")
-        self.zoom = QSlider(Qt.Orientation.Horizontal)
-        self.zoom.setRange(6, 40)
-        self.zoom.setValue(int(self.settings.zoom))
-        self.zoom.setMaximumWidth(180)
-        self.zoom_lbl = QLabel()
-        self.guides = QCheckBox("Printbaar gebied en marges")
-        self.guides.setChecked(self.settings.show_printable_area)
-        self.native = QCheckBox("Native oriëntatie (96×240)")
-        self.native.setChecked(self.settings.show_native_raster)
-        bar.addWidget(self.title_lbl)
-        bar.addStretch(1)
-        bar.addWidget(QLabel("Zoom"))
-        bar.addWidget(self.zoom)
-        bar.addWidget(self.zoom_lbl)
-        lay.addLayout(bar)
-        opts = QHBoxLayout()
-        opts.addWidget(self.guides)
-        opts.addWidget(self.native)
-        opts.addStretch(1)
-        lay.addLayout(opts)
+        lay.setContentsMargins(0, 0, 0, 0)
+        lay.setSpacing(0)
 
         body = QWidget()
+        body.setObjectName("canvas")
+        body.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         bl = QVBoxLayout(body)
-        h1 = QLabel("Ontwerpweergave <span style='color:gray'>— bewerken, met antialiasing. "
-                    "Gearceerd = buiten de 96-dots printkop; blauw = printbaar; groen = marges"
-                    "</span>")
-        h1.setWordWrap(True)
+        bl.setContentsMargins(24, 28, 24, 24)
+        bl.setSpacing(6)
+        h1 = QLabel("ONTWERP")
+        h1.setObjectName("caption")
+        h1.setToolTip("Bewerken met antialiasing. Gearceerd = wordt niet geprint (buiten de "
+                      "printkop of in de veilige marge); blauw = printbaar; groen = marges.")
         self.design_view = DesignView(self.engine)
-        h2 = QLabel(f"Printerraster <span style='color:gray'>— 1-bit, exact wat er naar de "
-                    f"printer gaat ({self.profile.printhead_px} × "
-                    f"{self.profile.label_length_px} dots, kalibratie toegepast)</span>")
-        h2.setWordWrap(True)
+        h2 = QLabel(f"PRINTERRASTER  ·  {self.profile.printhead_px} × "
+                    f"{self.profile.label_length_px} DOTS")
+        h2.setObjectName("caption")
+        h2.setToolTip("1-bit: exact wat er naar de printer gaat, inclusief kalibratie.")
         self.raster_view = RasterView(self.engine)
-        self.raster_view.set_native(self.native.isChecked())
         self.warnings = QLabel()
-        self.warnings.setWordWrap(True)
+        self.warnings.setObjectName("pill")
         self.warnings.setTextFormat(Qt.TextFormat.RichText)
+        for cap in (h1, h2):
+            cap.setAlignment(Qt.AlignmentFlag.AlignHCenter)
         bl.addWidget(h1)
         bl.addWidget(self.design_view, 0, Qt.AlignmentFlag.AlignHCenter)
-        bl.addSpacing(8)
+        bl.addSpacing(18)
         bl.addWidget(h2)
         bl.addWidget(self.raster_view, 0, Qt.AlignmentFlag.AlignHCenter)
-        bl.addWidget(self.warnings)
+        bl.addSpacing(10)
+        bl.addWidget(self.warnings, 0, Qt.AlignmentFlag.AlignHCenter)
         bl.addStretch(1)
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setWidget(body)
         lay.addWidget(scroll, 1)
 
-        row = QHBoxLayout()
-        self.print_btn = QPushButton("Huidig label afdrukken…")
-        self.print_btn.setDefault(True)
-        self.print_sel_btn = QPushButton("Selectie afdrukken…")
+        bar = QWidget()
+        bar.setObjectName("canvas")
+        bar.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        row = QHBoxLayout(bar)
+        row.setContentsMargins(12, 6, 12, 8)
+        row.setSpacing(4)
+        self.guides = QToolButton()
+        self.guides.setText("Hulplijnen")
+        self.guides.setToolTip("Printbaar gebied en marges tonen")
+        self.guides.setCheckable(True)
+        self.guides.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+        self.guides.setChecked(self.settings.show_printable_area)
+        self.native = QToolButton()
+        self.native.setText("Native 96×240")
+        self.native.setToolTip("Printerraster in de oriëntatie van de printkop tonen")
+        self.native.setCheckable(True)
+        self.native.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+        self.native.setChecked(self.settings.show_native_raster)
+        self.zoom_out = QToolButton()
+        self.zoom_out.setToolTip("Uitzoomen")
+        self.zoom_in = QToolButton()
+        self.zoom_in.setToolTip("Inzoomen")
+        self.zoom = QSlider(Qt.Orientation.Horizontal)
+        self.zoom.setRange(6, 40)
+        self.zoom.setValue(int(self.settings.zoom))
+        self.zoom.setFixedWidth(120)
+        self.zoom_lbl = QLabel()
+        self.zoom_lbl.setObjectName("muted")
+        self.zoom_lbl.setMinimumWidth(42)
+        self.zoom_out.clicked.connect(lambda: self.zoom.setValue(self.zoom.value() - 2))
+        self.zoom_in.clicked.connect(lambda: self.zoom.setValue(self.zoom.value() + 2))
+        row.addWidget(self.guides)
+        row.addWidget(self.native)
         row.addStretch(1)
-        row.addWidget(self.print_sel_btn)
-        row.addWidget(self.print_btn)
-        lay.addLayout(row)
+        row.addWidget(self.zoom_out)
+        row.addWidget(self.zoom)
+        row.addWidget(self.zoom_in)
+        row.addWidget(self.zoom_lbl)
+        lay.addWidget(bar)
+
+        self.raster_view.set_native(self.native.isChecked())
         self._apply_zoom(self.zoom.value())
         self.design_view.set_show_guides(self.guides.isChecked())
         return w
+
+    def apply_theme(self) -> None:
+        t = theme.tokens()
+        for a, name in ((self.act_new, "plus"), (self.act_dup, "copy"),
+                        (self.act_rename, "pencil"), (self.act_del, "trash-2")):
+            a.setIcon(theme.icon(name))
+        self.guides.setIcon(theme.icon("square-dashed", size=16))
+        self.native.setIcon(theme.icon("frame", size=16))
+        self.zoom_out.setIcon(theme.icon("zoom-out", size=16))
+        self.zoom_in.setIcon(theme.icon("zoom-in", size=16))
+        self.queue_btn.setIcon(theme.icon("layers"))
+        self.print_more.setIcon(theme.icon("chevron-down", size=16))
+        self.print_btn.setIcon(theme.icon("printer", t.on_accent, 16))
+        self.on_printer_state(self.bridge.state)
+        self.update_preview()
 
     def _build_menus(self) -> None:
         mb = self.menuBar()
@@ -257,10 +395,30 @@ class MainWindow(QMainWindow):
         m.addSeparator()
         act(m, "Printwachtrij tonen", lambda: (self.queue_dock.show(), self.queue_dock.raise_()))
 
+
+        m = mb.addMenu("&Weergave")
+        m.addAction(self.guides.text(), self.guides.toggle)
+        m.addAction("Printwachtrij", lambda: self.queue_dock.setVisible(
+            not self.queue_dock.isVisible()))
+        m.addSeparator()
+        tm = m.addMenu("Thema")
+        group = QActionGroup(self)
+        for key, text in theme.THEMES.items():
+            a = tm.addAction(text)
+            a.setCheckable(True)
+            a.setChecked(key == self.settings.theme)
+            a.triggered.connect(lambda _c=False, k=key: self.set_theme(k))
+            group.addAction(a)
+
         m = mb.addMenu("&Help")
         act(m, "Logmap openen", lambda: QDesktopServices.openUrl(
             QUrl.fromLocalFile(str(log_dir()))))
         act(m, f"Over {APP_NAME}", self.about)
+
+    def set_theme(self, mode: str) -> None:
+        self.settings.theme = mode
+        self._save_settings()
+        theme.apply(mode)
 
     def _connect_signals(self) -> None:
         lp = self.library_panel
@@ -280,7 +438,7 @@ class MainWindow(QMainWindow):
         self.native.toggled.connect(self.raster_view.set_native)
         self.native.toggled.connect(self._save_view_settings)
         self.print_btn.clicked.connect(self.print_current)
-        self.print_sel_btn.clicked.connect(self.print_selected)
+        self.bridge.queueChanged.connect(self._update_queue_button)
 
         pp = self.printer_panel
         pp.scanRequested.connect(self._scan)
@@ -331,15 +489,23 @@ class MainWindow(QMainWindow):
         self.current = self.library.get(label_id) if label_id else None
         self._shown_category = self.current.category if self.current else ""
         self.properties.set_label(self.current)
-        self.title_lbl.setText(f"<b>{self.current.name}</b>" if self.current
-                               else "<b>Geen label geselecteerd</b>")
+        self._update_title()
         self.update_preview()
+
+    def _update_title(self) -> None:
+        lbl = self.current
+        self.title_lbl.setText(lbl.name if lbl else "Geen label geselecteerd")
+        self.subtitle_lbl.setText("  ·  ".join(x for x in (lbl.tray_id, lbl.category) if x)
+                                  if lbl else "")
+        for a in (self.act_dup, self.act_rename, self.act_del):
+            a.setEnabled(lbl is not None)
+        self.print_btn.setEnabled(lbl is not None)
 
     def on_label_edited(self, structural: bool) -> None:
         if self.current is None:
             return
         self._render_timer.start()
-        self.title_lbl.setText(f"<b>{self.current.name}</b>")
+        self._update_title()
         if structural and self.current.category != self._shown_category:
             self._shown_category = self.current.category
             self.library_panel.refresh()  # regroup under the new category
@@ -352,6 +518,7 @@ class MainWindow(QMainWindow):
             self.design_view.set_result(None)
             self.raster_view.set_result(None)
             self.warnings.setText("")
+            self.warnings.setProperty("state", "")
             return
         r = self.engine.render(self.current)
         self.design_view.set_result(r)
@@ -359,11 +526,13 @@ class MainWindow(QMainWindow):
         self.properties.show_fitted_sizes({lb.slot: (lb.size_pt, lb.requested_pt)
                                            for lb in r.lines})
         if r.warnings:
-            self.warnings.setText("<br>".join(f"<span style='color:#d22'>⚠ {w}</span>"
-                                              for w in r.warnings))
+            self.warnings.setProperty("state", "warn")
+            self.warnings.setText("<br>".join(f"⚠&nbsp; {w}" for w in r.warnings))
         else:
-            self.warnings.setText("<span style='color:#2a2'>✓ Alle tekst valt binnen het "
-                                  "printbare gebied</span>")
+            self.warnings.setProperty("state", "ok")
+            self.warnings.setText("✓&nbsp; Alle tekst valt binnen het printbare gebied")
+        self.warnings.style().unpolish(self.warnings)
+        self.warnings.style().polish(self.warnings)
 
     def _apply_zoom(self, value: int) -> None:
         self.design_view.set_zoom(float(value))
@@ -571,19 +740,35 @@ class MainWindow(QMainWindow):
 
     def on_printer_state(self, st: PrinterState) -> None:
         self.printer_panel.set_state(st)
-        text = {ConnectionState.CONNECTED: "Printer verbonden",
-                ConnectionState.CONNECTING: "Printer verbinden…",
-                ConnectionState.ERROR: "Printerfout",
-                ConnectionState.DISCONNECTED: "Geen printer"}[st.connection]
+        t = theme.tokens()
+        text, tone = {ConnectionState.CONNECTED: ("Verbonden", t.success),
+                      ConnectionState.CONNECTING: ("Verbinden…", t.warning),
+                      ConnectionState.ERROR: ("Printerfout", t.danger),
+                      ConnectionState.DISCONNECTED: ("Geen printer", t.muted)}[st.connection]
+        chip = text
+        if st.connection == ConnectionState.CONNECTED and st.info:
+            chip = st.info.model or text
         if st.simulated:
             text += " (simulatie)"
-        if st.info and st.connection == ConnectionState.CONNECTED and st.info.battery is not None:
-            text += f" · batterij {st.info.battery}%"
+            if "simulatie" not in chip:
+                chip += " · simulatie"
+        battery = (st.info.battery if st.info and st.connection == ConnectionState.CONNECTED
+                   else None)
+        if battery is not None:
+            text += f" · batterij {battery}%"
+            chip += f" · {battery}%"
         self.printer_status.setText(text)
+        self.printer_chip.setText(chip)
+        self.printer_chip.setIcon(theme.dot(tone))
         if st.connection == ConnectionState.CONNECTED and st.address and not st.simulated \
                 and st.address != self.settings.printer_address:
             self.settings.printer_address = st.address
             self._save_settings()
+
+    def _update_queue_button(self, snap: object = None) -> None:
+        snap = snap or self.bridge.queue_snapshot()
+        busy = snap.pending + (1 if snap.running else 0)
+        self.queue_btn.setText(f"Wachtrij  {busy}" if busy else "Wachtrij")
 
     def on_task_finished(self, tag: str, result: object, exc: object) -> None:
         if tag == "scan":
@@ -724,7 +909,8 @@ class MainWindow(QMainWindow):
                           f"Printkop {self.profile.printhead_px} dots, {self.profile.dpi} dpi, "
                           f"label {self.profile.label_width_mm:g} × "
                           f"{self.profile.label_height_mm:g} mm.</p>"
-                          "<p>Lettertype: DejaVu Sans.</p><p>MIT-licentie.</p>")
+                          "<p>Lettertype: DejaVu Sans. Pictogrammen: Lucide (ISC).</p>"
+                          "<p>MIT-licentie.</p>")
 
     # -- shutdown ------------------------------------------------------------------------
 

@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import replace
 
 from PySide6.QtCore import QSize, Qt
+from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QCheckBox,
@@ -22,6 +23,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from etiknivo.gui import theme
 from etiknivo.gui.printer_panel import DENSITIES
 from etiknivo.gui.qt_util import pil_to_pixmap
 from etiknivo.model import Label
@@ -75,7 +77,7 @@ class PrintPreviewDialog(QDialog):
                 self.overflow += 1
             it = QTableWidgetItem(warn or "OK")
             if warn:
-                it.setForeground(Qt.GlobalColor.red)
+                it.setForeground(QColor(theme.tokens().danger))
                 it.setToolTip(warn)
             self.table.setItem(row, 3, it)
             self.table.setRowHeight(row, 92)
@@ -91,16 +93,18 @@ class PrintPreviewDialog(QDialog):
         lay.addLayout(form)
         if self.overflow:
             w = QLabel(f"⚠ {self.overflow} label(s) hebben tekst buiten het printbare gebied.")
-            w.setStyleSheet("color: #d22;")
+            w.setStyleSheet(f"color: {theme.tokens().danger};")
             lay.addWidget(w)
         if not can_print:
             w = QLabel("⚠ Geen printer verbonden. Verbind eerst in het printerpaneel "
                        "(of zet de simulatieprinter aan).")
-            w.setStyleSheet("color: #d22;")
+            w.setStyleSheet(f"color: {theme.tokens().danger};")
             w.setWordWrap(True)
             lay.addWidget(w)
         bb = QDialogButtonBox(QDialogButtonBox.StandardButton.Cancel)
         self.ok = bb.addButton("Afdrukken", QDialogButtonBox.ButtonRole.AcceptRole)
+        self.ok.setProperty("primary", True)
+        self.ok.setIcon(theme.icon("printer", theme.tokens().on_accent, 16))
         self.ok.setEnabled(can_print)
         bb.accepted.connect(self.accept)
         bb.rejected.connect(self.reject)
