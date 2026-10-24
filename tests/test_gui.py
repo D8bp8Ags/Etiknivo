@@ -17,6 +17,7 @@ from etiknivo.storage.library import Library, open_library
 @pytest.fixture
 def window(qtbot, monkeypatch):  # noqa: ANN001, ANN201
     lib, _ = open_library(data_dir() / "library.json")
+    monkeypatch.setattr(mw.MainWindow, "_ask_unsaved", lambda self, lbl: "discard")
     backend = MockPrinterBackend()
     win = mw.MainWindow(lib, Settings(use_mock_printer=True), backend, poll_interval=3600)
     qtbot.addWidget(win)
@@ -34,25 +35,66 @@ def connect(qtbot, win) -> None:  # noqa: ANN001
 
 
 def test_window_starts_with_seed_library(window) -> None:  # noqa: ANN001
-    assert window.windowTitle() == "Etiknivo"
+    assert window.windowTitle() == "Etiknivo[*]" and not window.isWindowModified()
     assert len(window.library_panel.visible_ids()) == 23
     assert window.current is not None
     assert window.raster_view.result.raster.size == (96, 240)
 
 
-def test_editing_updates_label_preview_and_autosaves(qtbot, window) -> None:  # noqa: ANN001
-    lbl = window.current
+def edit_main(window, text: str) -> None:  # noqa: ANN001
     editor = window.properties.lines[1]
-    editor.text.setText("Nieuwe tekst Ω")
-    editor.text.textEdited.emit("Nieuwe tekst Ω")
+    editor.text.setText(text)
+    editor.text.textEdited.emit(text)
+
+
+def test_edits_are_a_draft_until_saved(qtbot, window) -> None:  # noqa: ANN001
+    lbl = window.current
+    path = data_dir() / "library.json"
+    edit_main(window, "Nieuwe tekst Ω")
     assert lbl.main.text == "Nieuwe tekst Ω"
     qtbot.waitUntil(lambda: window.design_view.result.lines[1].text == "Nieuwe tekst Ω",
                     timeout=2000)
-    qtbot.waitUntil(lambda: "Nieuwe tekst Ω" in (data_dir() / "library.json").read_text("utf-8"),
-                    timeout=3000)
-    reloaded = Library(data_dir() / "library.json")
+    assert window.is_dirty() and window.isWindowModified() and window.save_btn.isEnabled()
+    assert window.library.get(lbl.id).main.text != "Nieuwe tekst Ω"  # list/library untouched
+    qtbot.wait(800)  # longer than the old autosave delay
+    assert "Nieuwe tekst Ω" not in path.read_text("utf-8")
+    window.save_current()
+    assert not window.is_dirty() and not window.save_btn.isEnabled()
+    reloaded = Library(path)
     reloaded.load()
     assert reloaded.get(lbl.id).main.text == "Nieuwe tekst Ω"
+
+
+def test_revert_restores_saved_label(window) -> None:  # noqa: ANN001
+    before = window.current.main.text
+    edit_main(window, "Weg ermee")
+    window.revert_current()
+    assert window.current.main.text == before and not window.is_dirty()
+    assert window.properties.lines[1].text.text() == before
+
+
+def test_switching_with_unsaved_changes_asks(window, monkeypatch) -> None:  # noqa: ANN001
+    lp = window.library_panel
+    first, second = lp.visible_ids()[:2]
+    edit_main(window, "Concept")
+    monkeypatch.setattr(mw.MainWindow, "_ask_unsaved", lambda self, lbl: "cancel")
+    lp.select_ids([second])
+    assert window.current.id == first and window.current.main.text == "Concept"
+    assert lp.selected_ids() == [first]
+    monkeypatch.setattr(mw.MainWindow, "_ask_unsaved", lambda self, lbl: "discard")
+    lp.select_ids([second])
+    assert window.current.id == second
+    assert window.library.get(first).main.text != "Concept"
+    edit_main(window, "Bewaard")
+    monkeypatch.setattr(mw.MainWindow, "_ask_unsaved", lambda self, lbl: "save")
+    lp.select_ids([first])
+    assert window.current.id == first and window.library.get(second).main.text == "Bewaard"
+
+
+def test_print_uses_the_draft(window) -> None:  # noqa: ANN001
+    edit_main(window, "Ongesaved")
+    sel = window._selected_in_view_order()
+    assert sel[0] is window.current and sel[0].main.text == "Ongesaved"
 
 
 def test_layout_switch_in_gui_keeps_text(window) -> None:  # noqa: ANN001
@@ -161,6 +203,8 @@ def test_new_label_follows_category_change_without_losing_focus(window) -> None:
     combo.setEditText("Audio")
     combo.lineEdit().editingFinished.emit()
     assert lbl.category == "Audio"
+    assert lp.category.currentText() == "Dupont"  # still a draft: list unchanged
+    window.save_current()
     assert lp.category.currentText() == "Audio"  # the filter followed the label
     assert window.current is lbl and lp.selected_ids() == [lbl.id]
     assert window.properties.isEnabled()

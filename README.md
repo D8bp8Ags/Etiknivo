@@ -12,6 +12,7 @@ Etiknivo is een desktopapplicatie (Python + PySide6) om etiketten te ontwerpen, 
 
 - **Moderne interface** die automatisch de lichte of donkere modus van macOS volgt (of vast licht/donker via *Weergave → Thema*): werkbalk met printerstatus en afdrukknop, bibliotheek als kaartjes, het label als papier op een canvas en een inspector met *Ontwerp* en *Printer*.
 - **Labelbibliotheek**: thumbnails (de echte 1-bit printeruitvoer), naam, categorie en lade-ID, zoeken, categoriefilter, sorteren, groeperen per categorie, meervoudige selectie, nieuw/dupliceren/hernoemen/verwijderen. Het label dat je bewerkt blijft altijd zichtbaar: krijgt het een andere categorie, dan springt het filter mee.
+- **Opslaan per label** (⌘S): wijzigingen zijn een concept dat je direct in de preview ziet (met een stip in de lijst) tot je op Opslaan klikt. Herstellen zet het label terug; bij wisselen of afsluiten vraagt Etiknivo wat er met niet-opgeslagen wijzigingen moet gebeuren. Afdrukken gebruikt wat je ziet.
 - **Ongedaan maken en opnieuw** (⌘Z / ⇧⌘Z) voor alle wijzigingen: tekst, opmaak, categorie, nieuw, dupliceren, verwijderen en importeren. Snel achter elkaar typen in hetzelfde label telt als één stap.
 - **Editor met twee weergaven**:
   - *Ontwerpweergave* (antialiased, met de printbare band, marges en overflow gemarkeerd);
@@ -23,7 +24,7 @@ Etiknivo is een desktopapplicatie (Python + PySide6) om etiketten te ontwerpen, 
 - **Bluetooth-printerbeheer**: zoeken, verbinden/verbreken, opnieuw verbinden na een fout, batterij, status (deksel open, papier op, oververhit), printdichtheid licht/normaal/donker, aantal exemplaren, testlabel, kalibratietest en kalibratie-instellingen. Alle Bluetooth-I/O draait op een aparte asyncio-thread; de GUI blokkeert nooit.
 - **Printwachtrij**: sequentieel, voortgang per opdracht, stopt bij een fout, mislukte opdrachten opnieuw uitvoeren, wachtende annuleren, dubbelklikbescherming. Resultaten en fouten gaan naar `print.log`.
 - **Afdrukken**: huidig label, selectie, een hele categorie of alles, met afdrukvoorbeeld en aantallen per label.
-- **Opslag en uitwisseling**: automatisch opslaan naar JSON (met `.bak`), JSON import/export (samenvoegen of vervangen), CSV import/export, PNG-export van selecties (ontwerp of printerraster), PDF (ware grootte) en SVG, volledige back-up en herstel (zip).
+- **Opslag en uitwisseling**: bibliotheek als JSON (met `.bak`), JSON import/export (samenvoegen of vervangen), CSV import/export, PNG-export van selecties (ontwerp of printerraster), PDF (ware grootte) en SVG, volledige back-up en herstel (zip).
 - **Simulatieprinter**: de hele applicatie werkt zonder hardware. De simulatie staat overal als zodanig vermeld en drukt niets echt af.
 - **23 vooraf ingevulde Raaco-labels** voor elektronicacomponenten bij de eerste start (startdata in `src/etiknivo/data/raaco_seed.csv`).
 
