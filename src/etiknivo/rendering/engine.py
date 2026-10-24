@@ -5,7 +5,9 @@ Coordinate systems
 *Design orientation*: the label as the user sees it, landscape, 30 × 14 mm.
 For the Fichero this is 240 × 112 dots (8 dots/mm).  Only the central band of
 96 dots (the physical printhead width) can be printed; the remaining 8 dots on
-each long edge are paper the head never touches.
+each long edge are paper the head never touches.  Along the feed a safe margin
+(2 mm at each end) is kept blank as well, because the label position is only
+known to about a millimetre.
 
 *Native raster*: what the printer receives: 96 dots wide (one printhead row)
 × 240 rows (the label length).  The design image is rotated 90° to get there.
@@ -115,10 +117,17 @@ class RenderEngine:
         return self.profile.label_length_px, self.profile.label_across_px
 
     @property
-    def printable_box(self) -> tuple[int, int, int, int]:
-        """Printable band in design dots: (x0, y0, x1, y1)."""
+    def head_band(self) -> tuple[int, int, int, int]:
+        """Full printhead band over the whole label length: (x0, y0, x1, y1)."""
         top = self.profile.printable_offset_px
         return 0, top, self.profile.label_length_px, top + self.profile.printable_across_px
+
+    @property
+    def printable_box(self) -> tuple[int, int, int, int]:
+        """Safe printable area in design dots: the head band minus the feed margins."""
+        x0, y0, x1, y1 = self.head_band
+        m = self.profile.feed_margin_px
+        return x0 + m, y0, x1 - m, y1
 
     def pt_to_px(self, pt: float) -> float:
         return pt * self.profile.dpi / 72.0
@@ -212,7 +221,7 @@ class RenderEngine:
         """Apply calibration, crop the printhead band and rotate to the native
         printer orientation (head width × label length)."""
         cal = self.calibration
-        px0, py0, px1, py1 = self.printable_box
+        px0, py0, px1, py1 = self.head_band
         shifted = Image.new("1", mono.size, 1)
         shifted.paste(mono, (int(cal.offset_feed_px), int(cal.offset_head_px)))
         band = shifted.crop((px0, py0, px1, py1))
