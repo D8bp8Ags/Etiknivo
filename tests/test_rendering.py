@@ -59,15 +59,19 @@ def test_design_canvas_and_printable_band(engine: RenderEngine) -> None:
     assert ink_bbox(r.mono.crop((224, 0, 240, 112))) is None
 
 
-def test_default_calibration_centres_on_fichero() -> None:
-    assert Calibration().offset_feed_px == 8  # measured on a real Fichero 5836
+def test_fichero_feed_offset_is_built_in(engine: RenderEngine) -> None:
+    # measured on a real Fichero 5836; the user's calibration starts at 0
+    assert Calibration().offset_feed_px == 0
+    assert engine.profile.feed_offset_px == 8
 
 
 def test_mono_matches_raster_exactly(engine: RenderEngine) -> None:
-    """The preview raster is exactly what gets sent (no calibration offset)."""
+    """The raster is the preview bitmap, moved only by the printer's built-in feed offset."""
     r = engine.render(make_label("A09", "Weerstand", "150 Ω", "¼ W"))
     band = r.mono.crop(engine.head_band)
-    assert engine.raster_to_design(r.raster).tobytes() == band.tobytes()
+    expected = Image.new("1", band.size, 1)
+    expected.paste(band, (engine.profile.feed_offset_px, 0))
+    assert engine.raster_to_design(r.raster).tobytes() == expected.tobytes()
 
 
 # -- orientation --------------------------------------------------------------------------
@@ -93,7 +97,7 @@ def test_orientation_counter_clockwise_default(engine: RenderEngine) -> None:
 
 
 def test_orientation_clockwise_option() -> None:
-    eng = RenderEngine(calibration=Calibration(offset_feed_px=0, rotate_clockwise=True))
+    eng = RenderEngine(calibration=Calibration(rotate_clockwise=True))
     r = eng.render(_left_aligned_label())
     _x0, _y0, _x1, y1 = ink_bbox(r.raster)
     assert y1 < 40  # design-left → raster-top
@@ -109,7 +113,7 @@ def test_content_rotation_180(engine: RenderEngine) -> None:
 
 def test_calibration_offset_shifts_raster() -> None:
     lbl = _left_aligned_label()
-    base = RenderEngine(calibration=Calibration(offset_feed_px=0)).render(lbl)
+    base = RenderEngine(calibration=Calibration()).render(lbl)
     shifted = RenderEngine(calibration=Calibration(offset_feed_px=10, offset_head_px=-3)).render(lbl)
     b0, b1 = ink_bbox(base.raster), ink_bbox(shifted.raster)
     assert b1[1] == b0[1] - 10  # feed +10 → 10 rows earlier in CCW raster
