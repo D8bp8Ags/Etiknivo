@@ -32,6 +32,7 @@ from etiknivo.storage.library import Library
 ID_ROLE = Qt.ItemDataRole.UserRole + 1
 SUBTITLE_ROLE = Qt.ItemDataRole.UserRole + 2
 HEADER_ROLE = Qt.ItemDataRole.UserRole + 3
+DIRTY_ROLE = Qt.ItemDataRole.UserRole + 4  # label has unsaved changes
 ALL_CATEGORIES = "Alle categorieën"
 SORT_KEYS: dict[str, tuple[str, Callable[[Label], object]]] = {
     "tray_id": ("Lade-ID", lambda lbl: (lbl.tray_id == "", lbl.tray_id.casefold(), lbl.name)),
@@ -95,6 +96,12 @@ class LabelCardDelegate(QStyledItemDelegate):
         # text
         x = int(thumb.right()) + 12
         text_r = QRect(x, int(card.top()), int(card.right()) - x - 8, int(card.height()))
+        half = text_r.height() // 2
+        if index.data(DIRTY_ROLE):  # unsaved changes: small accent dot after the name
+            p.setPen(Qt.PenStyle.NoPen)
+            p.setBrush(QColor(t.accent))
+            p.drawEllipse(QRectF(text_r.right() - 8, text_r.top() + half - 12, 8, 8))
+            text_r.setRight(text_r.right() - 14)
         name_f = QFont(option.font)
         name_f.setWeight(QFont.Weight.DemiBold)
         sub_f = _scaled(option.font, 0.92)
@@ -102,7 +109,6 @@ class LabelCardDelegate(QStyledItemDelegate):
         p.setPen(QColor(t.text))
         name = p.fontMetrics().elidedText(str(index.data(Qt.ItemDataRole.DisplayRole) or ""),
                                           Qt.TextElideMode.ElideRight, text_r.width())
-        half = text_r.height() // 2
         p.drawText(text_r.adjusted(0, 0, 0, -half), Qt.AlignmentFlag.AlignLeft
                    | Qt.AlignmentFlag.AlignBottom, name)
         p.setFont(sub_f)
@@ -132,6 +138,7 @@ class LibraryPanel(QWidget):
         self._building = False
         self._restoring = False
         self._pinned = ""  # label being edited: stays visible even if the search no longer matches
+        self._dirty = ""  # label with unsaved changes (dot in the list)
 
         self.setObjectName("sidebar")
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
@@ -348,6 +355,7 @@ class LibraryPanel(QWidget):
 
     def _fill_item(self, it: QTreeWidgetItem, lbl: Label) -> None:
         it.setText(0, lbl.name)
+        it.setData(0, DIRTY_ROLE, lbl.id == self._dirty)
         it.setData(0, SUBTITLE_ROLE, self._subtitle(lbl))
         it.setIcon(0, self.thumbnail(lbl))
         it.setToolTip(0, "\n".join(ln.text for _, ln in lbl.visible_lines()))
@@ -366,6 +374,16 @@ class LibraryPanel(QWidget):
                 return
 
     # -- events -------------------------------------------------------------------------
+
+    def set_dirty(self, label_id: str) -> None:
+        """Mark *label_id* as having unsaved changes ('' for none)."""
+        if label_id == self._dirty:
+            return
+        self._dirty = label_id
+        for it in self._iter_items():
+            lid = it.data(0, ID_ROLE)
+            if lid:
+                it.setData(0, DIRTY_ROLE, lid == label_id)
 
     def pin(self, label_id: str) -> None:
         """Keep *label_id* in the list while it is being edited, even when the

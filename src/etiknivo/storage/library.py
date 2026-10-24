@@ -78,6 +78,14 @@ class Library:
         self._labels.append(label)
         return label
 
+    def update(self, label: Label) -> bool:
+        """Replace the stored label with the same id.  Returns False if absent."""
+        for i, lbl in enumerate(self._labels):
+            if lbl.id == label.id:
+                self._labels[i] = label
+                return True
+        return False
+
     def remove(self, label_ids: Iterable[str]) -> int:
         ids = set(label_ids)
         before = len(self._labels)

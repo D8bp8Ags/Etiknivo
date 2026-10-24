@@ -70,7 +70,7 @@ class MainWindow(QMainWindow):
     def __init__(self, library: Library, settings: Settings | None = None,
                  backend: PrinterBackend | None = None, poll_interval: float = 30.0) -> None:
         super().__init__()
-        self.setWindowTitle(APP_NAME)
+        self.setWindowTitle(f"{APP_NAME}[*]")
         self.resize(1400, 860)
         self.setUnifiedTitleAndToolBarOnMac(True)
         self.library = library
@@ -78,9 +78,12 @@ class MainWindow(QMainWindow):
         theme.apply(self.settings.theme)
         self.profile = get_profile(self.settings.printer_model)
         self.engine = RenderEngine(self.profile, self.settings.calibration)
+        # The open label is edited as a draft (a copy); the library keeps the
+        # saved version until the user clicks Opslaan.
         self.current: Label | None = None
         self._last_print = 0.0
-        self._shown_category = ""
+        self._switching = False
+        self._applying_history = False
 
         self.bridge = PrinterBridge(backend or make_backend(self.settings.use_mock_printer), self,
                                     poll_interval=poll_interval)
@@ -101,7 +104,8 @@ class MainWindow(QMainWindow):
         self.printer_panel.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         right = QTabWidget()
         right.setDocumentMode(True)
-        right.addTab(self.properties, "Ontwerp")
+        self.design_tab = self._build_design_tab()
+        right.addTab(self.design_tab, "Ontwerp")
         right.addTab(self.printer_panel, "Printer")
         self.right_tabs = right
         inspector = QWidget()
@@ -157,7 +161,6 @@ class MainWindow(QMainWindow):
         if first:
             self.library_panel.select_ids([first[0]])
         self._restore_geometry()
-        self._applying_history = False
         self.history = History()
         self.history.reset(self._snapshot())
         self._update_undo_actions()
@@ -256,6 +259,33 @@ class MainWindow(QMainWindow):
         hl.addWidget(self.print_more)
         hl.addWidget(self.print_btn)
         tb.addWidget(holder)
+
+    def _build_design_tab(self) -> QWidget:
+        tab = QWidget()
+        v = QVBoxLayout(tab)
+        v.setContentsMargins(0, 0, 0, 0)
+        v.setSpacing(0)
+        v.addWidget(self.properties, 1)
+        footer = QWidget()
+        footer.setObjectName("inspectorFooter")
+        footer.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        row = QHBoxLayout(footer)
+        row.setContentsMargins(14, 10, 14, 12)
+        row.setSpacing(6)
+        self.dirty_lbl = QLabel()
+        self.dirty_lbl.setObjectName("dirty")
+        self.revert_btn = QPushButton("Herstellen")
+        self.revert_btn.setToolTip("Wijzigingen aan dit label ongedaan maken")
+        self.revert_btn.clicked.connect(self.revert_current)
+        self.save_btn = QPushButton("Opslaan")
+        self.save_btn.setProperty("primary", True)
+        self.save_btn.setToolTip("Wijzigingen opslaan (⌘S)")
+        self.save_btn.clicked.connect(self.save_current)
+        row.addWidget(self.dirty_lbl, 1)
+        row.addWidget(self.revert_btn)
+        row.addWidget(self.save_btn)
+        v.addWidget(footer)
+        return tab
 
     def _build_editor(self) -> QWidget:
         w = QWidget()
@@ -374,6 +404,8 @@ class MainWindow(QMainWindow):
 
         m = mb.addMenu("&Bestand")
         act(m, "Nieuw label", self.new_label, QKeySequence.StandardKey.New)
+        self.act_save = act(m, "Label opslaan", self.save_current, QKeySequence.StandardKey.Save)
+        self.act_revert = act(m, "Wijzigingen herstellen", self.revert_current)
         m.addSeparator()
         act(m, "Bibliotheek importeren (JSON)…", self.import_json)
         act(m, "Bibliotheek exporteren (JSON)…", self.export_json)
@@ -511,11 +543,125 @@ class MainWindow(QMainWindow):
     # -- editing -------------------------------------------------------------------------
 
     def set_current(self, label_id: str) -> None:
-        self.current = self.library.get(label_id) if label_id else None
-        self._shown_category = self.current.category if self.current else ""
+        cur = self.current
+        if self._switching or self._applying_history:
+            return
+        if cur is not None and label_id == cur.id:
+            return  # same label re-selected (list refresh): keep the draft
+        if cur is not None and label_id != cur.id and self.is_dirty():
+            answer = self._ask_unsaved(cur)
+            if answer == "cancel":
+                self._reselect(cur.id)
+                return
+            if answer == "save":
+                self.save_current(follow=False)
+        self._open(label_id)
+
+    def _open(self, label_id: str, draft: Label | None = None) -> None:
+        """Load *label_id* into the editor as a fresh draft (or the given one)."""
+        saved = self.library.get(label_id) if label_id else None
+        if saved is None:
+            self.current = None
+        elif draft is not None and draft.id == saved.id:
+            self.current = draft
+        else:
+            self.current = saved.clone(new_id=False)
         self.properties.set_label(self.current)
         self._update_title()
+        self._update_dirty()
         self.update_preview()
+
+    def _reselect(self, label_id: str) -> None:
+        self._switching = True
+        try:
+            self.library_panel.pin(label_id)
+            self.library_panel.select_ids([label_id])
+        finally:
+            self._switching = False
+
+    def _ask_unsaved(self, lbl: Label) -> str:
+        """Ask what to do with unsaved changes: 'save', 'discard' or 'cancel'."""
+        box = QMessageBox(QMessageBox.Icon.Question, APP_NAME,
+                          f"Wijzigingen in “{lbl.name}” opslaan?", parent=self)
+        box.setInformativeText("Je wijzigingen gaan verloren als je ze niet opslaat.")
+        box.setStandardButtons(QMessageBox.StandardButton.Save
+                               | QMessageBox.StandardButton.Discard
+                               | QMessageBox.StandardButton.Cancel)
+        box.setDefaultButton(QMessageBox.StandardButton.Save)
+        box.button(QMessageBox.StandardButton.Discard).setText("Niet opslaan")
+        box.button(QMessageBox.StandardButton.Cancel).setText("Annuleren")
+        box.button(QMessageBox.StandardButton.Save).setText("Opslaan")
+        result = box.exec()
+        if result == QMessageBox.StandardButton.Save:
+            return "save"
+        if result == QMessageBox.StandardButton.Discard:
+            return "discard"
+        return "cancel"
+
+    def saved_version(self) -> Label | None:
+        return self.library.get(self.current.id) if self.current is not None else None
+
+    def is_dirty(self) -> bool:
+        saved = self.saved_version()
+        if saved is None:
+            return False
+        a, b = saved.to_dict(), self.current.to_dict()
+        a.pop("modified"), b.pop("modified")
+        return a != b
+
+    def _update_dirty(self) -> None:
+        dirty = self.is_dirty()
+        self.setWindowModified(dirty)
+        self.dirty_lbl.setText("● Niet opgeslagen" if dirty else "")
+        self.save_btn.setEnabled(dirty)
+        self.revert_btn.setEnabled(dirty)
+        self.act_save.setEnabled(dirty)
+        self.act_revert.setEnabled(dirty)
+        self.library_panel.set_dirty(self.current.id if dirty else "")
+
+    def save_current(self, follow: bool = True) -> None:
+        """Store the draft in the library and write it to disk.
+
+        With *follow* the list (and an active category filter) follows the
+        label to a new category; while switching to another label it doesn't."""
+        saved = self.saved_version()
+        if saved is None or not self.is_dirty():
+            return
+        moved = saved.category != self.current.category
+        self.current.touch()
+        self.library.update(self.current.clone(new_id=False))
+        self._save_timer.stop()
+        self.save_library()
+        if moved:
+            self.properties.set_categories(self.library.categories())
+            if follow:
+                self.library_panel.pin(self.current.id)
+                self._switching = True
+                try:
+                    changed = self.library_panel.reveal(self.current)
+                finally:
+                    self._switching = False
+                if changed:
+                    where = self.current.category or "Alle categorieën"
+                    self.statusBar().showMessage(f"Opgeslagen en verplaatst naar {where}", 4000)
+            else:
+                self.library_panel.refresh()
+        else:
+            self.library_panel.update_label(self.current)
+        self._update_dirty()
+        self._record()
+
+    def revert_current(self) -> None:
+        if self.current is None or not self.is_dirty():
+            return
+        self._open(self.current.id)
+        self._record()
+        self.statusBar().showMessage("Wijzigingen hersteld", 2000)
+
+    def _with_draft(self, labels: list[Label]) -> list[Label]:
+        """*labels* with the open label replaced by its draft (print what you see)."""
+        cur = self.current
+        return [cur if cur is not None and lbl.id == cur.id else lbl for lbl in labels]
 
     def _update_title(self) -> None:
         lbl = self.current
@@ -526,22 +672,15 @@ class MainWindow(QMainWindow):
             a.setEnabled(lbl is not None)
         self.print_btn.setEnabled(lbl is not None)
 
-    def on_label_edited(self, structural: bool) -> None:
+    def on_label_edited(self, structural: bool) -> None:  # noqa: ARG002
+        # Edits only change the draft: preview and title follow live, the
+        # library (list, file) only changes on Opslaan.
         if self.current is None:
             return
         self._render_timer.start()
         self._update_title()
         self.library_panel.pin(self.current.id)
-        if structural and self.current.category != self._shown_category:
-            self._shown_category = self.current.category
-            self.properties.set_categories(self.library.categories())
-            # regroup under the new category; the label stays selected and editable
-            if self.library_panel.reveal(self.current):
-                where = self.current.category or "Alle categorieën"
-                self.statusBar().showMessage(f"Verplaatst naar {where}", 4000)
-        else:
-            self.library_panel.update_label(self.current)
-        self.schedule_save()
+        self._update_dirty()
         self._record(merge_key=self.current.id)
 
     def update_preview(self) -> None:
@@ -609,10 +748,11 @@ class MainWindow(QMainWindow):
     # -- undo / redo ---------------------------------------------------------------------
 
     def _snapshot(self) -> Snapshot:
-        return Snapshot.take(self.library.labels, self.library_panel.selected_ids())
+        draft = self.current if self.is_dirty() else None
+        return Snapshot.take(self.library.labels, self.library_panel.selected_ids(), draft)
 
     def _record(self, merge_key: str | None = None) -> None:
-        if getattr(self, "_applying_history", True):
+        if self._applying_history or not hasattr(self, "history"):
             return
         self.history.record(self._snapshot(), merge_key)
         self._update_undo_actions()
@@ -646,6 +786,7 @@ class MainWindow(QMainWindow):
             self.schedule_save()
         finally:
             self._applying_history = False
+        self._open(self.library_panel.current_id(), state.draft())
         self._update_undo_actions()
         self.statusBar().showMessage(message, 2000)
 
@@ -671,7 +812,7 @@ class MainWindow(QMainWindow):
         self.library.add(lbl)
         self.library_panel.pin(lbl.id)  # visible even when a search is active
         self._after_library_change([lbl.id])
-        self.right_tabs.setCurrentWidget(self.properties)
+        self.right_tabs.setCurrentWidget(self.design_tab)
         self.properties.lines[1].text.setFocus()
         self.properties.lines[1].text.selectAll()
 
@@ -688,9 +829,14 @@ class MainWindow(QMainWindow):
         name, ok = QInputDialog.getText(self, "Label hernoemen", "Nieuwe naam:",
                                         text=self.current.name)
         if ok and name.strip():
-            self.current.name = name.strip()
-            self.current.touch()
+            # renaming is a library action: saved at once, draft keeps its other edits
+            for lbl in (self.saved_version(), self.current):
+                if lbl is not None:
+                    lbl.name = name.strip()
+                    lbl.touch()
             self._after_library_change([self.current.id])
+            self.properties.set_label(self.current)
+            self._update_title()
 
     def delete_labels(self) -> None:
         ids = self.library_panel.selected_ids()
@@ -762,8 +908,8 @@ class MainWindow(QMainWindow):
 
     def _selected_in_view_order(self) -> list[Label]:
         sel = set(self.library_panel.selected_ids())
-        return [lbl for i in self.library_panel.visible_ids()
-                if i in sel and (lbl := self.library.get(i)) is not None]
+        return self._with_draft([lbl for i in self.library_panel.visible_ids()
+                                 if i in sel and (lbl := self.library.get(i)) is not None])
 
     def print_selected(self) -> None:
         self.print_labels(self._selected_in_view_order())
@@ -776,12 +922,13 @@ class MainWindow(QMainWindow):
         cat, ok = QInputDialog.getItem(self, "Categorie afdrukken", "Categorie:", cats,
                                        cats.index(cur), False)
         if ok:
-            self.print_labels(self.library.by_category(cat))
+            self.print_labels(self._with_draft(self.library.by_category(cat)))
 
     def print_all(self) -> None:
         # every label in the library, in the on-screen order (filtered-out ones last)
         order = {lid: n for n, lid in enumerate(self.library_panel.visible_ids())}
-        self.print_labels(sorted(self.library.labels, key=lambda lbl: order.get(lbl.id, len(order))))
+        self.print_labels(self._with_draft(
+            sorted(self.library.labels, key=lambda lbl: order.get(lbl.id, len(order)))))
 
     def print_test_label(self) -> None:
         if not self._guard():
@@ -873,7 +1020,7 @@ class MainWindow(QMainWindow):
     # -- import / export -----------------------------------------------------------------
 
     def _selected_or_all(self) -> list[Label]:
-        return self._selected_in_view_order() or self.library.labels
+        return self._selected_in_view_order() or self._with_draft(self.library.labels)
 
     def import_json(self) -> None:
         path, _ = QFileDialog.getOpenFileName(self, "Bibliotheek importeren", "", "JSON (*.json)")
@@ -900,6 +1047,8 @@ class MainWindow(QMainWindow):
         else:
             return
         self._after_library_change()
+        if self.current is not None:  # the open label may have been replaced
+            self._open(self.current.id)
         self.statusBar().showMessage(msg, 5000)
 
     def export_json(self) -> None:
@@ -986,6 +1135,7 @@ class MainWindow(QMainWindow):
         self.settings = load_settings()
         self.engine.calibration = self.settings.calibration
         self.library_panel.invalidate_thumbnails()
+        self.current = None
         self._after_library_change([])
         first = self.library_panel.visible_ids()
         if first:
@@ -1012,6 +1162,13 @@ class MainWindow(QMainWindow):
                     != QMessageBox.StandardButton.Yes:
                 event.ignore()
                 return
+        if self.is_dirty():
+            answer = self._ask_unsaved(self.current)
+            if answer == "cancel":
+                event.ignore()
+                return
+            if answer == "save":
+                self.save_current(follow=False)
         self._save_timer.stop()
         self.save_library()
         self._save_view_settings()

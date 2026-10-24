@@ -270,3 +270,27 @@ def test_history_undo_redo_and_merging() -> None:
     assert h.undo() is None and h.can_redo()
     assert [lbl.main.text for lbl in h.redo().labels()] == ["Abcd"]
     assert len(h.redo().labels()) == 2 and not h.can_redo()
+
+
+def test_history_tracks_unsaved_draft() -> None:
+    from etiknivo.storage.history import History, Snapshot
+
+    a = make_label("A1", "Audio", "Origineel")
+    h = History(clock=lambda: 0.0)
+    h.reset(Snapshot.take([a], [a.id]))
+    draft = a.clone(new_id=False)
+    draft.main.text = "Concept"
+    h.record(Snapshot.take([a], [a.id], draft))  # only the draft changed: still undoable
+    assert h.can_undo()
+    assert h.undo().draft() is None
+    assert h.redo().draft().main.text == "Concept"
+
+
+def test_library_update_replaces_by_id(tmp_path) -> None:  # noqa: ANN001
+
+    lib = Library(tmp_path / "l.json")
+    a = lib.add(make_label("A1", "Audio", "Oud"))
+    new = a.clone(new_id=False)
+    new.main.text = "Nieuw"
+    assert lib.update(new) and lib.get(a.id).main.text == "Nieuw"
+    assert not lib.update(make_label("B", "", "x"))

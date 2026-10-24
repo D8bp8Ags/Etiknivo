@@ -231,6 +231,8 @@ QWidget#sidebar, QWidget#inspector, QScrollArea#inspectorScroll > QWidget > QWid
     background: {t.sidebar};
 }}
 QWidget#canvas {{ background: {t.canvas}; }}
+QWidget#inspectorFooter {{ background: {t.sidebar}; border-top: 1px solid {t.border}; }}
+QLabel#dirty {{ color: {t.warning}; font-size: 11px; font-weight: 600; }}
 QLabel {{ background: transparent; }}
 QLabel#heading {{ font-size: 15px; font-weight: 600; }}
 QLabel#title {{ font-size: 14px; font-weight: 600; }}

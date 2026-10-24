@@ -27,18 +27,29 @@ MAX_STEPS = 200
 class Snapshot:
     labels_json: str
     selection: tuple[str, ...]
+    draft_json: str = ""  # unsaved edits of the open label ("" when there are none)
 
     @classmethod
-    def take(cls, labels: list[Label], selection: list[str]) -> Snapshot:
+    def take(cls, labels: list[Label], selection: list[str],
+             draft: Label | None = None) -> Snapshot:
         doc = labels_to_document(labels)
-        return cls(json.dumps(doc, ensure_ascii=False, sort_keys=True), tuple(selection))
+        draft_json = json.dumps(draft.to_dict(), ensure_ascii=False, sort_keys=True) \
+            if draft is not None else ""
+        return cls(json.dumps(doc, ensure_ascii=False, sort_keys=True), tuple(selection),
+                   draft_json)
 
     def labels(self) -> list[Label]:
         return labels_from_document(json.loads(self.labels_json))
 
+    def draft(self) -> Label | None:
+        return Label.from_dict(json.loads(self.draft_json)) if self.draft_json else None
+
+    def same_content(self, other: Snapshot) -> bool:
+        return (self.labels_json, self.draft_json) == (other.labels_json, other.draft_json)
+
 
 class History:
-    """Linear undo/redo stack of library snapshots."""
+    """Linear undo/redo stack of library snapshots (plus the unsaved draft)."""
 
     def __init__(self, clock: Callable[[], float] = time.monotonic) -> None:
         self._clock = clock
@@ -63,7 +74,7 @@ class History:
         if self._current is None:
             self._current = state
             return
-        if state.labels_json == self._current.labels_json:
+        if state.same_content(self._current):
             self._current = state  # selection only: not an undoable change
             return
         now = self._clock()
