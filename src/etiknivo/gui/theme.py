@@ -6,8 +6,10 @@ theme switch automatically.  The style is Fusion plus a style sheet: that
 renders the same on every platform and lets the app follow the system's light
 or dark appearance.
 
-Icons are Lucide line icons (ISC licence, see ``icons/LICENSE-lucide.txt``),
-recoloured at runtime to match the current text colour.
+The line icons in ``icons/`` are Etiknivo's own drawings (24 × 24 grid,
+1.75 stroke, MIT like the rest of the app), recoloured at runtime to match the
+current text colour.  A new icon is one more SVG in that folder that uses
+``currentColor``.
 """
 
 from __future__ import annotations
@@ -178,7 +180,7 @@ def _pixmap(name: str, color: str, size: int, ratio: float) -> QPixmap:
 
 
 def icon(name: str, color: str | None = None, size: int = 18) -> QIcon:
-    """A Lucide icon in *color* (default: the text colour), with a muted disabled state."""
+    """An icon from ``icons/`` in *color* (default: the text colour), with a muted disabled state."""
     t = tokens()
     app = QGuiApplication.instance()
     ratio = app.devicePixelRatio() if app is not None else 1.0
