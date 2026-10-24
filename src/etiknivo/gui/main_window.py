@@ -35,6 +35,7 @@ from etiknivo import APP_NAME
 from etiknivo.gui import theme
 from etiknivo.gui.dialogs import AboutDialog, CalibrationDialog, PrintPreviewDialog
 from etiknivo.gui.library_panel import ALL_CATEGORIES, LibraryPanel
+from etiknivo.gui.log_window import LogWindow
 from etiknivo.gui.preview import DesignView, RasterView
 from etiknivo.gui.printer_bridge import PrinterBridge
 from etiknivo.gui.printer_panel import PrinterPanel
@@ -78,6 +79,7 @@ class MainWindow(QMainWindow):
         self._last_print = 0.0
         self._switching = False
         self._applying_history = False
+        self._log_window: LogWindow | None = None
 
         self.bridge = PrinterBridge(backend or self.make_backend(self.settings.use_mock_printer),
                                     self,
@@ -468,6 +470,7 @@ class MainWindow(QMainWindow):
             group.addAction(a)
 
         m = mb.addMenu("&Help")
+        act(m, "Log tonen", self.show_log, "Ctrl+L")
         act(m, "Logmap openen", lambda: QDesktopServices.openUrl(
             QUrl.fromLocalFile(str(log_dir()))))
         act(m, f"Over {APP_NAME}", self.about)
@@ -1160,6 +1163,15 @@ class MainWindow(QMainWindow):
         if first:
             self.library_panel.select_ids([first[0]])
         self.statusBar().showMessage("Back-up hersteld", 5000)
+
+    def show_log(self) -> None:
+        if self._log_window is None or not self._log_window.isVisible():
+            self._log_window = LogWindow(parent=self)
+            self._log_window.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
+            self._log_window.destroyed.connect(lambda: setattr(self, "_log_window", None))
+        self._log_window.show()
+        self._log_window.raise_()
+        self._log_window.activateWindow()
 
     def about(self) -> None:
         AboutDialog(self.profile, data_dir(), log_dir(), self).exec()

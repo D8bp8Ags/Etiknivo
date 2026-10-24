@@ -100,7 +100,7 @@ Alles staat lokaal, zonder account of cloud:
 | Instellingen en kalibratie | `~/Library/Application Support/Etiknivo/settings.json` |
 | Logs | `~/Library/Logs/Etiknivo/app.log` en `print.log` |
 
-Met `ETIKNIVO_DATA_DIR=/pad` gebruik je een andere map (handig voor testen). Via het menu **Bestand → Datamap openen** en **Help → Logmap openen** kom je er snel.
+Met `ETIKNIVO_DATA_DIR=/pad` gebruik je een andere map (handig voor testen). Via het menu **Bestand → Datamap openen** en **Help → Logmap openen** kom je er snel. **Help → Log tonen** (⌘L) laat de log live in de app zien, met een filter op waarschuwingen/fouten of printopdrachten, zoeken en een knop om te kopiëren.
 
 ### CSV-formaat
 
