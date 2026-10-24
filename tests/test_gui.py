@@ -161,7 +161,10 @@ def test_print_category_and_error_recovery(qtbot, window, monkeypatch) -> None: 
     qtbot.waitUntil(lambda: len(backend.printed) == 3, timeout=5000)
 
 
-def test_printing_requires_connection(window, monkeypatch) -> None:  # noqa: ANN001
+def test_printing_requires_connection(qtbot, window, monkeypatch) -> None:  # noqa: ANN001
+    qtbot.waitUntil(lambda: window.bridge.state.connection == "connected", timeout=5000)
+    window._disconnect()
+    qtbot.waitUntil(lambda: window.bridge.state.connection == "disconnected", timeout=5000)
     warned = []
     monkeypatch.setattr(QMessageBox, "warning", staticmethod(lambda *a, **k: warned.append(a)))
     window.print_test_label()
@@ -254,3 +257,11 @@ def test_ctrl_z_in_text_field_uses_app_undo(qtbot, window) -> None:  # noqa: ANN
     assert window.current.main.text.endswith("XYZ")
     qtbot.keyClick(field, Qt.Key.Key_Z, Qt.KeyboardModifier.ControlModifier)
     assert window.current.main.text == before and field.text() == before
+
+
+def test_simulated_printer_connects_by_itself(qtbot, window) -> None:  # noqa: ANN001
+    qtbot.waitUntil(lambda: window.bridge.state.connection == "connected", timeout=5000)
+    window._disconnect()
+    qtbot.waitUntil(lambda: window.bridge.state.connection == "disconnected", timeout=5000)
+    window.set_mock(True)  # switching simulation on connects without an extra click
+    qtbot.waitUntil(lambda: window.bridge.state.connection == "connected", timeout=5000)

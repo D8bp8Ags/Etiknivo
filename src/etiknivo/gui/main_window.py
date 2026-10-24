@@ -154,6 +154,8 @@ class MainWindow(QMainWindow):
         self._load_fonts_async()
         self.on_printer_state(self.bridge.state)
         self._update_queue_button()
+        if self.bridge.manager.backend.simulated:
+            self._connect("")
 
         first = self.library_panel.visible_ids()
         if first:
@@ -973,7 +975,11 @@ class MainWindow(QMainWindow):
     def set_mock(self, on: bool) -> None:
         self.settings.use_mock_printer = on
         self._save_settings()
-        self.bridge.track("backend", self.bridge.manager.set_backend(self.make_backend(on)))
+        swap = self.bridge.manager.set_backend(self.make_backend(on))
+        self.bridge.track("backend", swap)
+        if on:  # the simulated printer is always "in range": connect straight away
+            swap.add_done_callback(lambda _f: self.bridge.track(
+                "connect", self.bridge.manager.connect(None)))
 
     def make_backend(self, simulated: bool) -> PrinterBackend:
         return create_backend(self.profile.key, simulated=simulated)
