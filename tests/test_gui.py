@@ -289,3 +289,22 @@ def test_app_icon_and_about(window) -> None:  # noqa: ANN001
     info = dlg.system_info()
     assert "Etiknivo" in info and "Python" in info and window.profile.key in info
     dlg.close()
+
+
+def test_log_window_shows_live_log_with_filters(qtbot, window) -> None:  # noqa: ANN001
+    import logging
+
+    from etiknivo.logging_setup import PRINT_LOGGER
+
+    window.show_log()
+    lw = window._log_window
+    assert lw is not None and lw.isVisible()
+    logging.getLogger("etiknivo.test").warning("Iets is mis %d", 42)
+    logging.getLogger(PRINT_LOGGER).warning("OK      A01 ×1")
+    qtbot.waitUntil(lambda: "Iets is mis 42" in lw.view.toPlainText(), timeout=2000)
+    lw.filter.setCurrentIndex(lw.filter.findData("print"))
+    assert "A01" in lw.visible_text() and "Iets is mis" not in lw.visible_text()
+    lw.filter.setCurrentIndex(lw.filter.findData("all"))
+    lw.search.setText("mis 42")
+    assert lw.visible_text().count("\n") == 0 and "Iets is mis 42" in lw.visible_text()
+    lw.close()

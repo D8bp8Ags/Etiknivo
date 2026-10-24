@@ -24,11 +24,12 @@ from enum import StrEnum
 
 from PIL import Image
 
+from etiknivo.logging_setup import PRINT_LOGGER
 from etiknivo.printing.backend import PrintCancelled, PrinterBackend, PrinterError
 from etiknivo.rendering.engine import raster_to_bytes
 
 log = logging.getLogger(__name__)
-print_log = logging.getLogger("etiknivo.printlog")
+print_log = logging.getLogger(PRINT_LOGGER)
 
 _ids = itertools.count(1)
 
