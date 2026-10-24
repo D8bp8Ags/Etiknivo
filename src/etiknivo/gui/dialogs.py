@@ -120,9 +120,9 @@ class CalibrationDialog(QDialog):
         self.setWindowTitle("Kalibratie")
         lay = QVBoxLayout(self)
         info = QLabel(
-            "Druk een kalibratietest af en kijk of het kader netjes binnen het etiket valt. "
-            "Verschuif zo nodig. 8 dots = 1 mm. <i>Feed</i> = langs de rol (30 mm-zijde), "
-            "<i>printkop</i> = dwars (14 mm-zijde, waarvan 12 mm printbaar).")
+            "Druk een kalibratietest af. Het kader (26 × 12 mm) hoort met aan beide uiteinden "
+            "evenveel witruimte (ca. 2 mm) op het etiket te staan. Verschuif zo nodig. "
+            "8 dots = 1 mm. <i>Langs rol</i> = 30 mm-zijde, <i>dwars</i> = 14 mm-zijde.")
         info.setWordWrap(True)
         lay.addWidget(info)
         f = QFormLayout()
@@ -156,6 +156,7 @@ class CalibrationDialog(QDialog):
                               | QDialogButtonBox.StandardButton.RestoreDefaults)
         bb.accepted.connect(self.accept)
         bb.rejected.connect(self.reject)
+        bb.button(QDialogButtonBox.StandardButton.RestoreDefaults).setText("Standaardwaarden")
         bb.button(QDialogButtonBox.StandardButton.RestoreDefaults).clicked.connect(self._defaults)
         row.addWidget(bb)
         lay.addLayout(row)

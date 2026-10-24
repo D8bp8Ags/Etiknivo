@@ -19,6 +19,10 @@ class PrinterProfile:
     dots_per_mm: int  # integer dot pitch used by the protocol
     label_width_mm: float  # along the feed direction
     label_height_mm: float  # across the printhead
+    #: Unprinted margin at both ends of the label (feed direction).  The printer
+    #: positions labels with a gap sensor, which is only accurate to about a
+    #: millimetre, so content closer to the ends can be cut off.
+    feed_margin_mm: float = 0.0
     name_prefixes: tuple[str, ...] = ()
     densities: tuple[str, ...] = ("Licht", "Normaal", "Donker")
 
@@ -26,6 +30,10 @@ class PrinterProfile:
     def label_length_px(self) -> int:
         """Raster rows per label (feed direction)."""
         return round(self.label_width_mm * self.dots_per_mm)
+
+    @property
+    def feed_margin_px(self) -> int:
+        return round(self.feed_margin_mm * self.dots_per_mm)
 
     @property
     def label_across_px(self) -> int:
@@ -55,6 +63,7 @@ FICHERO_5836 = PrinterProfile(
     dots_per_mm=8,
     label_width_mm=30.0,
     label_height_mm=14.0,
+    feed_margin_mm=2.0,  # same safe area as the vendor app: 26 × 12 mm
     name_prefixes=("FICHERO", "D11s_"),
 )
 

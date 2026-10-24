@@ -98,6 +98,9 @@ class DesignView(_BaseView):
             p.setBrush(hatch)
             p.drawRect(QRectF(r.left(), r.top(), r.width(), y0 * sy))
             p.drawRect(QRectF(r.left(), r.top() + y1 * sy, r.width(), r.height() - y1 * sy))
+            p.drawRect(QRectF(r.left(), r.top() + y0 * sy, x0 * sx, (y1 - y0) * sy))
+            p.drawRect(QRectF(r.left() + x1 * sx, r.top() + y0 * sy, r.width() - x1 * sx,
+                              (y1 - y0) * sy))
             p.setBrush(Qt.BrushStyle.NoBrush)
             p.setPen(QPen(QColor(40, 120, 220, 160), 1, Qt.PenStyle.DashLine))
             p.drawRect(QRectF(r.left() + x0 * sx, r.top() + y0 * sy, (x1 - x0) * sx,

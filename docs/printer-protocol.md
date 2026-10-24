@@ -58,6 +58,10 @@ De dichtheid wordt één keer per opdracht gezet, vóór het eerste etiket.
 
 De begin- en eindcommando's verschillen per printerfamilie. Andere printers op hetzelfde platform gebruiken `10 FF F1 03` en `10 FF F1 45`. Een D11s accepteert die zonder foutmelding maar drukt dan niets af, dus Etiknivo stuurt ze nooit.
 
+## Positie op het etiket
+
+Er is geen commando voor marge of verschuiving: de printer zoekt het begin van het etiket met de gap-sensor en drukt het raster vanaf daar af. Op een Fichero 5836 begint de print daarbij ongeveer 1 mm te vroeg, en de positie varieert met zo'n millimeter. Etiknivo laat daarom aan beide uiteinden 2 mm leeg (veilig gebied 26 × 12 mm) en verschuift standaard 8 dots (1 mm) langs de rol.
+
 ## Nog te bevestigen op hardware
 
 De opdrachtvolgorde en de pauzes in `d11s_backend.Timing` zijn alleen tegen een gesimuleerde verbinding getest. Bij de eerste echte afdrukken moet blijken of de pauzes korter kunnen en of de oriëntatie klopt; die laatste is instelbaar via de kalibratie.

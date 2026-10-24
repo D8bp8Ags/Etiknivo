@@ -103,7 +103,7 @@ class LabelStyle:
 
     valign: VAlign = VAlign.CENTER
     line_spacing_mm: float = 0.5
-    margin_h_mm: float = 1.0
+    margin_h_mm: float = 0.0  # on top of the profile's safe end margin
     margin_v_mm: float = 0.5
     autofit: bool = True
     rotation: int = 0  # 0 or 180 degrees (content rotation, independent of print orientation)

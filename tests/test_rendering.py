@@ -49,17 +49,24 @@ def test_raster_bytes_layout(engine: RenderEngine) -> None:
 
 def test_design_canvas_and_printable_band(engine: RenderEngine) -> None:
     assert engine.design_size == (240, 112)  # 30 × 14 mm at 8 dots/mm
-    assert engine.printable_box == (0, 8, 240, 104)  # central 96 dots
+    assert engine.head_band == (0, 8, 240, 104)  # central 96 dots
+    assert engine.printable_box == (16, 8, 224, 104)  # minus 2 mm at both ends
     r = engine.render(make_label("", "", "WWWWWWWWWWWW", "", layout=LayoutPreset.SINGLE))
-    # nothing may be printed on paper outside the printhead
+    # nothing may be printed on paper outside the printhead or in the end margins
     assert ink_bbox(r.mono.crop((0, 0, 240, 8))) is None
     assert ink_bbox(r.mono.crop((0, 104, 240, 112))) is None
+    assert ink_bbox(r.mono.crop((0, 0, 16, 112))) is None
+    assert ink_bbox(r.mono.crop((224, 0, 240, 112))) is None
+
+
+def test_default_calibration_centres_on_fichero() -> None:
+    assert Calibration().offset_feed_px == 8  # measured on a real Fichero 5836
 
 
 def test_mono_matches_raster_exactly(engine: RenderEngine) -> None:
     """The preview raster is exactly what gets sent (no calibration offset)."""
     r = engine.render(make_label("A09", "Weerstand", "150 Ω", "¼ W"))
-    band = r.mono.crop(engine.printable_box)
+    band = r.mono.crop(engine.head_band)
     assert engine.raster_to_design(r.raster).tobytes() == band.tobytes()
 
 
@@ -86,7 +93,7 @@ def test_orientation_counter_clockwise_default(engine: RenderEngine) -> None:
 
 
 def test_orientation_clockwise_option() -> None:
-    eng = RenderEngine(calibration=Calibration(rotate_clockwise=True))
+    eng = RenderEngine(calibration=Calibration(offset_feed_px=0, rotate_clockwise=True))
     r = eng.render(_left_aligned_label())
     _x0, _y0, _x1, y1 = ink_bbox(r.raster)
     assert y1 < 40  # design-left → raster-top
@@ -102,7 +109,7 @@ def test_content_rotation_180(engine: RenderEngine) -> None:
 
 def test_calibration_offset_shifts_raster() -> None:
     lbl = _left_aligned_label()
-    base = RenderEngine(calibration=Calibration()).render(lbl)
+    base = RenderEngine(calibration=Calibration(offset_feed_px=0)).render(lbl)
     shifted = RenderEngine(calibration=Calibration(offset_feed_px=10, offset_head_px=-3)).render(lbl)
     b0, b1 = ink_bbox(base.raster), ink_bbox(shifted.raster)
     assert b1[1] == b0[1] - 10  # feed +10 → 10 rows earlier in CCW raster
@@ -171,7 +178,7 @@ def test_threshold_controls_weight() -> None:
 
 
 def test_long_text_autofits_without_clipping(engine: RenderEngine) -> None:
-    lbl = make_label("", "Categorie", "Een heel erg lange onderdeelnaam", "Specificatie")
+    lbl = make_label("", "Categorie", "Een lange onderdeelnaam", "Specificatie")
     r = engine.render(lbl)
     assert not r.has_overflow
     assert r.lines[1].size_pt < r.lines[1].requested_pt
@@ -224,7 +231,7 @@ def test_border_and_invert(engine: RenderEngine) -> None:
     lbl = make_label("", "", "B", "", layout=LayoutPreset.SINGLE)
     lbl.style.border = True
     r = engine.render(lbl)
-    assert r.mono.getpixel((0, 8)) == 0 and r.mono.getpixel((239, 103)) == 0
+    assert r.mono.getpixel((16, 8)) == 0 and r.mono.getpixel((223, 103)) == 0
     lbl.style.border = False
     lbl.style.invert = True
     inv = engine.render(lbl)
@@ -251,4 +258,5 @@ def test_test_and_calibration_patterns(engine: RenderEngine) -> None:
     mono, raster = calibration_raster(engine)
     assert raster.size == (96, 240)
     # frame of the printable band is drawn
-    assert mono.getpixel((0, 8)) == 0 and mono.getpixel((239, 103)) == 0
+    assert mono.getpixel((16, 8)) == 0 and mono.getpixel((223, 103)) == 0
+    assert ink_bbox(mono.crop((0, 0, 16, 112))) is None

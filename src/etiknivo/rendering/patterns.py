@@ -23,10 +23,12 @@ def test_label(density_name: str = "") -> Label:
 def calibration_raster(engine: RenderEngine) -> tuple[Image.Image, Image.Image]:
     """Calibration pattern.  Returns ``(mono_design, native_raster)``.
 
-    The pattern marks the edge of the printable band, the centre lines and
-    a millimetre ruler along both long edges, so the printed result shows how
-    far the print is shifted relative to the label.  Calibration offsets are
-    applied, so after adjusting them a new test print verifies the result.
+    The pattern marks the edge of the safe printable area, the centre lines
+    and a millimetre ruler along both long edges.  The frame stays clear of
+    the label edges, so all four sides are visible and the white space at
+    both ends can be compared: when it is equal, the print is centred.
+    Calibration offsets are applied, so after adjusting them a new test print
+    verifies the result.
     """
     w, h = engine.design_size
     x0, y0, x1, y1 = engine.printable_box
@@ -37,8 +39,8 @@ def calibration_raster(engine: RenderEngine) -> tuple[Image.Image, Image.Image]:
     d.line((cx, y0, cx, y1 - 1), fill=0)
     d.line((x0, cy, x1 - 1, cy), fill=0)
     dpm = engine.profile.dots_per_mm
-    for mm in range(0, int(engine.profile.label_width_mm) + 1):
-        x = min(x1 - 1, mm * dpm)
+    for mm in range(0, (x1 - x0) // dpm + 1):
+        x = min(x1 - 1, x0 + mm * dpm)
         ln = 8 if mm % 5 == 0 else 4
         d.line((x, y0, x, y0 + ln), fill=0)
         d.line((x, y1 - 1 - ln, x, y1 - 1), fill=0)
@@ -46,7 +48,7 @@ def calibration_raster(engine: RenderEngine) -> tuple[Image.Image, Image.Image]:
     cal = engine.calibration
     d.text((x0 + 12, cy - 18), "CAL", font=font, fill=0)
     small = pil_font(FontRegistry.fallback().path, 0, 11)
-    d.text((x0 + 12, cy + 4), f"feed {cal.offset_feed_px:+d}  head {cal.offset_head_px:+d}",
-           font=small, fill=0)
+    d.text((x0 + 12, cy + 4), f"feed {cal.offset_feed_px:+d}", font=small, fill=0)
+    d.text((x0 + 12, cy + 18), f"head {cal.offset_head_px:+d}", font=small, fill=0)
     d.text((cx + 6, cy - 18), "→ feed", font=small, fill=0)
     return img, engine.to_raster(img)
