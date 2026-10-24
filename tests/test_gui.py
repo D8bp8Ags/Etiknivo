@@ -277,3 +277,15 @@ def test_insert_field_from_specifications(qtbot, window) -> None:  # noqa: ANN00
     qtbot.waitUntil(lambda: any(lb.text == "12 V" for lb in window.design_view.result.lines),
                     timeout=2000)
     assert "Spanning" in le.fields()
+
+
+def test_app_icon_and_about(window) -> None:  # noqa: ANN001
+    from etiknivo.gui import theme
+    from etiknivo.gui.dialogs import AboutDialog
+    from etiknivo.settings import log_dir
+
+    assert not theme.app_icon().isNull()
+    dlg = AboutDialog(window.profile, data_dir(), log_dir(), window)
+    info = dlg.system_info()
+    assert "Etiknivo" in info and "Python" in info and window.profile.key in info
+    dlg.close()
