@@ -38,7 +38,7 @@ from etiknivo.gui.library_panel import LibraryPanel
 from etiknivo.gui.log_window import LogWindow
 from etiknivo.gui.preview import DesignView, RasterView
 from etiknivo.gui.printer_bridge import PrinterBridge
-from etiknivo.gui.printer_panel import PrinterPanel
+from etiknivo.gui.printer_panel import PrinterPanel, size_text
 from etiknivo.gui.properties_panel import PropertiesPanel
 from etiknivo.gui.queue_panel import QueuePanel
 from etiknivo.i18n import LANGUAGES, language, tr
@@ -46,6 +46,7 @@ from etiknivo.i18n import resolve as resolve_language
 from etiknivo.model import Label, make_label
 from etiknivo.printing.backend import ConnectionState, PrinterBackend
 from etiknivo.printing.manager import PrinterState
+from etiknivo.printing.profiles import PrinterProfile
 from etiknivo.printing.queue import PrintJob
 from etiknivo.printing.registry import create_backend, get_model
 from etiknivo.rendering.engine import RenderEngine
@@ -73,7 +74,7 @@ class MainWindow(QMainWindow):
         self.library = library
         self.settings = settings or load_settings()
         theme.apply(self.settings.theme)
-        self.profile = get_model(self.settings.printer_model).profile
+        self.profile = self._roll_profile()
         self.engine = RenderEngine(self.profile, self.settings.calibration)
         # The open label is edited as a draft (a copy); the library keeps the
         # saved version until the user clicks Opslaan.
@@ -310,8 +311,7 @@ class MainWindow(QMainWindow):
         h1.setToolTip(tr("Bewerken met antialiasing. Gearceerd = wordt niet geprint (buiten de "
                          "printkop of in de veilige marge); blauw = printbaar; groen = marges."))
         self.design_view = DesignView(self.engine)
-        h2 = QLabel(tr("PRINTERRASTER  ·  {w} × {h} DOTS", w=self.profile.printhead_px,
-                       h=self.profile.label_length_px))
+        h2 = self.raster_caption = QLabel()
         h2.setObjectName("caption")
         h2.setToolTip(tr("1-bit: exact de dots die geprint worden, op de plek waar ze op het "
                          "etiket komen (inclusief je kalibratie)."))
@@ -347,12 +347,11 @@ class MainWindow(QMainWindow):
         self.guides.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
         self.guides.setChecked(self.settings.show_printable_area)
         self.native = QToolButton()
-        self.native.setText(tr("Native {w} × {h}", w=self.profile.native_raster_size[0],
-                               h=self.profile.native_raster_size[1]))
         self.native.setToolTip(tr("Printerraster in de oriëntatie van de printkop tonen"))
         self.native.setCheckable(True)
         self.native.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
         self.native.setChecked(self.settings.show_native_raster)
+        self._update_size_texts()
         self.zoom_out = QToolButton()
         self.zoom_out.setToolTip(tr("Uitzoomen"))
         self.zoom_in = QToolButton()
@@ -531,6 +530,7 @@ class MainWindow(QMainWindow):
         pp.calibrationSettingsRequested.connect(self.calibration_settings)
         pp.mockToggled.connect(self.set_mock)
         pp.modelChanged.connect(self.set_printer_model)
+        pp.labelSizeChanged.connect(self.set_label_size)
         pp.density.currentIndexChanged.connect(self._save_view_settings)
         pp.copies.valueChanged.connect(self._save_view_settings)
 
@@ -1010,6 +1010,36 @@ class MainWindow(QMainWindow):
 
     def make_backend(self, simulated: bool) -> PrinterBackend:
         return create_backend(self.profile.key, simulated=simulated)
+
+    def _roll_profile(self) -> PrinterProfile:
+        """The printer model's profile for the label roll in the settings."""
+        base = get_model(self.settings.printer_model).profile
+        size = self.settings.label_size_mm
+        try:
+            return base.with_label(*size) if len(size) == 2 else base
+        except (TypeError, ValueError):
+            return base
+
+    def _update_size_texts(self) -> None:
+        w, h = self.profile.native_raster_size
+        self.raster_caption.setText(tr("PRINTERRASTER  ·  {w} × {h} DOTS", w=w, h=h))
+        self.native.setText(tr("Native {w} × {h}", w=w, h=h))
+
+    def set_label_size(self, length_mm: float, height_mm: float) -> None:
+        """Switch to another label roll: every label is shown and printed at that size."""
+        self.settings.label_size_mm = [length_mm, height_mm]
+        self._save_settings()
+        self.profile = self._roll_profile()
+        self.engine.profile = self.profile
+        self.printer_panel.set_label_size(self.profile)
+        self._update_size_texts()
+        self.library_panel.invalidate_thumbnails()
+        for view in (self.design_view, self.raster_view):
+            view.updateGeometry()
+            view.adjustSize()
+        self.update_preview()
+        self.statusBar().showMessage(tr("Etiketrol: {size}", size=size_text(*self.profile.label_size)),
+                                     5000)
 
     def set_printer_model(self, key: str) -> None:
         if key == self.settings.printer_model:

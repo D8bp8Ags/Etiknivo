@@ -64,6 +64,8 @@ class Calibration:
 class Settings:
     printer_model: str = "fichero_5836"
     printer_address: str = ""
+    #: Label roll in the printer as [length, height] in mm; empty = the model's default.
+    label_size_mm: list[float] = field(default_factory=list)
     density: int = 1  # 0=licht, 1=normaal, 2=donker
     default_copies: int = 1
     use_mock_printer: bool = False

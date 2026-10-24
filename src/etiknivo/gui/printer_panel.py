@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from etiknivo import i18n
 from etiknivo.gui import theme
 from etiknivo.i18n import N_, tr
 from etiknivo.printing import registry
@@ -34,6 +35,13 @@ STATE_TEXT = {
 }
 
 
+def size_text(length: float, height: float) -> str:
+    """'30 × 14 mm', with a decimal comma in Dutch."""
+    comma = i18n.language() == "nl"
+    return " × ".join(f"{v:g}".replace(".", ",") if comma else f"{v:g}"
+                      for v in (length, height)) + " mm"
+
+
 class PrinterPanel(QWidget):
     scanRequested = Signal()
     connectRequested = Signal(str)
@@ -44,6 +52,7 @@ class PrinterPanel(QWidget):
     calibrationSettingsRequested = Signal()
     mockToggled = Signal(bool)
     modelChanged = Signal(str)  # printer model key
+    labelSizeChanged = Signal(float, float)  # roll length, height in mm
 
     def __init__(self, profile: PrinterProfile, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -115,6 +124,12 @@ class PrinterPanel(QWidget):
 
         pr = QGroupBox(tr("Afdrukinstellingen"))
         f2 = QFormLayout(pr)
+        self.roll = QComboBox()
+        self.roll.setToolTip(tr("Welke etiketten er in de printer zitten. Alle labels worden "
+                                "voor deze maat ontworpen en afgedrukt."))
+        self._sizes: list[tuple[float, float]] = []
+        self.set_label_size(profile)
+        self.roll.activated.connect(self._roll_chosen)
         self.density = QComboBox()
         self.density.addItems(list(profile.densities))
         self.copies = QSpinBox()
@@ -122,6 +137,7 @@ class PrinterPanel(QWidget):
         self.test_btn = QPushButton(tr("Testlabel afdrukken"))
         self.cal_btn = QPushButton(tr("Kalibratietest afdrukken"))
         self.cal_settings_btn = QPushButton(tr("Kalibratie-instellingen…"))
+        f2.addRow(tr("Etiketrol"), self.roll)
         f2.addRow(tr("Printdichtheid"), self.density)
         f2.addRow(tr("Exemplaren"), self.copies)
         f2.addRow(self.test_btn)
@@ -157,6 +173,40 @@ class PrinterPanel(QWidget):
 
     def remember_address(self, address: str) -> None:
         self._remembered = address
+
+    # -- label roll -----------------------------------------------------------------------
+
+    def set_label_size(self, profile: PrinterProfile) -> None:
+        """Fill the roll choice: the model's sizes, the current one if it is
+        custom, and 'Custom…'."""
+        current = profile.label_size
+        self._sizes = list(profile.label_sizes or (current,))
+        if current not in self._sizes:
+            self._sizes.append(current)
+        self.roll.blockSignals(True)
+        self.roll.clear()
+        for length, height in self._sizes:
+            self.roll.addItem(size_text(length, height))
+        self.roll.addItem(tr("Aangepast…"))
+        self.roll.setCurrentIndex(self._sizes.index(current))
+        self.roll.blockSignals(False)
+        self._current = current
+
+    def _roll_chosen(self, index: int) -> None:
+        if index < len(self._sizes):
+            size = self._sizes[index]
+        else:
+            from etiknivo.gui.dialogs import LabelSizeDialog
+
+            dlg = LabelSizeDialog(*self._current, parent=self)
+            if dlg.exec() != LabelSizeDialog.DialogCode.Accepted:
+                self.roll.setCurrentIndex(self._sizes.index(self._current))
+                return
+            size = dlg.size_mm()
+        if size != self._current:
+            self.labelSizeChanged.emit(*size)
+        else:
+            self.roll.setCurrentIndex(self._sizes.index(self._current))
 
     def _scan(self) -> None:
         self.scan_btn.setEnabled(False)

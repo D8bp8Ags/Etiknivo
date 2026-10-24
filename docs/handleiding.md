@@ -1,6 +1,6 @@
 # Handleiding Etiknivo
 
-Etiknivo maakt en print etiketten van 30 × 14 mm op de Action Fichero 5836. Deze handleiding legt uit hoe je de app gebruikt. Technische details (installatie, protocol, architectuur) staan in de [README](../README.md).
+Etiknivo maakt en print etiketten op de Action Fichero 5836, standaard 30 × 14 mm en ook andere maten. Deze handleiding legt uit hoe je de app gebruikt. Technische details (installatie, protocol, architectuur) staan in de [README](../README.md).
 
 - [Het venster](#het-venster)
 - [De printer verbinden](#de-printer-verbinden)
@@ -8,6 +8,7 @@ Etiknivo maakt en print etiketten van 30 × 14 mm op de Action Fichero 5836. Dez
 - [Specificaties en gekoppelde velden](#specificaties-en-gekoppelde-velden)
 - [QR-code en barcode](#qr-code-en-barcode)
 - [Afdrukken](#afdrukken)
+- [Een andere etiketrol](#een-andere-etiketrol)
 - [Kalibreren](#kalibreren)
 - [De bibliotheek beheren](#de-bibliotheek-beheren)
 - [Importeren, exporteren en back-up](#importeren-exporteren-en-back-up)
@@ -131,6 +132,14 @@ Na **Afdrukken** gaan de labels naar de **wachtrij** (knop *Wachtrij* rechtsbove
 - **Annuleer** haalt wachtende opdrachten weg; **Wis klaar** ruimt afgeronde op.
 
 Het standaard aantal exemplaren en de standaarddichtheid stel je in op het tabblad *Printer*. Kleine tekst is vaak beter leesbaar op *Licht* of *Normaal* dan op *Donker*.
+
+## Een andere etiketrol
+
+Zit er een rol met een andere maat in de printer, kies die dan op het tabblad *Printer* bij **Etiketrol**. In de lijst staan de gangbare maten, bijvoorbeeld 30 × 14, 40 × 14, 50 × 14 en 40 × 12 mm. Staat jouw maat er niet bij, kies dan **Aangepast…** en vul de lengte en hoogte van één etiket in, zonder de tussenruimte. De lengte is de richting waarin het papier uit de printer komt.
+
+De keuze geldt voor alle labels. Het ontwerp, de voorbeelden, de kaartjes in de bibliotheek en het afdrukken passen zich meteen aan. De tekst van je labels blijft gewoon staan; met *Tekst automatisch passend maken* aan wordt hij vanzelf groter of kleiner. Etiknivo onthoudt de rol.
+
+De printkop drukt maximaal 12 mm hoog. Is een etiket hoger, dan blijft er boven en onder een strook leeg; die is gearceerd in het ontwerp. Druk na het wisselen van rol een **Kalibratietest** af om te zien of alles goed staat.
 
 ## Kalibreren
 

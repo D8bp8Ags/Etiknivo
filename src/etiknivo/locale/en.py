@@ -470,4 +470,19 @@ EN: dict[str, str] = {
         "Text is too long for a QR code (at most {n} characters)",
     "De barcode heeft erg dunne streepjes; kort de tekst in als hij slecht scant":
         "The barcode has very thin bars; shorten the text if it scans poorly",
+    # label rolls
+    "Andere etiketmaat": "Other label size",
+    "Meet een etiket op de rol, zonder de tussenruimte. De lengte is de richting waarin het "
+    "papier uit de printer komt; de hoogte gaat over de printkop (die drukt maximaal 12 mm).":
+        "Measure one label on the roll, without the gap. The length is the direction in which "
+        "the paper comes out of the printer; the height runs across the printhead (which prints "
+        "at most 12 mm).",
+    "Lengte": "Length",
+    "Hoogte": "Height",
+    "Etiketrol: {size}": "Label roll: {size}",
+    "Welke etiketten er in de printer zitten. Alle labels worden voor deze maat ontworpen en "
+    "afgedrukt.":
+        "Which labels are in the printer. All labels are designed and printed for this size.",
+    "Etiketrol": "Label roll",
+    "Aangepast…": "Custom…",
 }
