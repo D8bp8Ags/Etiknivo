@@ -551,4 +551,8 @@ EN: dict[str, str] = {
     "De hele afdrukgeschiedenis wissen?": "Clear the entire print history?",
     "Simulatie": "Simulation",
     "(verwijderd)": "(deleted)",
+    # print-time fields
+    "Datum": "Date",
+    "Nr": "No",
+    "Aantal": "Count",
 }

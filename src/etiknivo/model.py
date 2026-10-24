@@ -16,11 +16,11 @@ import json
 import re
 import uuid
 from dataclasses import asdict, dataclass, field, fields
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from enum import StrEnum
 from typing import Any
 
-from etiknivo.i18n import N_, tr
+from etiknivo.i18n import N_, language, tr
 
 SCHEMA_VERSION = 1
 
@@ -40,6 +40,20 @@ BUILTIN_FIELDS = {
     "tray_id": (N_("Lade"), ("lade", "tray")),
     "category": (N_("Categorie"), ("categorie", "category")),
 }
+#: Fields filled in at print time: today's date, the number of this copy
+#: within the print job and the job's number of copies.  Outside printing
+#: (preview, export) they show copy 1 of 1.
+PRINT_FIELDS = {
+    "date": (N_("Datum"), ("datum", "date")),
+    "number": (N_("Nr"), ("nr", "no")),
+    "count": (N_("Aantal"), ("aantal", "count")),
+}
+
+
+def today_text(day: date | None = None) -> str:
+    """Today's date as shown by ``{Datum}``: 24-10-2026, or ISO in English."""
+    day = day or date.today()
+    return day.strftime("%d-%m-%Y") if language() == "nl" else day.isoformat()
 
 
 class HAlign(StrEnum):
@@ -244,14 +258,46 @@ class Label:
         """Names usable as ``{Name}``: the specifications, then the built-ins."""
         own = [k for k in self.specs if k]
         taken = {k.casefold() for k in own}
-        return own + [tr(shown) for shown, _ in BUILTIN_FIELDS.values()
-                      if tr(shown).casefold() not in taken]
+        builtin = [*BUILTIN_FIELDS.values(), *PRINT_FIELDS.values()]
+        return own + [tr(shown) for shown, _ in builtin if tr(shown).casefold() not in taken]
+
+    def print_values(self, number: int = 1, count: int = 1,
+                     day: date | None = None) -> dict[str, str]:
+        """Values of the print-time fields, except names a specification uses."""
+        own = {k.strip().casefold() for k in self.specs}
+        values = {"date": today_text(day), "number": str(number), "count": str(count)}
+        return {alias: values[key] for key, (_, aliases) in PRINT_FIELDS.items()
+                for alias in aliases if alias not in own}
 
     def field_values(self) -> dict[str, str]:
         values = {alias: getattr(self, attr) for attr, (_, aliases) in BUILTIN_FIELDS.items()
                   for alias in aliases}
+        values.update(self.print_values())
         values.update({k.strip().casefold(): v for k, v in self.specs.items()})
         return values
+
+    def _texts(self) -> list[str]:
+        return [ln.text for ln in self.lines] + [self.code.text]
+
+    def uses_copy_number(self) -> bool:
+        """Whether ``{Nr}`` appears, so every copy looks different."""
+        aliases = set(PRINT_FIELDS["number"][1]) & set(self.print_values())
+        return any(m.group(1).strip().casefold() in aliases
+                   for text in self._texts() for m in FIELD_RE.finditer(text))
+
+    def for_copy(self, number: int, count: int, day: date | None = None) -> Label:
+        """A copy of this label with the print-time fields filled in for copy
+        *number* of *count*."""
+        values = self.print_values(number, count, day)
+
+        def sub(m: re.Match[str]) -> str:
+            return values.get(m.group(1).strip().casefold(), m.group(0))
+
+        c = self.clone(new_id=False)
+        for ln in c.lines:
+            ln.text = FIELD_RE.sub(sub, ln.text)
+        c.code.text = FIELD_RE.sub(sub, c.code.text)
+        return c
 
     def resolve(self, text: str) -> tuple[str, list[str]]:
         """*text* with ``{Name}`` fields filled in (case-insensitive).

@@ -1007,10 +1007,19 @@ class MainWindow(QMainWindow):
         if dlg.exec() != PrintPreviewDialog.DialogCode.Accepted:
             return
         density = dlg.density.currentIndex()
-        jobs = [PrintJob(lbl.id, f"{lbl.tray_id} {lbl.name}".strip(),
-                         self.engine.render(lbl).raster, copies, density)
+        jobs = [self.make_job(lbl, copies, density)
                 for lbl, copies in zip(labels, dlg.copies_per_label())]
         self._submit(jobs)
+
+    def make_job(self, lbl: Label, copies: int, density: int) -> PrintJob:
+        """Print job for *copies* of *lbl*, with {Datum}, {Nr} and {Aantal} filled in."""
+        title = f"{lbl.tray_id} {lbl.name}".strip()
+        if lbl.uses_copy_number():
+            rasters = [self.engine.render(lbl.for_copy(n, copies)).raster
+                       for n in range(1, copies + 1)]
+            return PrintJob(lbl.id, title, rasters[0], copies, density, copy_rasters=rasters)
+        return PrintJob(lbl.id, title, self.engine.render(lbl.for_copy(1, copies)).raster,
+                        copies, density)
 
     def _submit(self, jobs: list[PrintJob]) -> None:
         if not self._connected():

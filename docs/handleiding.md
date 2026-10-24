@@ -100,6 +100,18 @@ Typ in een tekstregel `{Spanning}` en op het etiket verschijnt `50 V`. Je kunt o
 
 Naast je eigen specificaties werken altijd `{Naam}`, `{Lade}` en `{Categorie}`. Een veld dat niet bestaat blijft als tekst staan en geeft een waarschuwing onder het voorbeeld, zodat je een tikfout meteen ziet.
 
+### Datum en volgnummer
+
+Drie velden worden pas bij het afdrukken ingevuld:
+
+| Veld | Wordt | Voorbeeld |
+|---|---|---|
+| `{Datum}` | de datum van vandaag | 24-10-2026 |
+| `{Nr}` | het nummer van dit exemplaar binnen de opdracht | 1, 2, 3 … |
+| `{Aantal}` | het aantal exemplaren van de opdracht | 3 |
+
+Print je 3 exemplaren van een label met `Doos {Nr}/{Aantal}`, dan krijg je *Doos 1/3*, *Doos 2/3* en *Doos 3/3*. Elke afdruk telt opnieuw vanaf 1. In het voorbeeld en bij exporteren zie je exemplaar 1 van 1. Heb je zelf een specificatie die *Aantal* (of *Datum*, *Nr*) heet, dan gebruikt het etiket jouw waarde.
+
 **Notities** zijn alleen voor jezelf, bijvoorbeeld waar je iets besteld hebt. Ze komen niet op het etiket. Specificaties en notities zijn wel doorzoekbaar en verschijnen als tooltip als je met de muis boven een label in de bibliotheek hangt.
 
 ## Pictogrammen en afbeeldingen

@@ -294,7 +294,7 @@ def test_unknown_field_stays_visible_with_warning(engine: RenderEngine) -> None:
     r = engine.render(lbl)
     assert r.lines[0].text == "{Vermogen}"
     assert any("Onbekend veld {Vermogen}" in w for w in r.warnings)
-    assert lbl.field_names() == ["Naam", "Lade", "Categorie"]
+    assert lbl.field_names() == ["Naam", "Lade", "Categorie", "Datum", "Nr", "Aantal"]
     lbl.specs = {"Vermogen": "¼ W"}
     assert lbl.field_names()[0] == "Vermogen"
     assert engine.render(lbl).lines[0].text == "¼ W"

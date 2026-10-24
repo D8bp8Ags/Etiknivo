@@ -65,12 +65,19 @@ class PrintJob:
     error: str = ""
     submitted: float = field(default_factory=time.monotonic)
     fingerprint: str = ""
+    #: one raster per copy when the copies differ (e.g. a {Nr} field);
+    #: then ``raster`` is the first one and ``copies`` their number
+    copy_rasters: list[Image.Image] | None = None
 
     def __post_init__(self) -> None:
+        if self.copy_rasters:
+            self.raster, self.copies = self.copy_rasters[0], len(self.copy_rasters)
         if self.copies < 1:
             raise ValueError(tr("Aantal exemplaren moet minimaal 1 zijn"))
         if not self.fingerprint:
-            h = hashlib.sha1(raster_to_bytes(self.raster))
+            h = hashlib.sha1()
+            for r in self.copy_rasters or [self.raster]:
+                h.update(raster_to_bytes(r))
             h.update(f"|{self.copies}|{self.density}|{self.label_id}".encode())
             self.fingerprint = h.hexdigest()
 
@@ -261,8 +268,14 @@ class PrintQueue:
         try:
             if backend is None or not backend.connected:
                 raise PrinterError(tr("Geen printer verbonden"))
-            await backend.print_raster(job.raster, density=job.density, copies=job.copies,
-                                       progress=progress, cancel=self._cancel)
+            if job.copy_rasters:
+                for n, raster in enumerate(job.copy_rasters):
+                    await backend.print_raster(
+                        raster, density=job.density, copies=1, cancel=self._cancel,
+                        progress=lambda done, _total, n=n: progress(n + done, job.copies))
+            else:
+                await backend.print_raster(job.raster, density=job.density, copies=job.copies,
+                                           progress=progress, cancel=self._cancel)
         except PrintCancelled as exc:
             job.status, job.error = JobStatus.CANCELLED, str(exc)
             print_log.info("GESTOPT  %s  (%d/%d)", job.title, job.copies_done, job.copies)
