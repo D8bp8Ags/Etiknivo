@@ -8,6 +8,8 @@ Etiknivo is een desktopapplicatie (Python + PySide6) om etiketten te ontwerpen, 
 
 ![Etiknivo hoofdvenster](docs/img/main-window.png)
 
+**Gebruiker?** Lees de [handleiding](docs/handleiding.md): verbinden, labels maken, velden, afdrukken, kalibreren en problemen oplossen.
+
 ![Etiknivo in donkere modus, met printer en wachtrij](docs/img/printer-and-queue-dark.png)
 
 ## Functies
@@ -66,7 +68,7 @@ macOS vraagt de eerste keer om Bluetooth-toegang. Bij `uv run` geldt die toestem
 1. Zet de Fichero aan.
 2. Open het tabblad **Printer**, klik **Zoeken**, kies `FICHERO_5836` en klik **Verbinden** (of dubbelklik). Het adres wordt onthouden.
 3. Druk een **Testlabel** af, daarna een **Kalibratietest**. Het kalibratiepatroon toont het veilige printgebied van 26 × 12 mm (aan beide uiteinden blijft 2 mm leeg, net als in de officiële Fichero-app), de middellijnen en een millimeterliniaal. Is de witruimte aan beide uiteinden niet gelijk, pas dan via **Kalibratie-instellingen…** de verschuiving langs de rol aan (8 dots = 1 mm). De Fichero begint ongeveer 1 mm te vroeg te printen; daar corrigeert Etiknivo zelf al voor (8 dots), dus de kalibratie staat standaard op 0 en is alleen voor fijnafstemming. Komen labels ondersteboven uit, zet dan *Afdrukrichting omdraaien* aan.
-4. Selecteer labels in de bibliotheek en kies **Selectie afdrukken…**. Controleer het voorbeeld en het aantal exemplaren per label en bevestig.
+4. Selecteer labels in de bibliotheek en kies **Afdrukken → Geselecteerde labels…** (⇧⌘P). Controleer het voorbeeld en het aantal exemplaren per label en bevestig.
 
 ## Belangrijk over het formaat
 

@@ -362,6 +362,7 @@ EN: dict[str, str] = {
     "Wissen": "Clear",
     "Leegt dit venster; de logbestanden blijven bewaard":
         "Empties this window; the log files are kept",
+    "1 regel": "1 line",
     "{n} regels": "{n} lines",
     # -- theme -----------------------------------------------------------------------
     "Systeem": "System",

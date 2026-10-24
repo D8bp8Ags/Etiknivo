@@ -130,7 +130,7 @@ class LogWindow(QDialog):
             bar.setValue(bar.maximum())
 
     def _update_count(self) -> None:
-        self.count.setText(tr("{n} regels", n=self._shown))
+        self.count.setText(tr("1 regel") if self._shown == 1 else tr("{n} regels", n=self._shown))
 
     # -- actions -----------------------------------------------------------------------
 
