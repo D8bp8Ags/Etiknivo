@@ -2,26 +2,36 @@
 
 from __future__ import annotations
 
+import io
 from collections.abc import Callable
+from pathlib import Path
 
-from PySide6.QtCore import Signal
+from PIL import Image, ImageOps
+from PySide6.QtCore import QBuffer, QIODevice, QSize, Qt, Signal
+from PySide6.QtGui import QIcon, QImage, QPainter
+from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
     QDoubleSpinBox,
+    QFileDialog,
     QFormLayout,
     QGroupBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
     QMenu,
+    QMessageBox,
     QPlainTextEdit,
+    QPushButton,
     QScrollArea,
     QToolButton,
     QVBoxLayout,
     QWidget,
 )
 
+from etiknivo.gui import theme
+from etiknivo.gui.qt_util import pil_to_pixmap
 from etiknivo.i18n import N_, tr
 from etiknivo.model import (
     LAYOUT_TITLES,
@@ -31,11 +41,16 @@ from etiknivo.model import (
     HAlign,
     Label,
     LayoutPreset,
+    PictureKind,
     VAlign,
 )
+from etiknivo.rendering import pictures, symbols
 
 ALIGN_TEXT = {HAlign.LEFT: N_("Links"), HAlign.CENTER: N_("Midden"), HAlign.RIGHT: N_("Rechts")}
 VALIGN_TEXT = {VAlign.TOP: N_("Boven"), VAlign.CENTER: N_("Midden"), VAlign.BOTTOM: N_("Onder")}
+PICTURE_KINDS = ((PictureKind.NONE, N_("Geen")), (PictureKind.SYMBOL, N_("Symbool")),
+                 (PictureKind.IMAGE, N_("Eigen afbeelding")))
+SIDES = ((HAlign.LEFT, N_("Links")), (HAlign.RIGHT, N_("Rechts")))
 #: Choices for the code: (kind, QR side, text)
 CODE_CHOICES = (
     (CodeKind.NONE, HAlign.LEFT, N_("Geen")),
@@ -53,6 +68,35 @@ def _spin(lo: float, hi: float, step: float, suffix: str, decimals: int = 1) -> 
     s.setSuffix(suffix)
     s.setKeyboardTracking(False)
     return s
+
+
+def symbol_icon(key: str) -> QIcon:
+    """A symbol in the current text colour, for the picker."""
+    img = symbols.draw_symbol(key, 56)
+    mask = ImageOps.invert(img)
+    rgba = Image.new("RGBA", img.size, theme.tokens().text)
+    rgba.putalpha(mask)
+    return QIcon(pil_to_pixmap(rgba))
+
+
+def load_image(path: Path) -> str:
+    """An image file encoded for a label; SVG files are drawn with Qt first."""
+    if path.suffix.lower() != ".svg":
+        return pictures.load_file(path)
+    renderer = QSvgRenderer(str(path))
+    if not renderer.isValid():
+        raise pictures.ImageError(path.name)
+    size = renderer.defaultSize().scaled(pictures.MAX_SIDE, pictures.MAX_SIDE,
+                                         Qt.AspectRatioMode.KeepAspectRatio)
+    qimg = QImage(size, QImage.Format.Format_ARGB32)
+    qimg.fill(Qt.GlobalColor.transparent)
+    painter = QPainter(qimg)
+    renderer.render(painter)
+    painter.end()
+    buf = QBuffer()
+    buf.open(QIODevice.OpenModeFlag.WriteOnly)
+    qimg.save(buf, "PNG")
+    return pictures.encode(Image.open(io.BytesIO(bytes(buf.data()))))
 
 
 class FieldButton(QToolButton):
@@ -216,6 +260,29 @@ class PropertiesPanel(QScrollArea):
         fc.addRow(self.code_hint)
         lay.addWidget(code)
 
+        pic = QGroupBox(tr("Pictogram"))
+        fp = QFormLayout(pic)
+        fp.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
+        self.pic_kind = QComboBox()
+        for _k, text in PICTURE_KINDS:
+            self.pic_kind.addItem(tr(text))
+        self.pic_side = QComboBox()
+        for _s, text in SIDES:
+            self.pic_side.addItem(tr(text))
+        self.pic_symbol = QComboBox()
+        self.pic_symbol.setIconSize(QSize(28, 28))
+        for key, (name, _p) in symbols.SYMBOLS.items():
+            self.pic_symbol.addItem(symbol_icon(key), tr(name), key)
+        self.pic_image_btn = QPushButton(tr("Afbeelding kiezen…"))
+        self.pic_image_btn.setToolTip(tr("PNG, JPG of SVG, bv. een logo. Wordt zwart-wit "
+                                         "afgedrukt en in het label bewaard."))
+        self.pic_image_btn.clicked.connect(self._choose_image)
+        fp.addRow(tr("Soort"), self.pic_kind)
+        fp.addRow(tr("Plaats"), self.pic_side)
+        fp.addRow(tr("Symbool"), self.pic_symbol)
+        fp.addRow(tr("Afbeelding"), self.pic_image_btn)
+        lay.addWidget(pic)
+
         st = QGroupBox(tr("Opmaak"))
         f2 = QFormLayout(st)
         self.valign = QComboBox()
@@ -275,6 +342,8 @@ class PropertiesPanel(QScrollArea):
         for w in (self.autofit, self.border, self.invert):
             w.toggled.connect(lambda: self._apply(False))
         self.code_kind.currentIndexChanged.connect(lambda: self._apply(False))
+        for w in (self.pic_kind, self.pic_side, self.pic_symbol):
+            w.currentIndexChanged.connect(lambda: self._apply(False))
         self.code_text.textEdited.connect(lambda: self._apply(False))
         self.specs.textChanged.connect(lambda: self._apply(False))
         self.notes.textChanged.connect(lambda: self._apply(False))
@@ -330,6 +399,11 @@ class PropertiesPanel(QScrollArea):
             if self.code_text.text() != c.text:
                 self.code_text.setText(c.text)
             self._update_code_hint()
+            p = label.picture
+            self.pic_kind.setCurrentIndex([k for k, _ in PICTURE_KINDS].index(p.kind))
+            self.pic_side.setCurrentIndex(1 if p.side == HAlign.RIGHT else 0)
+            self.pic_symbol.setCurrentIndex(max(0, self.pic_symbol.findData(p.symbol)))
+            self._update_picture_widgets()
             specs = "\n".join(f"{k}: {v}" for k, v in label.specs.items())
             if self.specs.toPlainText() != specs:
                 self.specs.setPlainText(specs)
@@ -394,6 +468,10 @@ class PropertiesPanel(QScrollArea):
         lbl.code.kind, lbl.code.side = kind, side
         lbl.code.text = self.code_text.text()
         self._update_code_hint()
+        lbl.picture.kind = PICTURE_KINDS[max(0, self.pic_kind.currentIndex())][0]
+        lbl.picture.side = SIDES[max(0, self.pic_side.currentIndex())][0]
+        lbl.picture.symbol = self.pic_symbol.currentData() or lbl.picture.symbol
+        self._update_picture_widgets()
         specs: dict[str, str] = {}
         for line in self.specs.toPlainText().splitlines():
             if ":" in line:
@@ -405,6 +483,40 @@ class PropertiesPanel(QScrollArea):
         lbl.specs = specs
         lbl.notes = self.notes.toPlainText()
         self._emit(structural)
+
+    def _update_picture_widgets(self) -> None:
+        kind = PICTURE_KINDS[max(0, self.pic_kind.currentIndex())][0]
+        self.pic_side.setEnabled(kind != PictureKind.NONE)
+        self.pic_symbol.setEnabled(kind == PictureKind.SYMBOL)
+        self.pic_image_btn.setEnabled(kind == PictureKind.IMAGE)
+        has = bool(self.label and self.label.picture.image_png)
+        self.pic_image_btn.setText(tr("Andere afbeelding…") if has else tr("Afbeelding kiezen…"))
+
+    def _choose_image(self) -> None:
+        path, _ = QFileDialog.getOpenFileName(
+            self, tr("Afbeelding kiezen"), "",
+            tr("Afbeeldingen") + " (*.png *.jpg *.jpeg *.gif *.bmp *.tif *.tiff *.svg)")
+        if path:
+            self.set_image_file(Path(path))
+
+    def set_image_file(self, path: Path) -> bool:
+        """Put the image in *path* on the current label.  False when it cannot be read."""
+        if self.label is None:
+            return False
+        try:
+            data = load_image(path)
+        except pictures.ImageError:
+            QMessageBox.warning(self, tr("Afbeelding"), tr(
+                "'{name}' kon niet worden gelezen als afbeelding.", name=path.name))
+            return False
+        self.label.picture.image_png = data
+        self.label.picture.kind = PictureKind.IMAGE
+        self._loading = True
+        self.pic_kind.setCurrentIndex([k for k, _ in PICTURE_KINDS].index(PictureKind.IMAGE))
+        self._loading = False
+        self._update_picture_widgets()
+        self._emit(False)
+        return True
 
     @staticmethod
     def _code_index(kind: CodeKind, side: HAlign) -> int:

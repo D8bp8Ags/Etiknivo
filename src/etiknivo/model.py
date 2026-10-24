@@ -161,6 +161,36 @@ class LabelCode:
         return c
 
 
+class PictureKind(StrEnum):
+    NONE = "none"
+    SYMBOL = "symbol"
+    IMAGE = "image"
+
+
+@dataclass
+class LabelPicture:
+    """A pictogram beside the text: one of Etiknivo's symbols or an image of
+    the user's own, stored in the label as a small greyscale PNG (base64), so
+    the library stays self-contained."""
+
+    kind: PictureKind = PictureKind.NONE
+    symbol: str = "resistor"
+    image_png: str = ""
+    side: HAlign = HAlign.LEFT
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> LabelPicture:
+        p = cls()
+        try:
+            p.kind = PictureKind(data.get("kind", PictureKind.NONE))
+        except ValueError:
+            p.kind = PictureKind.NONE
+        p.symbol = str(data.get("symbol", p.symbol))
+        p.image_png = str(data.get("image_png", ""))
+        p.side = HAlign.RIGHT if data.get("side") == HAlign.RIGHT else HAlign.LEFT
+        return p
+
+
 def default_lines() -> list[TextLine]:
     return [TextLine(), TextLine(), TextLine()]
 
@@ -178,6 +208,7 @@ class Label:
     style: LabelStyle = field(default_factory=LabelStyle)
     format: LabelFormat = field(default_factory=LabelFormat)
     code: LabelCode = field(default_factory=LabelCode)
+    picture: LabelPicture = field(default_factory=LabelPicture)
     specs: dict[str, str] = field(default_factory=dict)
     notes: str = ""
     created: str = field(default_factory=_now)
@@ -293,6 +324,7 @@ class Label:
             style=LabelStyle.from_dict(data.get("style", {})),
             format=LabelFormat.from_dict(data.get("format", {})),
             code=LabelCode.from_dict(data.get("code") or {}),
+            picture=LabelPicture.from_dict(data.get("picture") or {}),
             specs={str(k): str(v) for k, v in (data.get("specs") or {}).items()},
             notes=str(data.get("notes", "")),
         )
@@ -313,6 +345,7 @@ class Label:
         """Stable hash of everything that affects the rendered output."""
         d = {"lines": [asdict(x) for x in self.lines], "style": asdict(self.style),
              "format": asdict(self.format), "code": asdict(self.code),
+             "picture": asdict(self.picture),
              "fields": self.field_values()}
         return hashlib.sha1(json.dumps(d, sort_keys=True, default=str).encode()).hexdigest()
 

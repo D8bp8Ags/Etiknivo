@@ -6,6 +6,7 @@ Etiknivo maakt en print etiketten op de Action Fichero 5836, standaard 30 × 14 
 - [De printer verbinden](#de-printer-verbinden)
 - [Een label maken en bewerken](#een-label-maken-en-bewerken)
 - [Specificaties en gekoppelde velden](#specificaties-en-gekoppelde-velden)
+- [Pictogrammen en afbeeldingen](#pictogrammen-en-afbeeldingen)
 - [QR-code en barcode](#qr-code-en-barcode)
 - [Afdrukken](#afdrukken)
 - [Een andere etiketrol](#een-andere-etiketrol)
@@ -98,6 +99,17 @@ Typ in een tekstregel `{Spanning}` en op het etiket verschijnt `50 V`. Je kunt o
 Naast je eigen specificaties werken altijd `{Naam}`, `{Lade}` en `{Categorie}`. Een veld dat niet bestaat blijft als tekst staan en geeft een waarschuwing onder het voorbeeld, zodat je een tikfout meteen ziet.
 
 **Notities** zijn alleen voor jezelf, bijvoorbeeld waar je iets besteld hebt. Ze komen niet op het etiket. Specificaties en notities zijn wel doorzoekbaar en verschijnen als tooltip als je met de muis boven een label in de bibliotheek hangt.
+
+## Pictogrammen en afbeeldingen
+
+Onder *QR-code of barcode* staat **Pictogram**. Bij *Soort* kies je:
+
+- **Symbool**: een van de ingebouwde elektronica-symbolen. Er zijn er 18: weerstand, potmeter, condensator, elco, diode, LED, transistor, IC, zekering, schakelaar, connector, batterij, spoel, kristal, aarde, schroef, moer en kabel.
+- **Eigen afbeelding**: klik **Afbeelding kiezen…** en kies een PNG, JPG of SVG, bijvoorbeeld je logo. Etiknivo maakt hem zwart-wit, haalt witte randen weg en bewaart hem in het label zelf. Het originele bestand heb je daarna niet meer nodig, en de afbeelding gaat mee in exports en back-ups.
+
+Met *Plaats* zet je het pictogram links of rechts van de tekst. De tekst schuift opzij en wordt zo nodig kleiner. Staan een QR-code en een pictogram aan dezelfde kant, dan komt de QR-code aan de buitenkant en het pictogram ernaast.
+
+Afbeeldingen met veel kleine details of zachte kleurverlopen worden op 12 mm vaak onduidelijk. Eenvoudige vormen met dikke lijnen werken het best.
 
 ## QR-code en barcode
 

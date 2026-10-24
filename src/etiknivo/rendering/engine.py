@@ -28,12 +28,12 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 
-from PIL import Image, ImageDraw, ImageOps
+from PIL import Image, ImageChops, ImageDraw, ImageOps
 
 from etiknivo.i18n import tr
-from etiknivo.model import CodeKind, HAlign, Label, TextLine, VAlign
+from etiknivo.model import CodeKind, HAlign, Label, PictureKind, TextLine, VAlign
 from etiknivo.printing.profiles import FICHERO_5836, PrinterProfile
-from etiknivo.rendering import codes
+from etiknivo.rendering import codes, pictures, symbols
 from etiknivo.rendering.fonts import (
     FontFace,
     FontRegistry,
@@ -52,6 +52,8 @@ QR_GAP_MM = 1.5  # between QR code and text: room for the quiet zone
 BAR_MAX_MODULE_PX = 3
 BAR_HEIGHT_MM = 3.5
 BAR_GAP_MM = 0.75
+PICTURE_GAP_MM = 1.0
+PICTURE_MAX_WIDTH = 0.5  # share of the room left for text
 ITALIC_SHEAR = 0.2
 
 
@@ -170,6 +172,9 @@ class RenderEngine:
         prepared = self._prepare_lines(label, warnings)
         code = self._place_code(label, content, bool(prepared), warnings)
         area = code.text_area if code else content
+        picture = self._place_picture(label, area, warnings)
+        if picture is not None:
+            area = picture[2]
         avail_w = max(1.0, area[2] - area[0])
         avail_h = max(1.0, area[3] - area[1])
         sizes = [ln.line.font_size_pt for ln in prepared]
@@ -220,8 +225,10 @@ class RenderEngine:
             warnings.append(tr("Tekst past niet, zelfs niet bij de minimale lettergrootte "
                                "({pt} pt). Kort de tekst in of verklein de marges.",
                                pt=f"{MIN_FONT_PT:g}"))
-        if not prepared and code is None:
+        if not prepared and code is None and picture is None:
             warnings.append(tr("Label bevat geen zichtbare tekst"))
+        if picture is not None:
+            self._draw_picture(hires, picture[0], picture[1], ss)
         if code is not None:
             for x0, y0, x1, y1 in code.rects:
                 draw.rectangle((x0 * ss, y0 * ss, x1 * ss - 1, y1 * ss - 1), fill=0)
@@ -353,6 +360,60 @@ class RenderEngine:
                  for i, bar in enumerate(modules) if bar]
         area = (cx0, cy0, cx1, y0 - self.mm_to_px(BAR_GAP_MM))
         return PlacedCode(spec.kind, text, (x0, y0, x0 + width, y1), module, rects, area)
+
+    def _place_picture(self, label: Label, area: tuple[float, float, float, float],
+                       warnings: list[str]) -> tuple[tuple[int, int, int, int], str | Image.Image,
+                                                      tuple[float, float, float, float]] | None:
+        """Box for the label's pictogram at the outer edge of *area*:
+        (box in design dots, source, area left for the text) or None."""
+        pic = label.picture
+        if pic.kind == PictureKind.SYMBOL:
+            if pic.symbol not in symbols.SYMBOLS:
+                warnings.append(tr("Onbekend symbool '{name}'", name=pic.symbol))
+                return None
+            source: str | Image.Image = pic.symbol
+            aspect = 1.0
+        elif pic.kind == PictureKind.IMAGE:
+            img = pictures.decode(pic.image_png)
+            if img is None:
+                warnings.append(tr("Geen afbeelding gekozen"))
+                return None
+            source, aspect = img, img.width / max(1, img.height)
+        else:
+            return None
+        ax0, ay0, ax1, ay1 = area
+        h = int(ay1 - ay0)
+        w = round(h * aspect)
+        max_w = int((ax1 - ax0) * PICTURE_MAX_WIDTH)
+        if w > max_w:
+            w = max_w
+            h = max(1, round(w / aspect))
+        if w < 8 or h < 8:  # 1 mm: no room
+            warnings.append(tr("Geen ruimte voor het pictogram"))
+            return None
+        y0 = round(ay0 + (ay1 - ay0 - h) / 2)
+        gap = self.mm_to_px(PICTURE_GAP_MM)
+        if pic.side == HAlign.RIGHT:
+            x0 = int(ax1) - w
+            rest = (ax0, ay0, x0 - gap, ay1)
+        else:
+            x0 = round(ax0)
+            rest = (x0 + w + gap, ay0, ax1, ay1)
+        return (x0, y0, x0 + w, y0 + h), source, rest
+
+    @staticmethod
+    def _draw_picture(canvas: Image.Image, box: tuple[int, int, int, int],
+                      source: str | Image.Image, ss: int) -> None:
+        x0, y0, x1, y1 = (v * ss for v in box)
+        w, h = x1 - x0, y1 - y0
+        if isinstance(source, str):
+            img = symbols.draw_symbol(source, min(w, h))
+            ox, oy = x0 + (w - img.width) // 2, y0 + (h - img.height) // 2
+        else:
+            img = source.resize((w, h), Image.Resampling.LANCZOS)
+            ox, oy = x0, y0
+        region = canvas.crop((ox, oy, ox + img.width, oy + img.height))
+        canvas.paste(ImageChops.darker(region, img), (ox, oy))
 
     def _prepare_lines(self, label: Label, warnings: list[str]) -> list[_Prepared]:
         out: list[_Prepared] = []
