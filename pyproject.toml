@@ -1,0 +1,60 @@
+[project]
+name = "etiknivo"
+version = "0.1.0"
+description = "Etiknivo: open-source Label Designer & Printer Manager"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE", "src/etiknivo/fonts/LICENSE-DejaVu.txt"]
+requires-python = ">=3.12"
+authors = [{ name = "Etiknivo contributors" }]
+keywords = ["label", "printer", "thermal", "bluetooth", "fichero", "d11s", "aiyin"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: MacOS",
+    "Environment :: MacOS X",
+    "Topic :: Printing",
+]
+dependencies = [
+    "pyside6>=6.7",
+    "pillow>=10.4",
+    "bleak>=0.22",
+    "fonttools>=4.50",
+    "platformdirs>=4.2",
+]
+
+[project.scripts]
+etiknivo = "etiknivo.app:main"
+
+[project.gui-scripts]
+etiknivo-gui = "etiknivo.app:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "pytest-asyncio>=0.23",
+    "pytest-qt>=4.4",
+]
+build = [
+    "pyinstaller>=6.6",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/etiknivo"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+qt_api = "pyside6"
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = ["B905", "E741"]

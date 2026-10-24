@@ -1,0 +1,24 @@
+tray_id,category,main,spec
+A01,Schuifpotmeters,10 kΩ,Mono · 75 / 88 mm
+A02,Schuifpotmeters,10 kΩ,Stereo · 60 / 75 mm
+A03,Rotary encoders,EC11 / module,Met knoppen
+A04,Drukknoppen,16 mm,LED / zonder LED
+A05,Audiojacks SMD,"3,5 mm",Diverse typen
+A06,Audiojacks,"3,5 mm",Overige typen
+A07,Lasklemmen,WAGO,3- en 5-voudig
+A08,Dupont,Connectoren,Contacten + behuizingen
+A09,Weerstand,150 Ω,¼ W
+A10,Weerstanden,Assortiment,10 Ω – 1 MΩ
+A11,Condensator,100 nF,Keramisch · 50 V
+A12,IC · Logica,74HC14,DIP-14 · Schmitt
+A13,LED,3 mm,Diverse kleuren
+A14,Antennes,"2,4 GHz",Wi-Fi · u.FL
+A15,Audio,Buzzers / speaker,Passief / module
+A16,ESP32-S3,LilyGO T-QT Pro,"0,85″ IPS"
+A17,ESP32-S3,LilyGO T-Display,TFT / AMOLED
+A18,ESP32-S3,Heltec Tracker,LoRa / GNSS
+A19,Isolatie,Krimpkous,Diverse maten
+M01,Dupont F-F,10 cm,Rood / zwart / mix
+M02,Dupont,20 cm,F-F / M-F
+M03,Dupont,10 cm,M-F / M-M
+L01,Prototyping,Breadboards,Flatcable
