@@ -134,6 +134,33 @@ class LabelStyle:
         return cls(**kwargs)
 
 
+class CodeKind(StrEnum):
+    NONE = "none"
+    QR = "qr"
+    CODE128 = "code128"
+
+
+@dataclass
+class LabelCode:
+    """An optional QR code beside the text, or a Code 128 barcode in place of
+    the bottom line.  *text* may contain ``{Name}`` fields."""
+
+    kind: CodeKind = CodeKind.NONE
+    text: str = "{Lade}"
+    side: HAlign = HAlign.LEFT  # QR code: LEFT or RIGHT of the text
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> LabelCode:
+        c = cls()
+        try:
+            c.kind = CodeKind(data.get("kind", CodeKind.NONE))
+        except ValueError:
+            c.kind = CodeKind.NONE
+        c.text = str(data.get("text", c.text))
+        c.side = HAlign.RIGHT if data.get("side") == HAlign.RIGHT else HAlign.LEFT
+        return c
+
+
 def default_lines() -> list[TextLine]:
     return [TextLine(), TextLine(), TextLine()]
 
@@ -150,6 +177,7 @@ class Label:
     lines: list[TextLine] = field(default_factory=default_lines)
     style: LabelStyle = field(default_factory=LabelStyle)
     format: LabelFormat = field(default_factory=LabelFormat)
+    code: LabelCode = field(default_factory=LabelCode)
     specs: dict[str, str] = field(default_factory=dict)
     notes: str = ""
     created: str = field(default_factory=_now)
@@ -170,9 +198,11 @@ class Label:
         return self.lines[SLOT_BOTTOM]
 
     def visible_lines(self) -> list[tuple[int, TextLine]]:
-        """Slots that will actually be rendered (enabled and non-empty)."""
+        """Slots that will actually be rendered (enabled and non-empty).  A
+        barcode takes the place of the bottom line."""
         return [(i, ln) for i, ln in enumerate(self.lines)
-                if ln.enabled and self.resolve(ln.text)[0].strip()]
+                if ln.enabled and self.resolve(ln.text)[0].strip()
+                and not (i == SLOT_BOTTOM and self.code.kind == CodeKind.CODE128)]
 
     # -- fields ----------------------------------------------------------------
 
@@ -262,6 +292,7 @@ class Label:
             lines=lines,
             style=LabelStyle.from_dict(data.get("style", {})),
             format=LabelFormat.from_dict(data.get("format", {})),
+            code=LabelCode.from_dict(data.get("code") or {}),
             specs={str(k): str(v) for k, v in (data.get("specs") or {}).items()},
             notes=str(data.get("notes", "")),
         )
@@ -281,7 +312,8 @@ class Label:
     def render_key(self) -> str:
         """Stable hash of everything that affects the rendered output."""
         d = {"lines": [asdict(x) for x in self.lines], "style": asdict(self.style),
-             "format": asdict(self.format), "fields": self.field_values()}
+             "format": asdict(self.format), "code": asdict(self.code),
+             "fields": self.field_values()}
         return hashlib.sha1(json.dumps(d, sort_keys=True, default=str).encode()).hexdigest()
 
 

@@ -6,6 +6,7 @@ Etiknivo maakt en print etiketten van 30 × 14 mm op de Action Fichero 5836. Dez
 - [De printer verbinden](#de-printer-verbinden)
 - [Een label maken en bewerken](#een-label-maken-en-bewerken)
 - [Specificaties en gekoppelde velden](#specificaties-en-gekoppelde-velden)
+- [QR-code en barcode](#qr-code-en-barcode)
 - [Afdrukken](#afdrukken)
 - [Kalibreren](#kalibreren)
 - [De bibliotheek beheren](#de-bibliotheek-beheren)
@@ -96,6 +97,19 @@ Typ in een tekstregel `{Spanning}` en op het etiket verschijnt `50 V`. Je kunt o
 Naast je eigen specificaties werken altijd `{Naam}`, `{Lade}` en `{Categorie}`. Een veld dat niet bestaat blijft als tekst staan en geeft een waarschuwing onder het voorbeeld, zodat je een tikfout meteen ziet.
 
 **Notities** zijn alleen voor jezelf, bijvoorbeeld waar je iets besteld hebt. Ze komen niet op het etiket. Specificaties en notities zijn wel doorzoekbaar en verschijnen als tooltip als je met de muis boven een label in de bibliotheek hangt.
+
+## QR-code en barcode
+
+Onder de tekstregels staat **QR-code of barcode**. Bij *Soort* kies je:
+
+- **QR-code links** of **QR-code rechts**: een vierkante code naast de tekst, om met je telefoon te scannen. De tekst schuift opzij en wordt zo nodig kleiner.
+- **Barcode (Code 128) i.p.v. onderregel**: een streepjescode onderaan, voor een handscanner. De onderregel verdwijnt van het etiket, maar de tekst blijft bewaard; kies je weer *Geen*, dan komt hij terug.
+
+Bij *Inhoud* zet je wat de code bevat. Standaard is dat `{Lade}`, de lade-ID. Velden werken net als in de tekstregels, dus met een specificatie `Datasheet: https://…` en als inhoud `{Datasheet}` opent de QR-code die link. Een onbekend veld geeft een waarschuwing en dan wordt er geen code gedrukt, zodat je nooit een code met `{…}` erin print.
+
+Hoe korter de inhoud, hoe groter de blokjes of streepjes en hoe makkelijker het scant. Een QR-code past tot 134 tekens, maar tot ongeveer 40 tekens scant hij het best. Een barcode past tot ongeveer 15 tekens (cijfers het dubbele) en kan alleen letters, cijfers en leestekens zonder accenten bevatten; Ω of µ geven een waarschuwing.
+
+Etiknivo maakt QR-codes en barcodes zelf, zonder externe bibliotheek of internet.
 
 ## Afdrukken
 

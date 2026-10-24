@@ -268,6 +268,14 @@ class CalibrationDialog(QDialog):
                        rotate_clockwise=self.clockwise.isChecked())
 
 
+def short_path(path: Path) -> str:
+    """*path* with the home folder as ``~``, so screenshots don't show the user name."""
+    try:
+        return "~/" + path.relative_to(Path.home()).as_posix()
+    except ValueError:
+        return str(path)
+
+
 class AboutDialog(QDialog):
     """Name, version, the printer in use, where the data lives and the credits."""
 
@@ -329,9 +337,9 @@ class AboutDialog(QDialog):
         link = f"color:{t.accent}; text-decoration:none"
         section(tr("Gegevens"), [
             (tr("Bibliotheek"), f"<a style='{link}' href='{QUrl.fromLocalFile(str(data_path)).toString()}'>"
-                            f"{data_path}</a>"),
+                            f"{short_path(data_path)}</a>"),
             (tr("Logs"), f"<a style='{link}' href='{QUrl.fromLocalFile(str(log_path)).toString()}'>"
-                     f"{log_path}</a>"),
+                     f"{short_path(log_path)}</a>"),
             (tr("Broncode"), f"<a style='{link}' href='{self.REPO_URL}'>"
                          f"{self.REPO_URL.removeprefix('https://')}</a>"),
         ])

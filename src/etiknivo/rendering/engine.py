@@ -31,8 +31,9 @@ from dataclasses import dataclass, field
 from PIL import Image, ImageDraw, ImageOps
 
 from etiknivo.i18n import tr
-from etiknivo.model import HAlign, Label, TextLine, VAlign
+from etiknivo.model import CodeKind, HAlign, Label, TextLine, VAlign
 from etiknivo.printing.profiles import FICHERO_5836, PrinterProfile
+from etiknivo.rendering import codes
 from etiknivo.rendering.fonts import (
     FontFace,
     FontRegistry,
@@ -45,6 +46,12 @@ from etiknivo.settings import Calibration
 log = logging.getLogger(__name__)
 
 MIN_FONT_PT = 4.0  # below this text is no longer legible at 203 dpi
+QR_MAX_MODULE_PX = 4  # 0.5 mm per module is plenty for a phone camera
+QR_MIN_MODULE_PX = 2  # smaller modules (0.125 mm) do not scan reliably
+QR_GAP_MM = 1.5  # between QR code and text: room for the quiet zone
+BAR_MAX_MODULE_PX = 3
+BAR_HEIGHT_MM = 3.5
+BAR_GAP_MM = 0.75
 ITALIC_SHEAR = 0.2
 
 
@@ -64,6 +71,18 @@ class LineBox:
 
 
 @dataclass
+class PlacedCode:
+    """A QR code or barcode laid out in whole printer dots."""
+
+    kind: CodeKind
+    text: str
+    box: tuple[int, int, int, int]  # x0, y0, x1, y1 in design dots
+    module_px: int
+    rects: list[tuple[int, int, int, int]]  # dark areas, design dots
+    text_area: tuple[float, float, float, float]  # what is left for the text lines
+
+
+@dataclass
 class RenderResult:
     profile: PrinterProfile
     gray: Image.Image  # "L", full label, design orientation, printer resolution
@@ -73,6 +92,7 @@ class RenderResult:
     lines: list[LineBox] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
     content_box: tuple[float, float, float, float] = (0, 0, 0, 0)  # x0,y0,x1,y1 in dots
+    code: PlacedCode | None = None
 
     @property
     def has_overflow(self) -> bool:
@@ -145,11 +165,13 @@ class RenderEngine:
         style = label.style
         mh, mv = self.mm_to_px(style.margin_h_mm), self.mm_to_px(style.margin_v_mm)
         content = (px0 + mh, py0 + mv, px1 - mh, py1 - mv)
-        avail_w = max(1.0, content[2] - content[0])
-        avail_h = max(1.0, content[3] - content[1])
         warnings: list[str] = []
 
         prepared = self._prepare_lines(label, warnings)
+        code = self._place_code(label, content, bool(prepared), warnings)
+        area = code.text_area if code else content
+        avail_w = max(1.0, area[2] - area[0])
+        avail_h = max(1.0, area[3] - area[1])
         sizes = [ln.line.font_size_pt for ln in prepared]
         spacing = self.mm_to_px(style.line_spacing_mm)
 
@@ -160,11 +182,11 @@ class RenderEngine:
         heights = [b[3] - b[1] for b in boxes]
         block_h = sum(heights) + spacing * max(0, len(prepared) - 1)
         if style.valign == VAlign.TOP:
-            y = content[1]
+            y = area[1]
         elif style.valign == VAlign.BOTTOM:
-            y = content[3] - block_h
+            y = area[3] - block_h
         else:
-            y = content[1] + (avail_h - block_h) / 2
+            y = area[1] + (avail_h - block_h) / 2
 
         hires = Image.new("L", (w * ss, h * ss), 255)
         draw = ImageDraw.Draw(hires)
@@ -172,13 +194,13 @@ class RenderEngine:
         for p, size, bbox, lh in zip(prepared, sizes, boxes, heights):
             lw = bbox[2] - bbox[0]
             if p.line.align == HAlign.LEFT:
-                x = content[0]
+                x = area[0]
             elif p.line.align == HAlign.RIGHT:
-                x = content[2] - lw
+                x = area[2] - lw
             else:
-                x = content[0] + (avail_w - lw) / 2
+                x = area[0] + (avail_w - lw) / 2
             self._draw_line(hires, p, size, x - bbox[0], y - bbox[1], ss)
-            overflow = (lw > avail_w + 0.5) or (x < px0 - 0.5) or (x + lw > px1 + 0.5) \
+            overflow = (lw > avail_w + 0.5) or (x < area[0] - 0.5) or (x + lw > area[2] + 0.5) \
                 or (y < py0 - 0.5) or (y + lh > py1 + 0.5)
             line_boxes.append(LineBox(p.slot, p.text, x, y, x + lw, y + lh, size,
                                       p.line.font_size_pt, overflow))
@@ -186,7 +208,7 @@ class RenderEngine:
 
         if block_h > avail_h + 0.5:
             for lb in line_boxes:
-                if lb.y0 < content[1] - 0.5 or lb.y1 > content[3] + 0.5:
+                if lb.y0 < area[1] - 0.5 or lb.y1 > area[3] + 0.5:
                     lb.overflow = True
         for lb in line_boxes:
             if lb.overflow:
@@ -198,8 +220,11 @@ class RenderEngine:
             warnings.append(tr("Tekst past niet, zelfs niet bij de minimale lettergrootte "
                                "({pt} pt). Kort de tekst in of verklein de marges.",
                                pt=f"{MIN_FONT_PT:g}"))
-        if not prepared:
+        if not prepared and code is None:
             warnings.append(tr("Label bevat geen zichtbare tekst"))
+        if code is not None:
+            for x0, y0, x1, y1 in code.rects:
+                draw.rectangle((x0 * ss, y0 * ss, x1 * ss - 1, y1 * ss - 1), fill=0)
 
         if style.border:
             draw.rectangle((px0 * ss, py0 * ss, px1 * ss - 1, py1 * ss - 1), outline=0, width=ss)
@@ -214,7 +239,8 @@ class RenderEngine:
         # Paper outside the printhead can never be printed: blank it.
         mono = self._mask_unprintable(mono)
         raster = self.to_raster(mono)
-        return RenderResult(self.profile, gray, hires, mono, raster, line_boxes, warnings, content)
+        return RenderResult(self.profile, gray, hires, mono, raster, line_boxes, warnings, content,
+                            code)
 
     def threshold(self, gray: Image.Image) -> Image.Image:
         t = int(self.calibration.threshold)
@@ -264,6 +290,69 @@ class RenderEngine:
         out = Image.new("1", mono.size, 1)
         out.paste(mono.crop((px0, py0, px1, py1)), (px0, py0))
         return out
+
+    def _place_code(self, label: Label, content: tuple[float, float, float, float],
+                    has_text: bool, warnings: list[str]) -> PlacedCode | None:
+        """Lay out the label's QR code or barcode inside *content*."""
+        spec = label.code
+        if spec.kind == CodeKind.NONE:
+            return None
+        text, unknown = label.resolve(spec.text)
+        for name in unknown:
+            warnings.append(tr("Onbekend veld {{{name}}}: voeg '{name}' toe bij "
+                               "Specificaties", name=name))
+        if unknown:  # a code with "{Name}" in it would scan as nonsense: leave it out
+            return None
+        text = text.strip()
+        if not text:
+            warnings.append(tr("De code is leeg: vul de tekst voor de code in"))
+            return None
+        cx0, cy0, cx1, cy1 = content
+        if spec.kind == CodeKind.QR:
+            try:
+                matrix = codes.qr_matrix(text)
+            except codes.CodeError:
+                warnings.append(tr("Tekst is te lang voor een QR-code (maximaal {n} tekens)",
+                                   n=codes.qr_capacity()))
+                return None
+            n = len(matrix)
+            module = min(QR_MAX_MODULE_PX, int((cy1 - cy0) // n))
+            if module < QR_MIN_MODULE_PX:
+                warnings.append(tr("QR-code wordt te klein om te scannen; kort de tekst in"))
+                module = max(1, module)
+            size = n * module
+            x0 = round(cx0) if spec.side != HAlign.RIGHT else int(cx1) - size
+            y0 = round(cy0 + (cy1 - cy0 - size) / 2)
+            rects = [(x0 + c * module, y0 + r * module, x0 + (c + 1) * module,
+                      y0 + (r + 1) * module)
+                     for r, row in enumerate(matrix) for c, dark in enumerate(row) if dark]
+            gap = self.mm_to_px(QR_GAP_MM)
+            area = ((x0 + size + gap, cy0, cx1, cy1) if spec.side != HAlign.RIGHT
+                    else (cx0, cy0, x0 - gap, cy1))
+            return PlacedCode(spec.kind, text, (x0, y0, x0 + size, y0 + size), module, rects, area)
+        try:
+            modules = codes.code128_modules(text)
+        except codes.CodeError as e:
+            warnings.append(tr("Teken(s) {chars} kunnen niet in een barcode; gebruik "
+                               "letters, cijfers en leestekens zonder accenten", chars=str(e)))
+            return None
+        module = min(BAR_MAX_MODULE_PX, int((cx1 - cx0) // len(modules)))
+        if module < 1:
+            warnings.append(tr("Tekst is te lang voor een barcode op dit etiket"))
+            return None
+        if module == 1:
+            warnings.append(tr("De barcode heeft erg dunne streepjes; kort de tekst in als "
+                               "hij slecht scant"))
+        width = len(modules) * module
+        height = round(min(self.mm_to_px(BAR_HEIGHT_MM), (cy1 - cy0) * 0.45)) if has_text \
+            else round(cy1 - cy0)
+        x0 = round(cx0 + (cx1 - cx0 - width) / 2)
+        y1 = int(cy1)
+        y0 = y1 - height
+        rects = [(x0 + i * module, y0, x0 + (i + 1) * module, y1)
+                 for i, bar in enumerate(modules) if bar]
+        area = (cx0, cy0, cx1, y0 - self.mm_to_px(BAR_GAP_MM))
+        return PlacedCode(spec.kind, text, (x0, y0, x0 + width, y1), module, rects, area)
 
     def _prepare_lines(self, label: Label, warnings: list[str]) -> list[_Prepared]:
         out: list[_Prepared] = []
