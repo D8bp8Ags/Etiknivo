@@ -2,7 +2,8 @@
 
 A :class:`PrinterProfile` describes the raster geometry of a printer model.
 The render engine only depends on the profile, never on a concrete backend,
-so adding another label printer means adding a profile plus a backend.
+so adding another label printer means adding a profile plus a backend and
+registering them in :mod:`etiknivo.printing.registry`.
 """
 
 from __future__ import annotations
@@ -27,8 +28,12 @@ class PrinterProfile:
     #: for printers that consistently start printing a little early or late.
     #: The user's calibration offset is applied on top of this.
     feed_offset_px: int = 0
+    #: Bluetooth names that identify this model when scanning.
     name_prefixes: tuple[str, ...] = ()
+    #: Print density levels as shown to the user; the index is passed to the
+    #: backend (``print_raster(density=i)``).
     densities: tuple[str, ...] = ("Licht", "Normaal", "Donker")
+    default_density: int = 1
 
     @property
     def label_length_px(self) -> int:
@@ -71,9 +76,3 @@ FICHERO_5836 = PrinterProfile(
     feed_offset_px=8,  # measured: the print starts ~1 mm early on the label
     name_prefixes=("FICHERO", "D11s_"),
 )
-
-PROFILES: dict[str, PrinterProfile] = {FICHERO_5836.key: FICHERO_5836}
-
-
-def get_profile(key: str) -> PrinterProfile:
-    return PROFILES.get(key, FICHERO_5836)

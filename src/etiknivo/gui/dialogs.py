@@ -24,7 +24,6 @@ from PySide6.QtWidgets import (
 )
 
 from etiknivo.gui import theme
-from etiknivo.gui.printer_panel import DENSITIES
 from etiknivo.gui.qt_util import pil_to_pixmap
 from etiknivo.model import Label
 from etiknivo.rendering.engine import RenderEngine
@@ -71,7 +70,11 @@ class PrintPreviewDialog(QDialog):
             sp.setValue(copies)
             sp.valueChanged.connect(self._update_total)
             self.spins.append(sp)
-            self.table.setCellWidget(row, 2, sp)
+            cell = QWidget()  # keep the spin box at its normal height in the tall row
+            cl = QHBoxLayout(cell)
+            cl.setContentsMargins(6, 0, 6, 0)
+            cl.addWidget(sp, 0, Qt.AlignmentFlag.AlignVCenter)
+            self.table.setCellWidget(row, 2, cell)
             warn = "; ".join(r.warnings)
             if r.has_overflow:
                 self.overflow += 1
@@ -85,7 +88,7 @@ class PrintPreviewDialog(QDialog):
 
         form = QFormLayout()
         self.density = QComboBox()
-        self.density.addItems(DENSITIES)
+        self.density.addItems(list(engine.profile.densities))
         self.density.setCurrentIndex(density)
         self.total = QLabel()
         form.addRow("Printdichtheid", self.density)

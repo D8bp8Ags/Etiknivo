@@ -37,16 +37,14 @@ from etiknivo.gui.dialogs import CalibrationDialog, PrintPreviewDialog
 from etiknivo.gui.library_panel import ALL_CATEGORIES, LibraryPanel
 from etiknivo.gui.preview import DesignView, RasterView
 from etiknivo.gui.printer_bridge import PrinterBridge
-from etiknivo.gui.printer_panel import DENSITIES, PrinterPanel
+from etiknivo.gui.printer_panel import PrinterPanel
 from etiknivo.gui.properties_panel import PropertiesPanel
 from etiknivo.gui.queue_panel import QueuePanel
 from etiknivo.model import Label, make_label
 from etiknivo.printing.backend import ConnectionState, PrinterBackend
-from etiknivo.printing.d11s_backend import D11sBackend
 from etiknivo.printing.manager import PrinterState
-from etiknivo.printing.mock import MockPrinterBackend
-from etiknivo.printing.profiles import get_profile
 from etiknivo.printing.queue import PrintJob
+from etiknivo.printing.registry import create_backend, get_model
 from etiknivo.rendering.engine import RenderEngine
 from etiknivo.rendering.export import ExportView, export_pdf, export_pngs, export_svg, safe_filename
 from etiknivo.rendering.fonts import default_registry
@@ -58,10 +56,6 @@ from etiknivo.storage.library import Library, LibraryError
 
 log = logging.getLogger(__name__)
 PRINT_GUARD_SECONDS = 1.0
-
-
-def make_backend(use_mock: bool) -> PrinterBackend:
-    return MockPrinterBackend(delay=0.4) if use_mock else D11sBackend()
 
 
 class MainWindow(QMainWindow):
@@ -76,7 +70,7 @@ class MainWindow(QMainWindow):
         self.library = library
         self.settings = settings or load_settings()
         theme.apply(self.settings.theme)
-        self.profile = get_profile(self.settings.printer_model)
+        self.profile = get_model(self.settings.printer_model).profile
         self.engine = RenderEngine(self.profile, self.settings.calibration)
         # The open label is edited as a draft (a copy); the library keeps the
         # saved version until the user clicks Opslaan.
@@ -85,7 +79,8 @@ class MainWindow(QMainWindow):
         self._switching = False
         self._applying_history = False
 
-        self.bridge = PrinterBridge(backend or make_backend(self.settings.use_mock_printer), self,
+        self.bridge = PrinterBridge(backend or self.make_backend(self.settings.use_mock_printer),
+                                    self,
                                     poll_interval=poll_interval)
 
         # --- panels -------------------------------------------------------------------
@@ -93,12 +88,15 @@ class MainWindow(QMainWindow):
         self.library_panel.group.setChecked(self.settings.group_by_category)
         self.library_panel.set_sort_key(self.settings.sort_key)
         self.properties = PropertiesPanel()
-        self.printer_panel = PrinterPanel()
+        self.printer_panel = PrinterPanel(self.profile)
         self.printer_panel.mock.setChecked(self.settings.use_mock_printer)
-        self.printer_panel.density.setCurrentIndex(self.settings.density)
+        densities = self.profile.densities
+        self.printer_panel.density.setCurrentIndex(
+            self.settings.density if 0 <= self.settings.density < len(densities)
+            else self.profile.default_density)
         self.printer_panel.copies.setValue(self.settings.default_copies)
         self.printer_panel.remember_address(self.settings.printer_address)
-        self.queue_panel = QueuePanel()
+        self.queue_panel = QueuePanel(self.profile.densities)
 
         self.printer_panel.setObjectName("inspector")
         self.printer_panel.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
@@ -343,7 +341,7 @@ class MainWindow(QMainWindow):
         self.guides.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
         self.guides.setChecked(self.settings.show_printable_area)
         self.native = QToolButton()
-        self.native.setText("Native 96×240")
+        self.native.setText("Native {} × {}".format(*self.profile.native_raster_size))
         self.native.setToolTip("Printerraster in de oriëntatie van de printkop tonen")
         self.native.setCheckable(True)
         self.native.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
@@ -506,6 +504,7 @@ class MainWindow(QMainWindow):
         pp.calibrationRequested.connect(self.print_calibration)
         pp.calibrationSettingsRequested.connect(self.calibration_settings)
         pp.mockToggled.connect(self.set_mock)
+        pp.modelChanged.connect(self.set_printer_model)
         pp.density.currentIndexChanged.connect(self._save_view_settings)
         pp.copies.valueChanged.connect(self._save_view_settings)
 
@@ -934,7 +933,7 @@ class MainWindow(QMainWindow):
         if not self._guard():
             return
         d = self.printer_panel.density.currentIndex()
-        lbl = test_label(DENSITIES[d])
+        lbl = test_label(self.profile.densities[d])
         self._submit([PrintJob("test", "Testlabel", self.engine.render(lbl).raster, 1, d)])
 
     def print_calibration(self) -> None:
@@ -974,7 +973,19 @@ class MainWindow(QMainWindow):
     def set_mock(self, on: bool) -> None:
         self.settings.use_mock_printer = on
         self._save_settings()
-        self.bridge.track("backend", self.bridge.manager.set_backend(make_backend(on)))
+        self.bridge.track("backend", self.bridge.manager.set_backend(self.make_backend(on)))
+
+    def make_backend(self, simulated: bool) -> PrinterBackend:
+        return create_backend(self.profile.key, simulated=simulated)
+
+    def set_printer_model(self, key: str) -> None:
+        if key == self.settings.printer_model:
+            return
+        self.settings.printer_model = key
+        self._save_settings()
+        QMessageBox.information(self, APP_NAME, f"Printer gewijzigd in "
+                                f"{get_model(key).display_name}. Start {APP_NAME} opnieuw "
+                                "om dit model te gebruiken.")
 
     def on_printer_state(self, st: PrinterState) -> None:
         self.printer_panel.set_state(st)
@@ -1085,9 +1096,11 @@ class MainWindow(QMainWindow):
             return
         box = QMessageBox(QMessageBox.Icon.Question, "PNG-export",
                           "Welke weergave exporteren?", parent=self)
-        design = box.addButton("Ontwerp (240×112, 4× vergroot)",
+        dw, dh = self.engine.design_size
+        rw, rh = self.profile.native_raster_size
+        design = box.addButton(f"Ontwerp ({dw} × {dh}, 4× vergroot)",
                                QMessageBox.ButtonRole.AcceptRole)
-        box.addButton("Printerraster (96×240, 1:1)", QMessageBox.ButtonRole.AcceptRole)
+        box.addButton(f"Printerraster ({rw} × {rh}, 1:1)", QMessageBox.ButtonRole.AcceptRole)
         box.exec()
         view, scale = ((ExportView.DESIGN, 4) if box.clickedButton() is design
                        else (ExportView.RASTER, 1))

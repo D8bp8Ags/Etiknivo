@@ -96,11 +96,11 @@ async def test_error_stops_queue_and_retry_works(engine: RenderEngine, caplog) -
 async def test_printer_not_ready_cover_open(engine: RenderEngine) -> None:
     b = MockPrinterBackend()
     await b.connect()
-    b.status_byte = 0x02  # cover open
+    b.status = PrinterStatusInfo(cover_open=True)
     q = await run_queue(b, [PrintJob("a", "A", raster(engine))])
     assert q.jobs[0].status == JobStatus.FAILED
     assert "deksel open" in q.jobs[0].error
-    b.status_byte = 0x04
+    b.status = PrinterStatusInfo(no_paper=True)
     q.retry_failed()
     await q.wait_idle(5)
     assert "papier" in q.jobs[0].error
@@ -148,11 +148,11 @@ async def test_invalid_raster_rejected(engine: RenderEngine) -> None:
 
 
 def test_status_flags() -> None:
-    assert PrinterStatusInfo.from_byte(0).ok
-    s = PrinterStatusInfo.from_byte(0x02 | 0x04 | 0x40 | 0x20)
+    assert proto.decode_status(0).ok
+    s = proto.decode_status(0x02 | 0x04 | 0x40 | 0x20)
     assert not s.ok and s.cover_open and s.no_paper and s.overheated and s.charging
     assert "deksel open" in s.describe()
-    assert PrinterStatusInfo.from_byte(0xFF).unknown
+    assert proto.decode_status(0xFF).unknown
 
 
 def test_manager_thread_bridge(engine: RenderEngine) -> None:

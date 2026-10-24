@@ -35,7 +35,7 @@ from etiknivo.printing.backend import (
     check_raster,
 )
 from etiknivo.printing.ble_link import ADVERTISED_SERVICES, BleLink, LinkError, LinkTimeout
-from etiknivo.printing.profiles import FICHERO_5836
+from etiknivo.printing.profiles import FICHERO_5836, PrinterProfile
 from etiknivo.rendering.engine import raster_to_bytes
 
 log = logging.getLogger(__name__)
@@ -64,11 +64,12 @@ class D11sBackend(PrinterBackend):
     """Persistent BLE connection to a D11s-class label printer."""
 
     profile = FICHERO_5836
-    display_name = "Fichero 5836 (Bluetooth LE)"
 
     def __init__(self, client_factory: ClientFactory | None = None,
-                 timing: type[Timing] = Timing, connect_attempts: int = 3) -> None:
-        super().__init__()
+                 timing: type[Timing] = Timing, connect_attempts: int = 3,
+                 profile: PrinterProfile | None = None) -> None:
+        super().__init__(profile)
+        self.display_name = f"{self.profile.display_name} (Bluetooth LE)"
         self._factory = client_factory or _bleak_factory
         self._t = timing
         self._attempts = connect_attempts
@@ -178,7 +179,7 @@ class D11sBackend(PrinterBackend):
 
     async def _status(self, link: BleLink) -> PrinterStatusInfo:
         reply = await self._call(link.request(proto.Q_STATUS))
-        return PrinterStatusInfo.from_byte(proto.status_byte(reply))
+        return proto.decode_status(proto.status_byte(reply))
 
     async def get_status(self) -> PrinterStatusInfo:
         link = self._require()

@@ -20,8 +20,10 @@ from PySide6.QtWidgets import (
 )
 
 from etiknivo.gui import theme
+from etiknivo.printing import registry
 from etiknivo.printing.backend import ConnectionState
 from etiknivo.printing.manager import PrinterState
+from etiknivo.printing.profiles import PrinterProfile
 
 STATE_TEXT = {
     ConnectionState.DISCONNECTED: ("Niet verbonden", "muted"),
@@ -29,7 +31,6 @@ STATE_TEXT = {
     ConnectionState.CONNECTED: ("Verbonden", "success"),
     ConnectionState.ERROR: ("Fout", "danger"),
 }
-DENSITIES = ["Licht", "Normaal", "Donker"]
 
 
 class PrinterPanel(QWidget):
@@ -41,8 +42,9 @@ class PrinterPanel(QWidget):
     calibrationRequested = Signal()
     calibrationSettingsRequested = Signal()
     mockToggled = Signal(bool)
+    modelChanged = Signal(str)  # printer model key
 
-    def __init__(self, parent: QWidget | None = None) -> None:
+    def __init__(self, profile: PrinterProfile, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         lay = QVBoxLayout(self)
         lay.setContentsMargins(14, 0, 14, 14)
@@ -50,8 +52,15 @@ class PrinterPanel(QWidget):
 
         conn = QGroupBox("Bluetooth-printer")
         cl = QVBoxLayout(conn)
+        # printer model choice: only shown once there is more than one model
+        self.model = QComboBox()
+        for key, m in registry.MODELS.items():
+            self.model.addItem(m.display_name, key)
+        self.model.setCurrentIndex(max(0, self.model.findData(profile.key)))
+        self.model.setVisible(len(registry.MODELS) > 1)
+        self.model.activated.connect(lambda: self.modelChanged.emit(self.model.currentData()))
         self.mock = QCheckBox("Simulatieprinter gebruiken (geen hardware)")
-        self.mock.setToolTip("Voor testen zonder Fichero. Er wordt niets echt afgedrukt.")
+        self.mock.setToolTip("Voor testen zonder printer. Er wordt niets echt afgedrukt.")
         self.only_printers = QCheckBox("Alleen labelprinters tonen")
         self.only_printers.setChecked(True)
         self.devices = QListWidget()
@@ -68,6 +77,7 @@ class PrinterPanel(QWidget):
         row.addWidget(self.scan_btn)
         row.addWidget(self.connect_btn)
         row.addWidget(self.disconnect_btn)
+        cl.addWidget(self.model)
         cl.addWidget(self.mock)
         cl.addWidget(self.only_printers)
         cl.addWidget(self.devices)
@@ -105,7 +115,7 @@ class PrinterPanel(QWidget):
         pr = QGroupBox("Afdrukinstellingen")
         f2 = QFormLayout(pr)
         self.density = QComboBox()
-        self.density.addItems(DENSITIES)
+        self.density.addItems(list(profile.densities))
         self.copies = QSpinBox()
         self.copies.setRange(1, 99)
         self.test_btn = QPushButton("Testlabel afdrukken")
