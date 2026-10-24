@@ -165,4 +165,4 @@ De bundle bevat het app-icoon (`packaging/etiknivo.icns`) en de vereiste `NSBlue
 
 ## Licentie
 
-MIT, zie [LICENSE](LICENSE). De meegeleverde DejaVu-lettertypen vallen onder hun eigen vrije licentie ([LICENSE-DejaVu.txt](src/etiknivo/fonts/LICENSE-DejaVu.txt)). De pictogrammen komen van Lucide (ISC-licentie, [LICENSE-lucide.txt](src/etiknivo/gui/icons/LICENSE-lucide.txt)).
+MIT, zie [LICENSE](LICENSE). De meegeleverde DejaVu-lettertypen vallen onder hun eigen vrije licentie ([LICENSE-DejaVu.txt](src/etiknivo/fonts/LICENSE-DejaVu.txt)). Het app-icoon en alle pictogrammen zijn eigen ontwerpen en vallen ook onder MIT.
