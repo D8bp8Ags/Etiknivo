@@ -44,8 +44,9 @@ from etiknivo.settings import Calibration
 class PrintPreviewDialog(QDialog):
     """Shows exactly what will be printed and asks for confirmation."""
 
-    def __init__(self, engine: RenderEngine, labels: list[Label], copies: int, density: int,
-                 printer_text: str, can_print: bool, parent: QWidget | None = None) -> None:
+    def __init__(self, engine: RenderEngine, labels: list[Label], copies: int | list[int],
+                 density: int, printer_text: str, can_print: bool,
+                 parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setWindowTitle(tr("Afdrukvoorbeeld"))
         self.labels = labels
@@ -80,7 +81,7 @@ class PrintPreviewDialog(QDialog):
                 f"{lbl.tray_id}  {lbl.name}".strip()))
             sp = QSpinBox()
             sp.setRange(1, 99)
-            sp.setValue(copies)
+            sp.setValue(copies[row] if isinstance(copies, list) else copies)
             sp.valueChanged.connect(self._update_total)
             self.spins.append(sp)
             cell = QWidget()  # keep the spin box at its normal height in the tall row

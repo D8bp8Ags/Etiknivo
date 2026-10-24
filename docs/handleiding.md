@@ -147,6 +147,14 @@ Na **Afdrukken** gaan de labels naar de **wachtrij** (knop *Wachtrij* rechtsbove
 
 Het standaard aantal exemplaren en de standaarddichtheid stel je in op het tabblad *Printer*. Kleine tekst is vaak beter leesbaar op *Licht* of *Normaal* dan op *Donker*.
 
+### Afdrukgeschiedenis
+
+**Afdrukken → Afdrukgeschiedenis…** toont welke labels wanneer zijn geprint, met het aantal exemplaren en de dichtheid. Zoek op lade of naam, en vink *Simulatie verbergen* aan om alleen echte afdrukken te zien.
+
+Selecteer een of meer regels en klik **Opnieuw afdrukken…** (of dubbelklik). Je krijgt het gewone afdrukvoorbeeld met hetzelfde aantal en dezelfde dichtheid als toen. Het label wordt geprint zoals het nu is, dus met je latere wijzigingen. Verwijderde labels staan grijs in de lijst en kun je niet opnieuw afdrukken. Testlabels en kalibratietests komen niet in de geschiedenis.
+
+De geschiedenis bewaart de laatste 1000 opdrachten in `print_history.json` in de datamap.
+
 ## Een andere etiketrol
 
 Zit er een rol met een andere maat in de printer, kies die dan op het tabblad *Printer* bij **Etiketrol**. In de lijst staan de gangbare maten, bijvoorbeeld 30 × 14, 40 × 14, 50 × 14 en 40 × 12 mm. Staat jouw maat er niet bij, kies dan **Aangepast…** en vul de lengte en hoogte van één etiket in, zonder de tussenruimte. De lengte is de richting waarin het papier uit de printer komt.

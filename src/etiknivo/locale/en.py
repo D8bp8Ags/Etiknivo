@@ -537,4 +537,18 @@ EN: dict[str, str] = {
     "Opmaak (uitlijning, marges, rand, rotatie)": "Style (alignment, margins, border, rotation)",
     "90° (van onder naar boven lezen)": "90° (reads bottom to top)",
     "270° (van boven naar onder lezen)": "270° (reads top to bottom)",
+    # print history
+    "Afdrukgeschiedenis": "Print history",
+    "Afdrukgeschiedenis…": "Print history…",
+    "Zoeken op lade of naam…": "Search by drawer or name…",
+    "Simulatie verbergen": "Hide simulation",
+    "Opnieuw afdrukken gebruikt het label zoals het nu is.": "Printing again uses the label as it is now.",
+    "Opnieuw afdrukken…": "Print again…",
+    "Geschiedenis wissen…": "Clear history…",
+    "Geschiedenis wissen": "Clear history",
+    "{n} opdrachten, {m} etiketten": "{n} jobs, {m} labels",
+    "Wanneer": "When",
+    "De hele afdrukgeschiedenis wissen?": "Clear the entire print history?",
+    "Simulatie": "Simulation",
+    "(verwijderd)": "(deleted)",
 }

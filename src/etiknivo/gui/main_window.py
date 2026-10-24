@@ -40,6 +40,7 @@ from etiknivo.gui.dialogs import (
     CopyFormatDialog,
     PrintPreviewDialog,
 )
+from etiknivo.gui.history_window import HistoryWindow
 from etiknivo.gui.library_panel import LibraryPanel
 from etiknivo.gui.log_window import LogWindow
 from etiknivo.gui.preview import DesignView, RasterView
@@ -53,7 +54,7 @@ from etiknivo.model import FORMAT_PARTS, Label, copy_format, make_label
 from etiknivo.printing.backend import ConnectionState, PrinterBackend
 from etiknivo.printing.manager import PrinterState
 from etiknivo.printing.profiles import PrinterProfile
-from etiknivo.printing.queue import PrintJob
+from etiknivo.printing.queue import JobStatus, PrintJob, QueueSnapshot
 from etiknivo.printing.registry import create_backend, get_model
 from etiknivo.rendering.engine import RenderEngine
 from etiknivo.rendering.export import ExportView, export_pdf, export_pngs, export_svg, safe_filename
@@ -63,6 +64,8 @@ from etiknivo.settings import Settings, data_dir, load_settings, log_dir, save_s
 from etiknivo.storage import io as lio
 from etiknivo.storage.history import History, Snapshot
 from etiknivo.storage.library import Library, LibraryError
+from etiknivo.storage.print_history import FILE_NAME as HISTORY_FILE
+from etiknivo.storage.print_history import PrintHistory, PrintRecord
 
 log = logging.getLogger(__name__)
 PRINT_GUARD_SECONDS = 1.0
@@ -98,6 +101,9 @@ class MainWindow(QMainWindow):
         self._switching = False
         self._applying_history = False
         self._log_window: LogWindow | None = None
+        self._history_window: HistoryWindow | None = None
+        self.print_history = PrintHistory(data_dir() / HISTORY_FILE)
+        self._recorded_jobs: set[int] = set()
         #: labels made with Nieuw label whose look is still untouched:
         #: id -> (category, look); they take the style of a category they move to
         self._fresh: dict[str, tuple[str, str]] = {}
@@ -463,6 +469,8 @@ class MainWindow(QMainWindow):
         act(m, tr("Alle labels uit categorie…"), self.print_category)
         act(m, tr("Alle labels…"), self.print_all)
         m.addSeparator()
+        act(m, tr("Afdrukgeschiedenis…"), self.show_print_history)
+        m.addSeparator()
         act(m, tr("Testlabel"), self.print_test_label)
         act(m, tr("Kalibratietest"), self.print_calibration)
 
@@ -564,6 +572,7 @@ class MainWindow(QMainWindow):
 
         self.bridge.stateChanged.connect(self.on_printer_state)
         self.bridge.queueChanged.connect(self.queue_panel.set_snapshot)
+        self.bridge.queueChanged.connect(self._record_finished)
         self.bridge.taskFinished.connect(self.on_task_finished)
         self.fontsLoaded.connect(self.properties.set_families)
 
@@ -981,14 +990,19 @@ class MainWindow(QMainWindow):
     def _connected(self) -> bool:
         return self.bridge.state.connection == ConnectionState.CONNECTED
 
-    def print_labels(self, labels: list[Label]) -> None:
+    def print_labels(self, labels: list[Label], copies: list[int] | None = None,
+                     density: int | None = None) -> None:
+        """Preview *labels* and queue them.  *copies* (one per label) and
+        *density* preset the dialog; by default the printer panel's values."""
         if not labels or not self._guard():
             return
         st = self.bridge.state
         printer_text = (f"{st.backend_name}" + (f" ({st.address})" if st.address else "")
                         if self._connected() else tr("niet verbonden"))
-        dlg = PrintPreviewDialog(self.engine, labels, self.printer_panel.copies.value(),
-                                 self.printer_panel.density.currentIndex(), printer_text,
+        dlg = PrintPreviewDialog(self.engine, labels,
+                                 copies or self.printer_panel.copies.value(),
+                                 self.printer_panel.density.currentIndex() if density is None
+                                 else density, printer_text,
                                  self._connected(), self)
         if dlg.exec() != PrintPreviewDialog.DialogCode.Accepted:
             return
@@ -1322,6 +1336,42 @@ class MainWindow(QMainWindow):
         self._log_window.show()
         self._log_window.raise_()
         self._log_window.activateWindow()
+
+    def show_print_history(self) -> None:
+        if self._history_window is None or not self._history_window.isVisible():
+            w = HistoryWindow(self.print_history,
+                              lambda lid: self.library.get(lid) is not None,
+                              list(self.profile.densities), self)
+            w.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
+            w.reprintRequested.connect(self.reprint)
+            w.destroyed.connect(lambda: setattr(self, "_history_window", None))
+            self._history_window = w
+        self._history_window.show()
+        self._history_window.raise_()
+        self._history_window.activateWindow()
+
+    def _record_finished(self, snap: QueueSnapshot) -> None:
+        """Add every newly finished library-label job to the print history."""
+        added = False
+        for j in snap.jobs:
+            if j.status != JobStatus.DONE or j.id in self._recorded_jobs:
+                continue
+            self._recorded_jobs.add(j.id)
+            if self.library.get(j.label_id) is None:  # test label, calibration, deleted
+                continue
+            self.print_history.add(PrintRecord.now(j.label_id, j.title, j.copies, j.density,
+                                                   self.bridge.state.simulated))
+            added = True
+        if added and self._history_window is not None:
+            self._history_window.reload()
+
+    def reprint(self, records: list[PrintRecord]) -> None:
+        """Print history entries again, with the labels as they are now."""
+        found = [(lbl, r) for r in records if (lbl := self.library.get(r.label_id)) is not None]
+        if not found:
+            return
+        labels = self._with_draft([lbl for lbl, _ in found])
+        self.print_labels(labels, [r.copies for _, r in found], found[-1][1].density)
 
     def about(self) -> None:
         AboutDialog(self.profile, data_dir(), log_dir(), self).exec()
