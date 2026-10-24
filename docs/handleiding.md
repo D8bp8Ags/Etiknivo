@@ -69,6 +69,8 @@ Per regel (Bovenregel, Hoofdregel, Onderregel) stel je in: de tekst, het lettert
 
 Onder de regels vind je instellingen voor het hele label: verticale uitlijning, regelafstand, marges, *Tekst automatisch passend maken* (verkleint de tekst tot alles past), 180° draaien, een rand en wit-op-zwart.
 
+Bij *Rotatie* kun je de tekst ook een kwartslag draaien: **90°** leest van onder naar boven, **270°** van boven naar onder. Dat is handig voor smalle laden of als je het etiket rechtop plakt. De regels staan dan onder elkaar over de lengte van het etiket. Omdat het etiket maar 12 mm breed is, worden ze vaak kleiner; kort de tekst in als dat te klein wordt.
+
 Speciale tekens zoals Ω, µ, °, ×, ¼ en ″ werken gewoon. Heeft het gekozen lettertype een teken niet, dan gebruikt Etiknivo DejaVu Sans voor dat teken en meldt dat onder het voorbeeld.
 
 ### Opslaan en herstellen

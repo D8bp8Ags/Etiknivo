@@ -119,7 +119,9 @@ class LabelStyle:
     margin_h_mm: float = 0.0  # on top of the profile's safe end margin
     margin_v_mm: float = 0.5
     autofit: bool = True
-    rotation: int = 0  # 0 or 180 degrees (content rotation, independent of print orientation)
+    #: 0, 90, 180 or 270 degrees counter-clockwise (content rotation, independent of
+    #: the print orientation); 90 and 270 turn the text a quarter for upright labels
+    rotation: int = 0
     border: bool = False
     invert: bool = False
 
@@ -130,7 +132,8 @@ class LabelStyle:
         if "valign" in kwargs:
             kwargs["valign"] = VAlign(kwargs["valign"])
         if "rotation" in kwargs:
-            kwargs["rotation"] = int(kwargs["rotation"]) % 360
+            rot = int(kwargs["rotation"]) % 360
+            kwargs["rotation"] = rot if rot in (0, 90, 180, 270) else 0
         return cls(**kwargs)
 
 

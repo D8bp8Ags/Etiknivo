@@ -26,7 +26,7 @@ Pipeline
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 from PIL import Image, ImageChops, ImageDraw, ImageOps
 
@@ -161,6 +161,8 @@ class RenderEngine:
     # -- public API ----------------------------------------------------------------
 
     def render(self, label: Label) -> RenderResult:
+        if label.style.rotation in (90, 270):
+            return self._render_turned(label)
         ss = max(1, int(self.calibration.supersample))
         w, h = self.design_size
         px0, py0, px1, py1 = self.printable_box
@@ -233,10 +235,20 @@ class RenderEngine:
             for x0, y0, x1, y1 in code.rects:
                 draw.rectangle((x0 * ss, y0 * ss, x1 * ss - 1, y1 * ss - 1), fill=0)
 
-        if style.border:
-            draw.rectangle((px0 * ss, py0 * ss, px1 * ss - 1, py1 * ss - 1), outline=0, width=ss)
         if style.rotation == 180:
             hires = hires.rotate(180)
+        return self._finish(hires, label, ss, line_boxes, warnings, content, code)
+
+    def _finish(self, hires: Image.Image, label: Label, ss: int, line_boxes: list[LineBox],
+                warnings: list[str], content: tuple[float, float, float, float],
+                code: PlacedCode | None) -> RenderResult:
+        """Border, inversion, downsampling, 1-bit and the printer raster."""
+        style = label.style
+        w, h = self.design_size
+        px0, py0, px1, py1 = self.printable_box
+        if style.border:
+            ImageDraw.Draw(hires).rectangle((px0 * ss, py0 * ss, px1 * ss - 1, py1 * ss - 1),
+                                            outline=0, width=ss)
         if style.invert:
             band = hires.crop((px0 * ss, py0 * ss, px1 * ss, py1 * ss))
             hires.paste(ImageOps.invert(band), (px0 * ss, py0 * ss))
@@ -248,6 +260,41 @@ class RenderEngine:
         raster = self.to_raster(mono)
         return RenderResult(self.profile, gray, hires, mono, raster, line_boxes, warnings, content,
                             code)
+
+    def _render_turned(self, label: Label) -> RenderResult:
+        """Text turned a quarter: lay the label out on an upright (portrait)
+        version of the printable area, then turn it into place.  90° reads from
+        bottom to top, 270° from top to bottom."""
+        ss = max(1, int(self.calibration.supersample))
+        px0, py0, px1, py1 = self.printable_box
+        long_px, short_px = px1 - px0, py1 - py0
+        dpm = self.profile.dots_per_mm
+        upright = replace(self.profile, printhead_px=long_px, label_width_mm=short_px / dpm,
+                          label_height_mm=long_px / dpm, feed_margin_mm=0.0, feed_offset_px=0)
+        sub = RenderEngine(upright, self.calibration, self.fonts)
+        flat = label.clone(new_id=False)
+        flat.style.rotation = 0
+        flat.style.border = flat.style.invert = False
+        part = sub.render(flat)
+        turned = part.hires.rotate(label.style.rotation, expand=True)
+        w, h = self.design_size
+        hires = Image.new("L", (w * ss, h * ss), 255)
+        hires.paste(turned, (px0 * ss, py0 * ss))
+
+        def place(x: float, y: float) -> tuple[float, float]:
+            if label.style.rotation == 90:  # counter-clockwise
+                return px0 + y, py0 + short_px - x
+            return px0 + long_px - y, py0 + x
+
+        boxes = []
+        for lb in part.lines:
+            (ax, ay), (bx, by) = place(lb.x0, lb.y0), place(lb.x1, lb.y1)
+            boxes.append(replace(lb, x0=min(ax, bx), y0=min(ay, by), x1=max(ax, bx),
+                                 y1=max(ay, by)))
+        (ax, ay), (bx, by) = (place(part.content_box[0], part.content_box[1]),
+                              place(part.content_box[2], part.content_box[3]))
+        content = (min(ax, bx), min(ay, by), max(ax, bx), max(ay, by))
+        return self._finish(hires, label, ss, boxes, list(part.warnings), content, None)
 
     def threshold(self, gray: Image.Image) -> Image.Image:
         t = int(self.calibration.threshold)

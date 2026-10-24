@@ -535,4 +535,6 @@ EN: dict[str, str] = {
     "Opmaak overgenomen op {n} label(s)": "Format copied to {n} label(s)",
     "Layout en lettertypen": "Layout and fonts",
     "Opmaak (uitlijning, marges, rand, rotatie)": "Style (alignment, margins, border, rotation)",
+    "90° (van onder naar boven lezen)": "90° (reads bottom to top)",
+    "270° (van boven naar onder lezen)": "270° (reads top to bottom)",
 }
