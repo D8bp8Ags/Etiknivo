@@ -298,6 +298,7 @@ class PropertiesPanel(QScrollArea):
         self.rotation.addItem(tr("180° (ondersteboven)"), 180)
         self.rotation.addItem(tr("270° (van boven naar onder lezen)"), 270)
         self.border = QCheckBox(tr("Rand rond printbaar gebied"))
+        self.separators = QCheckBox(tr("Lijn tussen tekstregels"))
         self.invert = QCheckBox(tr("Wit op zwart"))
         f2.addRow(tr("Verticaal"), self.valign)
         f2.addRow(tr("Regelafstand"), self.spacing)
@@ -306,6 +307,7 @@ class PropertiesPanel(QScrollArea):
         f2.addRow(tr("Rotatie"), self.rotation)
         f2.addRow(self.autofit)
         f2.addRow(self.border)
+        f2.addRow(self.separators)
         f2.addRow(self.invert)
         lay.addWidget(st)
 
@@ -341,7 +343,7 @@ class PropertiesPanel(QScrollArea):
             w.currentIndexChanged.connect(lambda: self._apply(False))
         for w in (self.spacing, self.margin_h, self.margin_v):
             w.valueChanged.connect(lambda: self._apply(False))
-        for w in (self.autofit, self.border, self.invert):
+        for w in (self.autofit, self.border, self.separators, self.invert):
             w.toggled.connect(lambda: self._apply(False))
         self.code_kind.currentIndexChanged.connect(lambda: self._apply(False))
         for w in (self.pic_kind, self.pic_side, self.pic_symbol):
@@ -395,6 +397,7 @@ class PropertiesPanel(QScrollArea):
             self.autofit.setChecked(s.autofit)
             self.rotation.setCurrentIndex(max(0, self.rotation.findData(s.rotation)))
             self.border.setChecked(s.border)
+            self.separators.setChecked(s.separators)
             self.invert.setChecked(s.invert)
             c = label.code
             self.code_kind.setCurrentIndex(self._code_index(c.kind, c.side))
@@ -465,6 +468,7 @@ class PropertiesPanel(QScrollArea):
         s.autofit = self.autofit.isChecked()
         s.rotation = int(self.rotation.currentData() or 0)
         s.border = self.border.isChecked()
+        s.separators = self.separators.isChecked()
         s.invert = self.invert.isChecked()
         kind, side, _ = CODE_CHOICES[max(0, self.code_kind.currentIndex())]
         lbl.code.kind, lbl.code.side = kind, side

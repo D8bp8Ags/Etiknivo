@@ -137,6 +137,8 @@ class LabelStyle:
     #: the print orientation); 90 and 270 turn the text a quarter for upright labels
     rotation: int = 0
     border: bool = False
+    #: thin line between text lines
+    separators: bool = False
     invert: bool = False
 
     @classmethod

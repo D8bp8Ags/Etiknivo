@@ -67,7 +67,7 @@ Wisselen van layout gooit geen tekst weg: zet je hem terug, dan staat alles er w
 
 Per regel (Bovenregel, Hoofdregel, Onderregel) stel je in: de tekst, het lettertype, de grootte, vet en cursief, en de uitlijning. Met het vinkje zet je een regel aan of uit.
 
-Onder de regels vind je instellingen voor het hele label: verticale uitlijning, regelafstand, marges, *Tekst automatisch passend maken* (verkleint de tekst tot alles past), 180° draaien, een rand en wit-op-zwart.
+Onder de regels vind je instellingen voor het hele label: verticale uitlijning, regelafstand, marges, *Tekst automatisch passend maken* (verkleint de tekst tot alles past), rotatie, een rand rond het etiket, een dunne lijn tussen de tekstregels en wit-op-zwart.
 
 Bij *Rotatie* kun je de tekst ook een kwartslag draaien: **90°** leest van onder naar boven, **270°** van boven naar onder. Dat is handig voor smalle laden of als je het etiket rechtop plakt. De regels staan dan onder elkaar over de lengte van het etiket. Omdat het etiket maar 12 mm breed is, worden ze vaak kleiner; kort de tekst in als dat te klein wordt.
 
@@ -211,7 +211,7 @@ Een nieuw label krijgt vanzelf de opmaak van het label dat je het laatst bewerkt
 Wil je dat een hele categorie er hetzelfde uitziet, maak dan één label mooi en kies **Label → Opmaak overnemen…** (of rechtsklik in de bibliotheek). Vink aan wat er mee moet:
 
 - **Layout en lettertypen**: welke regels zichtbaar zijn, lettertype, grootte, vet, cursief en uitlijning per regel.
-- **Opmaak**: verticale uitlijning, regelafstand, marges, automatisch passend maken, rotatie, rand en wit-op-zwart.
+- **Opmaak**: verticale uitlijning, regelafstand, marges, automatisch passend maken, rotatie, rand, lijnen tussen regels en wit-op-zwart.
 - **QR-code of barcode**: soort, plaats en inhoud. Velden zoals `{Lade}` vullen zich per label in.
 - **Pictogram**: symbool of afbeelding en de plaats.
 

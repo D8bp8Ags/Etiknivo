@@ -54,6 +54,7 @@ BAR_HEIGHT_MM = 3.5
 BAR_GAP_MM = 0.75
 PICTURE_GAP_MM = 1.0
 PICTURE_MAX_WIDTH = 0.5  # share of the room left for text
+SEPARATOR_GAP_PX = 3  # minimum line gap with separators: white, line, white
 ITALIC_SHEAR = 0.2
 
 
@@ -181,6 +182,8 @@ class RenderEngine:
         avail_h = max(1.0, area[3] - area[1])
         sizes = [ln.line.font_size_pt for ln in prepared]
         spacing = self.mm_to_px(style.line_spacing_mm)
+        if style.separators and len(prepared) > 1:
+            spacing = max(spacing, SEPARATOR_GAP_PX)  # room for the line and white around it
 
         if style.autofit and prepared:
             sizes = self._autofit(prepared, sizes, avail_w, avail_h, spacing)
@@ -198,7 +201,11 @@ class RenderEngine:
         hires = Image.new("L", (w * ss, h * ss), 255)
         draw = ImageDraw.Draw(hires)
         line_boxes: list[LineBox] = []
-        for p, size, bbox, lh in zip(prepared, sizes, boxes, heights):
+        for n, (p, size, bbox, lh) in enumerate(zip(prepared, sizes, boxes, heights)):
+            if n and style.separators:
+                mid = round(y - spacing / 2 - 0.5)  # one dot, centred in the gap
+                draw.rectangle((round(area[0]) * ss, mid * ss, round(area[2]) * ss - 1,
+                                (mid + 1) * ss - 1), fill=0)
             lw = bbox[2] - bbox[0]
             if p.line.align == HAlign.LEFT:
                 x = area[0]

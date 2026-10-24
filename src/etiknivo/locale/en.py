@@ -555,4 +555,5 @@ EN: dict[str, str] = {
     "Datum": "Date",
     "Nr": "No",
     "Aantal": "Count",
+    "Lijn tussen tekstregels": "Line between text lines",
 }
