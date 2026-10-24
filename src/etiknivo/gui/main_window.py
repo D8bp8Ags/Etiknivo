@@ -7,9 +7,10 @@ import threading
 import time
 from pathlib import Path
 
-from PySide6.QtCore import QSettings, QSize, Qt, QTimer, QUrl, Signal
+from PySide6.QtCore import QEvent, QObject, QSettings, QSize, Qt, QTimer, QUrl, Signal
 from PySide6.QtGui import QAction, QActionGroup, QCloseEvent, QDesktopServices, QKeySequence
 from PySide6.QtWidgets import (
+    QApplication,
     QDockWidget,
     QFileDialog,
     QHBoxLayout,
@@ -52,6 +53,7 @@ from etiknivo.rendering.fonts import default_registry
 from etiknivo.rendering.patterns import calibration_raster, test_label
 from etiknivo.settings import Settings, data_dir, load_settings, log_dir, save_settings
 from etiknivo.storage import io as lio
+from etiknivo.storage.history import History, Snapshot
 from etiknivo.storage.library import Library, LibraryError
 
 log = logging.getLogger(__name__)
@@ -155,6 +157,11 @@ class MainWindow(QMainWindow):
         if first:
             self.library_panel.select_ids([first[0]])
         self._restore_geometry()
+        self._applying_history = False
+        self.history = History()
+        self.history.reset(self._snapshot())
+        self._update_undo_actions()
+        QApplication.instance().installEventFilter(self)
 
     # -- construction --------------------------------------------------------------------
 
@@ -179,6 +186,18 @@ class MainWindow(QMainWindow):
         self.act_del.triggered.connect(self.delete_labels)
         for a in (self.act_new, self.act_dup, self.act_rename, self.act_del):
             tb.addAction(a)
+        tb.addSeparator()
+        self.act_undo = QAction("Ongedaan maken", self, toolTip="Ongedaan maken (⌘Z)")
+        self.act_undo.setShortcut(QKeySequence.StandardKey.Undo)
+        self.act_undo.triggered.connect(self.undo)
+        self.act_redo = QAction("Opnieuw", self, toolTip="Opnieuw (⇧⌘Z)")
+        redo_keys = QKeySequence.keyBindings(QKeySequence.StandardKey.Redo)
+        if QKeySequence("Ctrl+Shift+Z") not in redo_keys:  # Windows/Linux default is Ctrl+Y
+            redo_keys.append(QKeySequence("Ctrl+Shift+Z"))
+        self.act_redo.setShortcuts(redo_keys)
+        self.act_redo.triggered.connect(self.redo)
+        tb.addAction(self.act_undo)
+        tb.addAction(self.act_redo)
 
         spacer = QWidget()
         spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
@@ -329,7 +348,8 @@ class MainWindow(QMainWindow):
     def apply_theme(self) -> None:
         t = theme.tokens()
         for a, name in ((self.act_new, "plus"), (self.act_dup, "copy"),
-                        (self.act_rename, "pencil"), (self.act_del, "trash-2")):
+                        (self.act_rename, "pencil"), (self.act_del, "trash-2"),
+                        (self.act_undo, "undo-2"), (self.act_redo, "redo-2")):
             a.setIcon(theme.icon(name))
         self.guides.setIcon(theme.icon("square-dashed", size=16))
         self.native.setIcon(theme.icon("frame", size=16))
@@ -370,6 +390,10 @@ class MainWindow(QMainWindow):
             QUrl.fromLocalFile(str(data_dir()))))
         m.addSeparator()
         act(m, "Afsluiten", self.close, QKeySequence.StandardKey.Quit)
+
+        m = mb.addMenu("Be&werken")
+        m.addAction(self.act_undo)
+        m.addAction(self.act_redo)
 
         m = mb.addMenu("&Label")
         act(m, "Nieuw", self.new_label)
@@ -507,12 +531,18 @@ class MainWindow(QMainWindow):
             return
         self._render_timer.start()
         self._update_title()
+        self.library_panel.pin(self.current.id)
         if structural and self.current.category != self._shown_category:
             self._shown_category = self.current.category
-            self.library_panel.refresh()  # regroup under the new category
+            self.properties.set_categories(self.library.categories())
+            # regroup under the new category; the label stays selected and editable
+            if self.library_panel.reveal(self.current):
+                where = self.current.category or "Alle categorieën"
+                self.statusBar().showMessage(f"Verplaatst naar {where}", 4000)
         else:
             self.library_panel.update_label(self.current)
         self.schedule_save()
+        self._record(merge_key=self.current.id)
 
     def update_preview(self) -> None:
         if self.current is None:
@@ -574,6 +604,64 @@ class MainWindow(QMainWindow):
         if select is not None:
             self.library_panel.select_ids(select)
         self.schedule_save()
+        self._record()
+
+    # -- undo / redo ---------------------------------------------------------------------
+
+    def _snapshot(self) -> Snapshot:
+        return Snapshot.take(self.library.labels, self.library_panel.selected_ids())
+
+    def _record(self, merge_key: str | None = None) -> None:
+        if getattr(self, "_applying_history", True):
+            return
+        self.history.record(self._snapshot(), merge_key)
+        self._update_undo_actions()
+
+    def _update_undo_actions(self) -> None:
+        self.act_undo.setEnabled(self.history.can_undo())
+        self.act_redo.setEnabled(self.history.can_redo())
+
+    def undo(self) -> None:
+        self._apply_snapshot(self.history.undo(), "Ongedaan gemaakt")
+
+    def redo(self) -> None:
+        self._apply_snapshot(self.history.redo(), "Opnieuw uitgevoerd")
+
+    def _apply_snapshot(self, state: Snapshot | None, message: str) -> None:
+        if state is None:
+            return
+        self._applying_history = True
+        try:
+            self._render_timer.stop()
+            self.library.replace_all(state.labels())
+            self.library_panel.refresh()
+            self.properties.set_categories(self.library.categories())
+            ids = [i for i in state.selection if self.library.get(i)]
+            if ids:
+                self.library_panel.pin(ids[0])
+                self.library_panel.reveal(self.library.get(ids[0]))
+                self.library_panel.select_ids(ids)
+            else:
+                self.library_panel.select_ids([])
+            self.schedule_save()
+        finally:
+            self._applying_history = False
+        self._update_undo_actions()
+        self.statusBar().showMessage(message, 2000)
+
+    def eventFilter(self, obj: QObject, event: QEvent) -> bool:  # noqa: N802 - Qt API
+        # Text fields have their own undo, which would bypass the label (and
+        # only knows about that one field).  Route Ctrl+Z / Ctrl+Shift+Z to the
+        # application-wide history instead while focus is in this window.
+        if event.type() == QEvent.Type.ShortcutOverride:
+            focus = QApplication.focusWidget()
+            if focus is not None and self.isAncestorOf(focus) and (
+                    event.matches(QKeySequence.StandardKey.Undo)
+                    or event.matches(QKeySequence.StandardKey.Redo)
+                    or QKeySequence(event.keyCombination()) == QKeySequence("Ctrl+Shift+Z")):
+                event.ignore()
+                return True
+        return super().eventFilter(obj, event)
 
     def new_label(self) -> None:
         cat = self.library_panel.category.currentText()
@@ -581,6 +669,7 @@ class MainWindow(QMainWindow):
         lbl = make_label("", cat, "Nieuw label", "")
         lbl.name = "Nieuw label"
         self.library.add(lbl)
+        self.library_panel.pin(lbl.id)  # visible even when a search is active
         self._after_library_change([lbl.id])
         self.right_tabs.setCurrentWidget(self.properties)
         self.properties.lines[1].text.setFocus()
@@ -590,6 +679,7 @@ class MainWindow(QMainWindow):
         ids = self.library_panel.selected_ids()
         new = [d.id for i in ids if (d := self.library.duplicate(i)) is not None]
         if new:
+            self.library_panel.pin(new[0])
             self._after_library_change(new)
 
     def rename_label(self) -> None:
@@ -929,4 +1019,5 @@ class MainWindow(QMainWindow):
         qs.setValue("geometry", self.saveGeometry())
         qs.setValue("windowState", self.saveState())
         self.bridge.shutdown()
+        QApplication.instance().removeEventFilter(self)
         event.accept()

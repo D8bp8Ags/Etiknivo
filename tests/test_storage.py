@@ -246,3 +246,27 @@ def test_png_pdf_svg_export(tmp_path: Path, engine) -> None:  # noqa: ANN001
     export_svg(engine, labels[0], tmp_path / "x.svg")
     svg = (tmp_path / "x.svg").read_text("utf-8")
     assert 'width="30.0mm"' in svg and "data:image/png;base64," in svg
+
+
+def test_history_undo_redo_and_merging() -> None:
+    from etiknivo.model import make_label
+    from etiknivo.storage.history import History, Snapshot
+
+    now = [0.0]
+    h = History(clock=lambda: now[0])
+    a = make_label("", "Cat", "A", "")
+    h.reset(Snapshot.take([a], [a.id]))
+    for text in ("Ab", "Abc", "Abcd"):  # typing burst → one step
+        a.main.text = text
+        now[0] += 0.3
+        h.record(Snapshot.take([a], [a.id]), merge_key=a.id)
+    now[0] += 5
+    b = make_label("", "Cat", "B", "")
+    h.record(Snapshot.take([a, b], [b.id]))  # add a label
+    s1 = h.undo()
+    assert [lbl.main.text for lbl in s1.labels()] == ["Abcd"]
+    s0 = h.undo()
+    assert [lbl.main.text for lbl in s0.labels()] == ["A"]
+    assert h.undo() is None and h.can_redo()
+    assert [lbl.main.text for lbl in h.redo().labels()] == ["Abcd"]
+    assert len(h.redo().labels()) == 2 and not h.can_redo()

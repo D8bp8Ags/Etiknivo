@@ -130,6 +130,8 @@ class LibraryPanel(QWidget):
         self.engine = engine
         self._thumbs: dict[str, tuple[str, QIcon]] = {}
         self._building = False
+        self._restoring = False
+        self._pinned = ""  # label being edited: stays visible even if the search no longer matches
 
         self.setObjectName("sidebar")
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
@@ -272,7 +274,7 @@ class LibraryPanel(QWidget):
     def _matches(self, lbl: Label, needle: str, category: str | None) -> bool:
         if category and lbl.category != category:
             return False
-        if not needle:
+        if not needle or lbl.id == self._pinned:
             return True
         hay = " ".join([lbl.name, lbl.tray_id, lbl.category, lbl.notes,
                         *(ln.text for ln in lbl.lines), *lbl.specs.values()]).casefold()
@@ -334,7 +336,11 @@ class LibraryPanel(QWidget):
         self.count.setText(f"{len(labels)} van {len(self.library)}" if len(labels) != len(self.library)
                            else f"{len(labels)} labels")
         self._building = False
-        self.select_ids([i for i in keep_sel if self.library.get(i)], keep_cur or None)
+        self._restoring = True  # restoring the old selection must not drop the pin
+        try:
+            self.select_ids([i for i in keep_sel if self.library.get(i)], keep_cur or None)
+        finally:
+            self._restoring = False
 
     @staticmethod
     def _subtitle(lbl: Label) -> str:
@@ -361,10 +367,33 @@ class LibraryPanel(QWidget):
 
     # -- events -------------------------------------------------------------------------
 
+    def pin(self, label_id: str) -> None:
+        """Keep *label_id* in the list while it is being edited, even when the
+        search text no longer matches it.  Cleared when another label is chosen."""
+        self._pinned = label_id
+
+    def reveal(self, lbl: Label) -> bool:
+        """Make sure *lbl* is listed and selected after its category changed.
+
+        An active category filter follows the label to its new category (or
+        falls back to all categories for a label without one).  Returns True
+        when the filter changed."""
+        self.pin(lbl.id)
+        idx = self.category.currentIndex()
+        changed = idx > 0 and self.category.currentText() != lbl.category
+        self.refresh()
+        if changed:
+            target = self.category.findText(lbl.category) if lbl.category else 0
+            self.category.setCurrentIndex(max(0, target))  # triggers refresh
+        self.select_ids([lbl.id])
+        return changed
+
     def _on_selection(self) -> None:
         if self._building:
             return
         ids = self.selected_ids()
+        if self._pinned and self._pinned not in ids and not self._restoring:
+            self._pinned = ""
         self.selectionChanged.emit(ids)
         cur = self.current_id()
         if cur not in ids and ids:
