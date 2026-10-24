@@ -23,6 +23,10 @@ class PrinterProfile:
     #: positions labels with a gap sensor, which is only accurate to about a
     #: millimetre, so content closer to the ends can be cut off.
     feed_margin_mm: float = 0.0
+    #: Built-in correction along the feed (dots, positive = later on the label),
+    #: for printers that consistently start printing a little early or late.
+    #: The user's calibration offset is applied on top of this.
+    feed_offset_px: int = 0
     name_prefixes: tuple[str, ...] = ()
     densities: tuple[str, ...] = ("Licht", "Normaal", "Donker")
 
@@ -64,6 +68,7 @@ FICHERO_5836 = PrinterProfile(
     label_width_mm=30.0,
     label_height_mm=14.0,
     feed_margin_mm=2.0,  # same safe area as the vendor app: 26 × 12 mm
+    feed_offset_px=8,  # measured: the print starts ~1 mm early on the label
     name_prefixes=("FICHERO", "D11s_"),
 )
 

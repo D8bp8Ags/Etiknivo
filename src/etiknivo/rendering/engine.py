@@ -19,8 +19,8 @@ Pipeline
 2. Draw at ``supersample`` × resolution with antialiasing.
 3. Downsample with a box filter (area average) to printer resolution.
 4. Threshold to 1-bit.  This is the *exact* bitmap that will be printed.
-5. Apply calibration offsets, crop the printhead band and rotate to the native
-   raster.
+5. Apply the printer's built-in feed offset plus the calibration offsets, crop
+   the printhead band and rotate to the native raster.
 """
 
 from __future__ import annotations
@@ -223,7 +223,8 @@ class RenderEngine:
         cal = self.calibration
         px0, py0, px1, py1 = self.head_band
         shifted = Image.new("1", mono.size, 1)
-        shifted.paste(mono, (int(cal.offset_feed_px), int(cal.offset_head_px)))
+        feed = self.profile.feed_offset_px + int(cal.offset_feed_px)
+        shifted.paste(mono, (feed, int(cal.offset_head_px)))
         band = shifted.crop((px0, py0, px1, py1))
         if band.height < self.profile.printhead_px:  # label narrower than the head
             padded = Image.new("1", (band.width, self.profile.printhead_px), 1)

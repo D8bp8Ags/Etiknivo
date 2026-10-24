@@ -23,4 +23,4 @@ def _isolated(tmp_path, monkeypatch):
 
 @pytest.fixture
 def engine() -> RenderEngine:
-    return RenderEngine(calibration=Calibration(offset_feed_px=0))
+    return RenderEngine(calibration=Calibration())

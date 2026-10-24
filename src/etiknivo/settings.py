@@ -48,7 +48,7 @@ class Calibration:
     Positive values move content right/down in the design orientation.
     """
 
-    offset_feed_px: int = 8  # measured on a Fichero 5836: centres the print on the label
+    offset_feed_px: int = 0
     offset_head_px: int = 0
     threshold: int = 140  # 0-255; grey values below become black dots
     rotate_clockwise: bool = False  # flip print orientation if labels come out upside down
