@@ -272,3 +272,29 @@ def test_test_and_calibration_patterns(engine: RenderEngine) -> None:
     # frame of the printable band is drawn
     assert mono.getpixel((16, 8)) == 0 and mono.getpixel((223, 103)) == 0
     assert ink_bbox(mono.crop((0, 0, 16, 112))) is None
+
+
+def test_fields_show_specification_values(engine: RenderEngine) -> None:
+    from etiknivo.model import make_label
+
+    lbl = make_label("A1", "Condensator", "10 µF", "{Spanning} · {tolerantie}")
+    lbl.specs = {"Spanning": "25 V", "Tolerantie": "10%"}
+    r = engine.render(lbl)
+    assert r.lines[-1].text == "25 V · 10%"  # case-insensitive
+    lbl.specs["Spanning"] = "50 V"  # linked: the label follows the specification
+    assert engine.render(lbl).lines[-1].text == "50 V · 10%"
+    lbl.lines[0].text = "{Categorie} {Lade}"
+    assert engine.render(lbl).lines[0].text == "Condensator A1"
+
+
+def test_unknown_field_stays_visible_with_warning(engine: RenderEngine) -> None:
+    from etiknivo.model import make_label
+
+    lbl = make_label("", "", "{Vermogen}")
+    r = engine.render(lbl)
+    assert r.lines[0].text == "{Vermogen}"
+    assert any("Onbekend veld {Vermogen}" in w for w in r.warnings)
+    assert lbl.field_names() == ["Naam", "Lade", "Categorie"]
+    lbl.specs = {"Vermogen": "¼ W"}
+    assert lbl.field_names()[0] == "Vermogen"
+    assert engine.render(lbl).lines[0].text == "¼ W"

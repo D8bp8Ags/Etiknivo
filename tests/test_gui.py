@@ -265,3 +265,15 @@ def test_simulated_printer_connects_by_itself(qtbot, window) -> None:  # noqa: A
     qtbot.waitUntil(lambda: window.bridge.state.connection == "disconnected", timeout=5000)
     window.set_mock(True)  # switching simulation on connects without an extra click
     qtbot.waitUntil(lambda: window.bridge.state.connection == "connected", timeout=5000)
+
+
+def test_insert_field_from_specifications(qtbot, window) -> None:  # noqa: ANN001
+    props = window.properties
+    props.specs.setPlainText("Spanning: 12 V")
+    le = props.lines[2]
+    le.text.setText("")
+    le.insert_field("Spanning")
+    assert window.current.bottom.text == "{Spanning}"
+    qtbot.waitUntil(lambda: any(lb.text == "12 V" for lb in window.design_view.result.lines),
+                    timeout=2000)
+    assert "Spanning" in le.fields()

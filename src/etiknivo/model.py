@@ -13,6 +13,7 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+import re
 import uuid
 from dataclasses import asdict, dataclass, field, fields
 from datetime import UTC, datetime
@@ -27,6 +28,11 @@ SLOT_TOP, SLOT_MAIN, SLOT_BOTTOM = 0, 1, 2
 SLOT_NAMES = ("Bovenregel", "Hoofdregel", "Onderregel")
 
 DEFAULT_FONT = "DejaVu Sans"
+
+#: ``{Name}`` in a text line shows the value of that field on the label.
+FIELD_RE = re.compile(r"\{([^{}\n]+)\}")
+#: Fields every label has, besides its own specifications.
+BUILTIN_FIELDS = ("Naam", "Lade", "Categorie")
 
 
 class HAlign(StrEnum):
@@ -158,7 +164,39 @@ class Label:
 
     def visible_lines(self) -> list[tuple[int, TextLine]]:
         """Slots that will actually be rendered (enabled and non-empty)."""
-        return [(i, ln) for i, ln in enumerate(self.lines) if ln.enabled and ln.text.strip()]
+        return [(i, ln) for i, ln in enumerate(self.lines)
+                if ln.enabled and self.resolve(ln.text)[0].strip()]
+
+    # -- fields ----------------------------------------------------------------
+
+    def field_names(self) -> list[str]:
+        """Names usable as ``{Name}``: the specifications, then the built-ins."""
+        own = [k for k in self.specs if k]
+        return own + [b for b in BUILTIN_FIELDS if b.casefold() not in
+                      {k.casefold() for k in own}]
+
+    def field_values(self) -> dict[str, str]:
+        values = {"naam": self.name, "lade": self.tray_id, "categorie": self.category}
+        values.update({k.strip().casefold(): v for k, v in self.specs.items()})
+        return values
+
+    def resolve(self, text: str) -> tuple[str, list[str]]:
+        """*text* with ``{Name}`` fields filled in (case-insensitive).
+        Returns the text and the names of unknown fields, which stay as typed."""
+        values = self.field_values()
+        unknown: list[str] = []
+
+        def sub(m: re.Match[str]) -> str:
+            key = m.group(1).strip().casefold()
+            if key in values:
+                return values[key]
+            unknown.append(m.group(1).strip())
+            return m.group(0)
+
+        return FIELD_RE.sub(sub, text), unknown
+
+    def display_text(self, line: TextLine) -> str:
+        return self.resolve(line.text)[0]
 
     def touch(self) -> None:
         self.modified = _now()
@@ -234,7 +272,7 @@ class Label:
     def render_key(self) -> str:
         """Stable hash of everything that affects the rendered output."""
         d = {"lines": [asdict(x) for x in self.lines], "style": asdict(self.style),
-             "format": asdict(self.format)}
+             "format": asdict(self.format), "fields": self.field_values()}
         return hashlib.sha1(json.dumps(d, sort_keys=True, default=str).encode()).hexdigest()
 
 
