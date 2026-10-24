@@ -14,6 +14,7 @@ from PySide6.QtCore import QRectF, QSize, Qt
 from PySide6.QtGui import QBrush, QColor, QPainter, QPen
 from PySide6.QtWidgets import QSizePolicy, QWidget
 
+from etiknivo.gui import theme
 from etiknivo.gui.qt_util import pil_to_qimage
 from etiknivo.rendering.engine import RenderEngine, RenderResult
 
@@ -57,6 +58,17 @@ class _BaseView(QWidget):
         return self.sizeHint()
 
 
+def _paper_shadow(p: QPainter, r: QRectF, radius: float) -> None:
+    """Soft drop shadow under a piece of paper."""
+    dark = theme.tokens().dark
+    p.setPen(Qt.PenStyle.NoPen)
+    for i, alpha in enumerate((10, 14, 18, 26) if not dark else (30, 40, 55, 70)):
+        grow = 4 - i
+        p.setBrush(QColor(0, 0, 0, alpha))
+        p.drawRoundedRect(r.adjusted(-grow, -grow + 2, grow, grow + 3), radius + grow,
+                          radius + grow)
+
+
 class DesignView(_BaseView):
     """Antialiased editing view of the whole label."""
 
@@ -77,10 +89,7 @@ class DesignView(_BaseView):
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
         p.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
         r = self.label_rect()
-        # shadow + paper
-        p.setPen(Qt.PenStyle.NoPen)
-        p.setBrush(QColor(0, 0, 0, 40))
-        p.drawRoundedRect(r.translated(2, 3), self.zoom, self.zoom)
+        _paper_shadow(p, r, self.zoom)
         p.setBrush(QColor("white"))
         p.drawRoundedRect(r, self.zoom, self.zoom)
         if self._qimg is not None:
@@ -118,7 +127,7 @@ class DesignView(_BaseView):
                 if lb.overflow:
                     p.drawRect(QRectF(r.left() + lb.x0 * sx, r.top() + lb.y0 * sy,
                                       (lb.x1 - lb.x0) * sx, (lb.y1 - lb.y0) * sy))
-        p.setPen(QPen(QColor(150, 150, 150), 1))
+        p.setPen(QPen(QColor(0, 0, 0, 30), 1))
         p.setBrush(Qt.BrushStyle.NoBrush)
         p.drawRoundedRect(r, self.zoom, self.zoom)
         p.end()
@@ -160,8 +169,11 @@ class RasterView(_BaseView):
 
     def paintEvent(self, _event) -> None:  # noqa: N802, ANN001
         p = QPainter(self)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
         t = self._target()
-        p.fillRect(t.adjusted(-1, -1, 1, 1), QColor(120, 120, 120))
+        _paper_shadow(p, t, 2)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing, False)
+        p.fillRect(t, QColor("white"))
         if self._qimg is not None:
             p.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, False)
             p.drawImage(t, self._qimg)

@@ -113,7 +113,7 @@ def test_print_category_and_error_recovery(qtbot, window, monkeypatch) -> None: 
     qtbot.waitUntil(lambda: window.bridge.queue_snapshot().failed == 1, timeout=5000)
     snap = window.bridge.queue_snapshot()
     assert [j.status for j in snap.jobs] == [JobStatus.DONE, JobStatus.FAILED, JobStatus.PENDING]
-    assert window.queue_panel.retry_btn.isEnabled()
+    qtbot.waitUntil(window.queue_panel.retry_btn.isEnabled, timeout=2000)
     backend.fail_after_labels = None
     window.queue_panel.retry_btn.click()
     qtbot.waitUntil(lambda: len(backend.printed) == 3, timeout=5000)
@@ -133,3 +133,17 @@ def test_editor_works_without_printer(window) -> None:  # noqa: ANN001
     window.properties.lines[1].text.textEdited.emit("Zonder printer")
     window.update_preview()
     assert window.raster_view.result is not None
+
+
+def test_theme_switch_and_icons(window) -> None:  # noqa: ANN001
+    from importlib import resources
+
+    from etiknivo.gui import theme
+
+    window.set_theme("dark")
+    assert theme.tokens().dark and window.settings.theme == "dark"
+    window.set_theme("light")
+    assert not theme.tokens().dark
+    names = [p.name[:-4] for p in resources.files("etiknivo.gui.icons").iterdir()
+             if p.name.endswith(".svg")]
+    assert names and all(not theme.icon(n).isNull() for n in names)

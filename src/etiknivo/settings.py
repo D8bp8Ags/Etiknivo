@@ -72,6 +72,7 @@ class Settings:
     show_native_raster: bool = False
     group_by_category: bool = True
     sort_key: str = "tray_id"
+    theme: str = "system"  # system, light or dark
     calibration: Calibration = field(default_factory=Calibration)
 
     @classmethod

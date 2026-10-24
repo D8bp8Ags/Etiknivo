@@ -6,8 +6,11 @@ Etiknivo is een desktopapplicatie (Python + PySide6) om etiketten te ontwerpen, 
 
 ![Etiknivo hoofdvenster](docs/img/main-window.png)
 
+![Etiknivo in donkere modus, met printer en wachtrij](docs/img/printer-and-queue-dark.png)
+
 ## Functies
 
+- **Moderne interface** die automatisch de lichte of donkere modus van macOS volgt (of vast licht/donker via *Weergave → Thema*): werkbalk met printerstatus en afdrukknop, bibliotheek als kaartjes, het label als papier op een canvas en een inspector met *Ontwerp* en *Printer*.
 - **Labelbibliotheek**: thumbnails (de echte 1-bit printeruitvoer), naam, categorie en lade-ID, zoeken, categoriefilter, sorteren, groeperen per categorie, meervoudige selectie, nieuw/dupliceren/hernoemen/verwijderen.
 - **Editor met twee weergaven**:
   - *Ontwerpweergave* (antialiased, met de printbare band, marges en overflow gemarkeerd);
@@ -128,6 +131,7 @@ src/etiknivo/
 │   ├── runner.py          asyncio-loop in een achtergrondthread
 │   └── manager.py         verbinding, status-polling en wachtrij (GUI-onafhankelijk)
 └── gui/                   PySide6: hoofdvenster, bibliotheek, editor, eigenschappen, printer, wachtrij
+    └── theme.py           kleuren (licht/donker), stylesheet en pictogrammen
 ```
 
 Een andere printer toevoegen: maak een `PrinterProfile` (rastergeometrie) en een subklasse van `PrinterBackend` (scan/connect/status/`print_raster`). De renderengine, wachtrij en GUI blijven ongewijzigd.
@@ -163,4 +167,4 @@ De bundle bevat de vereiste `NSBluetoothAlwaysUsageDescription`. Omdat de app ni
 
 ## Licentie
 
-MIT, zie [LICENSE](LICENSE). De meegeleverde DejaVu-lettertypen vallen onder hun eigen vrije licentie ([LICENSE-DejaVu.txt](src/etiknivo/fonts/LICENSE-DejaVu.txt)).
+MIT, zie [LICENSE](LICENSE). De meegeleverde DejaVu-lettertypen vallen onder hun eigen vrije licentie ([LICENSE-DejaVu.txt](src/etiknivo/fonts/LICENSE-DejaVu.txt)). De pictogrammen komen van Lucide (ISC-licentie, [LICENSE-lucide.txt](src/etiknivo/gui/icons/LICENSE-lucide.txt)).

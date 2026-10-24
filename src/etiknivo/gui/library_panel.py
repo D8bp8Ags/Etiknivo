@@ -4,30 +4,34 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from PySide6.QtCore import QSize, Qt, Signal
-from PySide6.QtGui import QAction, QIcon, QKeySequence
+from PySide6.QtCore import QModelIndex, QRect, QRectF, QSize, Qt, Signal
+from PySide6.QtGui import QAction, QColor, QFont, QIcon, QKeySequence, QPainter, QPen
 from PySide6.QtWidgets import (
     QAbstractItemView,
-    QCheckBox,
     QComboBox,
     QHBoxLayout,
-    QHeaderView,
     QLabel,
     QLineEdit,
     QMenu,
-    QPushButton,
+    QStyle,
+    QStyledItemDelegate,
+    QStyleOptionViewItem,
+    QToolButton,
     QTreeWidget,
     QTreeWidgetItem,
     QVBoxLayout,
     QWidget,
 )
 
+from etiknivo.gui import theme
 from etiknivo.gui.qt_util import pil_to_pixmap
 from etiknivo.model import Label
 from etiknivo.rendering.engine import RenderEngine
 from etiknivo.storage.library import Library
 
 ID_ROLE = Qt.ItemDataRole.UserRole + 1
+SUBTITLE_ROLE = Qt.ItemDataRole.UserRole + 2
+HEADER_ROLE = Qt.ItemDataRole.UserRole + 3
 ALL_CATEGORIES = "Alle categorieën"
 SORT_KEYS: dict[str, tuple[str, Callable[[Label], object]]] = {
     "tray_id": ("Lade-ID", lambda lbl: (lbl.tray_id == "", lbl.tray_id.casefold(), lbl.name)),
@@ -36,6 +40,78 @@ SORT_KEYS: dict[str, tuple[str, Callable[[Label], object]]] = {
     "modified": ("Laatst gewijzigd", lambda lbl: lbl.modified),
 }
 THUMB = QSize(86, 40)
+ROW_H = THUMB.height() + 16
+HEADER_H = 30
+
+
+def _scaled(font: QFont, factor: float) -> QFont:
+    f = QFont(font)
+    if f.pixelSize() > 0:
+        f.setPixelSize(max(8, round(f.pixelSize() * factor)))
+    else:
+        f.setPointSizeF(max(6.0, f.pointSizeF() * factor))
+    return f
+
+
+class LabelCardDelegate(QStyledItemDelegate):
+    """Paints library rows as cards (thumbnail, name, tray · category) and
+    category rows as small section headings."""
+
+    def sizeHint(self, option: QStyleOptionViewItem, index: QModelIndex) -> QSize:  # noqa: N802
+        return QSize(option.rect.width(), HEADER_H if index.data(HEADER_ROLE) else ROW_H)
+
+    def paint(self, p: QPainter, option: QStyleOptionViewItem, index: QModelIndex) -> None:
+        t = theme.tokens()
+        p.save()
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        r = QRect(option.rect)
+        if index.data(HEADER_ROLE):
+            f = _scaled(option.font, 0.85)
+            f.setWeight(QFont.Weight.DemiBold)
+            p.setFont(f)
+            p.setPen(QColor(t.muted))
+            p.drawText(r.adjusted(14, 8, -14, 0), Qt.AlignmentFlag.AlignLeft
+                       | Qt.AlignmentFlag.AlignVCenter, str(index.data(Qt.ItemDataRole.DisplayRole)))
+            p.restore()
+            return
+        card = QRectF(r.adjusted(6, 2, -6, -2))
+        if option.state & QStyle.StateFlag.State_Selected:
+            p.setPen(Qt.PenStyle.NoPen)
+            p.setBrush(QColor(t.selection))
+            p.drawRoundedRect(card, 8, 8)
+        elif option.state & QStyle.StateFlag.State_MouseOver:
+            p.setPen(Qt.PenStyle.NoPen)
+            p.setBrush(QColor(t.hover))
+            p.drawRoundedRect(card, 8, 8)
+        # thumbnail on a small piece of "paper"
+        thumb = QRectF(card.left() + 8, card.top() + (card.height() - THUMB.height() - 4) / 2,
+                       THUMB.width() + 4, THUMB.height() + 4)
+        p.setPen(QPen(QColor(t.border), 1))
+        p.setBrush(QColor("#ffffff"))
+        p.drawRoundedRect(thumb, 4, 4)
+        icon = index.data(Qt.ItemDataRole.DecorationRole)
+        if isinstance(icon, QIcon):
+            icon.paint(p, thumb.adjusted(2, 2, -2, -2).toRect())
+        # text
+        x = int(thumb.right()) + 12
+        text_r = QRect(x, int(card.top()), int(card.right()) - x - 8, int(card.height()))
+        name_f = QFont(option.font)
+        name_f.setWeight(QFont.Weight.DemiBold)
+        sub_f = _scaled(option.font, 0.92)
+        p.setFont(name_f)
+        p.setPen(QColor(t.text))
+        name = p.fontMetrics().elidedText(str(index.data(Qt.ItemDataRole.DisplayRole) or ""),
+                                          Qt.TextElideMode.ElideRight, text_r.width())
+        half = text_r.height() // 2
+        p.drawText(text_r.adjusted(0, 0, 0, -half), Qt.AlignmentFlag.AlignLeft
+                   | Qt.AlignmentFlag.AlignBottom, name)
+        p.setFont(sub_f)
+        p.setPen(QColor(t.muted))
+        sub = p.fontMetrics().elidedText(str(index.data(SUBTITLE_ROLE) or ""),
+                                         Qt.TextElideMode.ElideRight, text_r.width())
+        p.drawText(text_r.adjusted(0, half + 2, 0, 0), Qt.AlignmentFlag.AlignLeft
+                   | Qt.AlignmentFlag.AlignTop, sub)
+        p.restore()
 
 
 class LibraryPanel(QWidget):
@@ -55,62 +131,63 @@ class LibraryPanel(QWidget):
         self._thumbs: dict[str, tuple[str, QIcon]] = {}
         self._building = False
 
-        title = QLabel("<b>Labelbibliotheek</b>")
+        self.setObjectName("sidebar")
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        title = QLabel("Bibliotheek")
+        title.setObjectName("heading")
+        self.count = QLabel()
+        self.count.setObjectName("muted")
         self.search = QLineEdit(placeholderText="Zoeken op naam, tekst, lade-ID…")
         self.search.setClearButtonEnabled(True)
+        self._search_icon = self.search.addAction(QIcon(), QLineEdit.ActionPosition.LeadingPosition)
         self.category = QComboBox()
         self.sort = QComboBox()
+        self.sort.setToolTip("Sorteren")
         for key, (text, _fn) in SORT_KEYS.items():
-            self.sort.addItem(f"Sorteer: {text}", key)
-        self.descending = QCheckBox("Aflopend")
-        self.group = QCheckBox("Groeperen per categorie")
+            self.sort.addItem(text, key)
+        self.options = QToolButton()
+        self.options.setToolTip("Weergaveopties")
+        self.options.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
+        opt_menu = QMenu(self.options)
+        self.descending = QAction("Aflopend sorteren", self, checkable=True)
+        self.group = QAction("Groeperen per categorie", self, checkable=True)
         self.group.setChecked(True)
+        opt_menu.addAction(self.group)
+        opt_menu.addAction(self.descending)
+        self.options.setMenu(opt_menu)
 
         self.tree = QTreeWidget()
-        self.tree.setColumnCount(4)
-        self.tree.setHeaderLabels(["Voorbeeld", "Naam", "Lade", "Categorie"])
-        self.tree.setIconSize(THUMB)
+        self.tree.setObjectName("libraryList")
+        self.tree.setColumnCount(1)
+        self.tree.setHeaderHidden(True)
+        self.tree.setItemDelegate(LabelCardDelegate(self.tree))
         self.tree.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
-        self.tree.setRootIsDecorated(True)
-        self.tree.setAlternatingRowColors(True)
-        hdr = self.tree.header()
-        hdr.setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
-        hdr.resizeSection(0, THUMB.width() + 34)
-        hdr.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
-        hdr.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
-        hdr.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
-        hdr.setStretchLastSection(False)
+        self.tree.setRootIsDecorated(False)
+        self.tree.setItemsExpandable(False)
+        self.tree.setIndentation(0)
+        self.tree.setUniformRowHeights(False)
+        self.tree.setMouseTracking(True)
+        self.tree.setVerticalScrollMode(QAbstractItemView.ScrollMode.ScrollPerPixel)
         self.tree.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-        self.count = QLabel()
-        self.count.setStyleSheet("color: palette(mid);")
-
-        b_new = QPushButton("Nieuw")
-        b_dup = QPushButton("Dupliceren")
-        b_ren = QPushButton("Hernoemen")
-        b_del = QPushButton("Verwijderen")
-        b_new.clicked.connect(self.newRequested)
-        b_dup.clicked.connect(self.duplicateRequested)
-        b_ren.clicked.connect(self.renameRequested)
-        b_del.clicked.connect(self.deleteRequested)
 
         lay = QVBoxLayout(self)
-        lay.setContentsMargins(6, 6, 6, 6)
-        lay.addWidget(title)
+        lay.setContentsMargins(12, 12, 6, 8)
+        lay.setSpacing(8)
+        head = QHBoxLayout()
+        head.addWidget(title)
+        head.addStretch(1)
+        head.addWidget(self.count)
+        lay.addLayout(head)
         lay.addWidget(self.search)
         row = QHBoxLayout()
-        row.addWidget(self.category, 1)
+        row.setSpacing(6)
+        row.addWidget(self.category, 3)
+        row.addWidget(self.sort, 2)
+        row.addWidget(self.options)
         lay.addLayout(row)
-        row2 = QHBoxLayout()
-        row2.addWidget(self.sort, 1)
-        row2.addWidget(self.descending)
-        lay.addLayout(row2)
-        lay.addWidget(self.group)
         lay.addWidget(self.tree, 1)
-        lay.addWidget(self.count)
-        btns = QHBoxLayout()
-        for b in (b_new, b_dup, b_ren, b_del):
-            btns.addWidget(b)
-        lay.addLayout(btns)
+        self.apply_theme()
+        theme.manager().changed.connect(self.apply_theme)
 
         self.search.textChanged.connect(self.refresh)
         self.category.currentIndexChanged.connect(self.refresh)
@@ -127,6 +204,11 @@ class LibraryPanel(QWidget):
         self.tree.addAction(act_del)
 
         self.refresh()
+
+    def apply_theme(self) -> None:
+        self._search_icon.setIcon(theme.icon("search", theme.tokens().muted, 16))
+        self.options.setIcon(theme.icon("sliders-horizontal"))
+        self.tree.viewport().update()
 
     # -- view state -------------------------------------------------------------------
 
@@ -239,40 +321,42 @@ class LibraryPanel(QWidget):
             for lbl in labels:
                 groups.setdefault(lbl.category or "(zonder categorie)", []).append(lbl)
             for cat in sorted(groups, key=str.casefold, reverse=self.descending.isChecked()):
-                head = QTreeWidgetItem([f"{cat}  ({len(groups[cat])})"])
+                head = QTreeWidgetItem([f"{cat}  ·  {len(groups[cat])}"])
                 head.setFlags(Qt.ItemFlag.ItemIsEnabled)
-                f = head.font(0)
-                f.setBold(True)
-                head.setFont(0, f)
+                head.setData(0, HEADER_ROLE, True)
                 self.tree.addTopLevelItem(head)
                 for lbl in groups[cat]:
                     head.addChild(self._make_item(lbl))
-                head.setFirstColumnSpanned(True)
                 head.setExpanded(True)
         else:
             for lbl in labels:
                 self.tree.addTopLevelItem(self._make_item(lbl))
-        self.count.setText(f"{len(labels)} van {len(self.library)} labels")
+        self.count.setText(f"{len(labels)} van {len(self.library)}" if len(labels) != len(self.library)
+                           else f"{len(labels)} labels")
         self._building = False
         self.select_ids([i for i in keep_sel if self.library.get(i)], keep_cur or None)
 
-    def _make_item(self, lbl: Label) -> QTreeWidgetItem:
-        it = QTreeWidgetItem(["", lbl.name, lbl.tray_id, lbl.category])
-        it.setData(0, ID_ROLE, lbl.id)
+    @staticmethod
+    def _subtitle(lbl: Label) -> str:
+        return "  ·  ".join(x for x in (lbl.tray_id, lbl.category) if x) or "—"
+
+    def _fill_item(self, it: QTreeWidgetItem, lbl: Label) -> None:
+        it.setText(0, lbl.name)
+        it.setData(0, SUBTITLE_ROLE, self._subtitle(lbl))
         it.setIcon(0, self.thumbnail(lbl))
-        it.setSizeHint(0, QSize(THUMB.width(), THUMB.height() + 6))
-        it.setToolTip(1, "\n".join(ln.text for _, ln in lbl.visible_lines()))
+        it.setToolTip(0, "\n".join(ln.text for _, ln in lbl.visible_lines()))
+
+    def _make_item(self, lbl: Label) -> QTreeWidgetItem:
+        it = QTreeWidgetItem()
+        it.setData(0, ID_ROLE, lbl.id)
+        self._fill_item(it, lbl)
         return it
 
     def update_label(self, lbl: Label) -> None:
         """Cheap in-place update of one row (no rebuild)."""
         for it in self._iter_items():
             if it.data(0, ID_ROLE) == lbl.id:
-                it.setText(1, lbl.name)
-                it.setText(2, lbl.tray_id)
-                it.setText(3, lbl.category)
-                it.setIcon(0, self.thumbnail(lbl))
-                it.setToolTip(1, "\n".join(ln.text for _, ln in lbl.visible_lines()))
+                self._fill_item(it, lbl)
                 return
 
     # -- events -------------------------------------------------------------------------
