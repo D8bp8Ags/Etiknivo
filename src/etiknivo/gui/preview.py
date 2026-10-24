@@ -151,7 +151,7 @@ class RasterView(_BaseView):
         if self.result is None:
             self._qimg = None
             return
-        img = self.result.raster if self.native else self.engine.raster_to_design(
+        img = self.result.raster if self.native else self.engine.raster_on_label(
             self.result.raster)
         self._qimg = pil_to_qimage(img)
 

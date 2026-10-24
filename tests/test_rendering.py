@@ -59,6 +59,14 @@ def test_design_canvas_and_printable_band(engine: RenderEngine) -> None:
     assert ink_bbox(r.mono.crop((224, 0, 240, 112))) is None
 
 
+def test_raster_preview_shows_position_on_label(engine: RenderEngine) -> None:
+    lbl = make_label("", "", "B", "", layout=LayoutPreset.SINGLE)
+    lbl.style.border = True
+    shown = engine.raster_on_label(engine.render(lbl).raster)
+    bb = ink_bbox(shown)
+    assert bb[0] == 16 and 240 - bb[2] == 16  # border centred: 2 mm at both ends
+
+
 def test_fichero_feed_offset_is_built_in(engine: RenderEngine) -> None:
     # measured on a real Fichero 5836; the user's calibration starts at 0
     assert Calibration().offset_feed_px == 0
