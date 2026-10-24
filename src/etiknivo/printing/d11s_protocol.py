@@ -25,6 +25,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import IntEnum
 
+from etiknivo.printing.backend import PrinterStatusInfo
+
 VENDOR = b"\x10\xff"
 
 
@@ -60,6 +62,21 @@ FEED_TO_NEXT_LABEL = b"\x1d\x0c"
 #: Job framing used by *other* models of the platform.  Listed only so tests
 #: can assert they are never sent to a D11s.
 FOREIGN_JOB_COMMANDS = (VENDOR + b"\xf1\x03", VENDOR + b"\xf1\x45")
+
+
+def decode_status(byte: int) -> PrinterStatusInfo:
+    """Status bitmask returned by the ``10 FF 40`` query (0xFF = no answer)."""
+    if byte == 0xFF:
+        return PrinterStatusInfo(raw=byte, unknown=True)
+    return PrinterStatusInfo(
+        raw=byte,
+        printing=bool(byte & 0x01),
+        cover_open=bool(byte & 0x02),
+        no_paper=bool(byte & 0x04),
+        low_battery=bool(byte & 0x08),
+        overheated=bool(byte & 0x10 or byte & 0x40),
+        charging=bool(byte & 0x20),
+    )
 
 
 def set_density(level: int) -> bytes:

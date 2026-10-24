@@ -2,7 +2,8 @@
 
 The GUI and the print queue only talk to :class:`PrinterBackend`.  Concrete
 backends (the Fichero BLE backend, the mock printer) can be swapped without
-touching the rest of the application.
+touching the rest of the application.  See :mod:`etiknivo.printing.registry`
+for how a printer model is tied to its backend.
 """
 
 from __future__ import annotations
@@ -65,7 +66,8 @@ class DiscoveredDevice:
 
 @dataclass(frozen=True)
 class PrinterStatusInfo:
-    """Decoded printer status flags (AiYin ``10 FF 40`` bitmask)."""
+    """Printer condition, independent of how a model reports it.  Backends
+    decode their own status format into this (see ``d11s_protocol``)."""
 
     raw: int = 0
     printing: bool = False
@@ -75,20 +77,6 @@ class PrinterStatusInfo:
     overheated: bool = False
     charging: bool = False
     unknown: bool = False
-
-    @classmethod
-    def from_byte(cls, byte: int) -> PrinterStatusInfo:
-        if byte == 0xFF:  # no answer
-            return cls(raw=byte, unknown=True)
-        return cls(
-            raw=byte,
-            printing=bool(byte & 0x01),
-            cover_open=bool(byte & 0x02),
-            no_paper=bool(byte & 0x04),
-            low_battery=bool(byte & 0x08),
-            overheated=bool(byte & 0x10 or byte & 0x40),
-            charging=bool(byte & 0x20),
-        )
 
     @property
     def ok(self) -> bool:
@@ -129,13 +117,17 @@ class PrinterInfo:
 class PrinterBackend(ABC):
     """Abstract printer backend.  All methods run on an asyncio loop."""
 
+    #: Default model; a backend that drives several models gets the actual
+    #: profile passed in.
     profile: PrinterProfile = FICHERO_5836
     #: Human-readable backend name shown in the GUI.
     display_name: str = "Printer"
     #: True for simulated backends; the GUI labels these clearly.
     simulated: bool = False
 
-    def __init__(self) -> None:
+    def __init__(self, profile: PrinterProfile | None = None) -> None:
+        if profile is not None:
+            self.profile = profile
         self.on_disconnect: Callable[[], None] | None = None
 
     @property

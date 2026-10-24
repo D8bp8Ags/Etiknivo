@@ -123,7 +123,8 @@ src/etiknivo/
 ├── storage/               bibliotheek (JSON), import/export (JSON, CSV, back-up)
 ├── rendering/             renderengine, lettertypen, export (PNG/PDF/SVG), test- en kalibratiepatronen
 ├── printing/
-│   ├── profiles.py        printermodellen (Fichero 5836: 96 dots, 203 dpi, 30 × 14 mm)
+│   ├── profiles.py        printerprofielen: geometrie, marges, dichtheden (Fichero 5836: 96 dots, 203 dpi, 30 × 14 mm)
+│   ├── registry.py        ondersteunde modellen: welk profiel bij welke backend hoort
 │   ├── backend.py         abstracte PrinterBackend en foutklassen
 │   ├── d11s_protocol.py   opdrachten en antwoorden van de D11s (alleen bytes, geen I/O)
 │   ├── ble_link.py        Bluetooth LE-verbinding (GATT-profiel kiezen, verzoek/antwoord, blokken)
@@ -136,7 +137,7 @@ src/etiknivo/
     └── theme.py           kleuren (licht/donker), stylesheet en pictogrammen
 ```
 
-Een andere printer toevoegen: maak een `PrinterProfile` (rastergeometrie) en een subklasse van `PrinterBackend` (scan/connect/status/`print_raster`). De renderengine, wachtrij en GUI blijven ongewijzigd.
+Een andere labelprinter toevoegen kost drie stappen; zie [docs/printertypes.md](docs/printertypes.md).
 
 ## Tests
 

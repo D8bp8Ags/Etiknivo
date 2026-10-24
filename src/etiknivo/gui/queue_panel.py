@@ -18,7 +18,6 @@ from PySide6.QtWidgets import (
 )
 
 from etiknivo.gui import theme
-from etiknivo.gui.printer_panel import DENSITIES
 from etiknivo.printing.queue import JOB_STATUS_NL, JobStatus, QueueSnapshot
 
 STATUS_TONE = {
@@ -37,8 +36,9 @@ class QueuePanel(QWidget):
     cancelRequested = Signal()
     clearRequested = Signal()
 
-    def __init__(self, parent: QWidget | None = None) -> None:
+    def __init__(self, densities: tuple[str, ...], parent: QWidget | None = None) -> None:
         super().__init__(parent)
+        self.densities = densities
         self.table = QTableWidget(0, 5)
         self.table.setHorizontalHeaderLabels(["Label", "Exemplaren", "Dichtheid", "Status",
                                               "Melding"])
@@ -106,8 +106,9 @@ class QueuePanel(QWidget):
         jobs = snap.jobs
         self.table.setRowCount(len(jobs))
         for row, j in enumerate(jobs):
-            cells = [j.title, f"{j.copies_done}/{j.copies}", DENSITIES[j.density]
-                     if 0 <= j.density < 3 else str(j.density), JOB_STATUS_NL[j.status], j.error]
+            cells = [j.title, f"{j.copies_done}/{j.copies}", self.densities[j.density]
+                     if 0 <= j.density < len(self.densities) else str(j.density),
+                     JOB_STATUS_NL[j.status], j.error]
             for col, text in enumerate(cells):
                 it = QTableWidgetItem(text)
                 if col == 3:
