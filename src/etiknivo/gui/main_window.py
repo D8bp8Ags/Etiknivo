@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import threading
 import time
@@ -48,7 +49,7 @@ from etiknivo.gui.properties_panel import PropertiesPanel
 from etiknivo.gui.queue_panel import QueuePanel
 from etiknivo.i18n import LANGUAGES, language, tr
 from etiknivo.i18n import resolve as resolve_language
-from etiknivo.model import Label, copy_format, make_label
+from etiknivo.model import FORMAT_PARTS, Label, copy_format, make_label
 from etiknivo.printing.backend import ConnectionState, PrinterBackend
 from etiknivo.printing.manager import PrinterState
 from etiknivo.printing.profiles import PrinterProfile
@@ -65,6 +66,15 @@ from etiknivo.storage.library import Library, LibraryError
 
 log = logging.getLogger(__name__)
 PRINT_GUARD_SECONDS = 1.0
+
+
+def _format_key(lbl: Label) -> str:
+    """The look of a label (not its text), to see whether it was changed by hand."""
+    d = lbl.to_dict()
+    for line in d["lines"]:
+        line.pop("text", None)
+    return json.dumps([d["layout"], d["lines"], d["style"], d["code"], d["picture"]],
+                      sort_keys=True, default=str)
 
 
 class MainWindow(QMainWindow):
@@ -88,6 +98,9 @@ class MainWindow(QMainWindow):
         self._switching = False
         self._applying_history = False
         self._log_window: LogWindow | None = None
+        #: labels made with Nieuw label whose look is still untouched:
+        #: id -> (category, look); they take the style of a category they move to
+        self._fresh: dict[str, tuple[str, str]] = {}
 
         self.bridge = PrinterBridge(backend or self.make_backend(self.settings.use_mock_printer),
                                     self,
@@ -711,6 +724,17 @@ class MainWindow(QMainWindow):
         # library (list, file) only changes on Opslaan.
         if self.current is None:
             return
+        fresh = self._fresh.get(self.current.id)
+        if fresh is not None:
+            cat, look = fresh
+            if _format_key(self.current) != look:
+                del self._fresh[self.current.id]  # styled by hand: leave it alone
+            elif self.current.category != cat:
+                # a new label got a category: give it that category's style
+                self._apply_category_style(self.current)
+                self._fresh[self.current.id] = (self.current.category,
+                                                _format_key(self.current))
+                self.properties.set_label(self.current)
         self._render_timer.start()
         self._update_title()
         self.library_panel.pin(self.current.id)
@@ -844,12 +868,29 @@ class MainWindow(QMainWindow):
         cat = combo.currentText() if combo.currentIndex() > 0 else ""
         lbl = make_label("", cat, tr("Nieuw label"), "")
         lbl.name = tr("Nieuw label")
+        self._apply_category_style(lbl)
+        self._fresh[lbl.id] = (cat, _format_key(lbl))  # see on_label_edited
         self.library.add(lbl)
         self.library_panel.pin(lbl.id)  # visible even when a search is active
         self._after_library_change([lbl.id])
         self.right_tabs.setCurrentWidget(self.design_tab)
         self.properties.lines[1].text.setFocus()
         self.properties.lines[1].text.selectAll()
+
+    def category_template(self, category: str, exclude: str = "") -> Label | None:
+        """The most recently edited label in *category*: new labels look like it."""
+        if not category:
+            return None
+        same = [lbl for lbl in self.library.labels
+                if lbl.category == category and lbl.id != exclude]
+        return max(same, key=lambda lbl: lbl.modified, default=None)
+
+    def _apply_category_style(self, lbl: Label) -> bool:
+        template = self.category_template(lbl.category, lbl.id)
+        if template is None:
+            return False
+        copy_format(template, lbl, set(FORMAT_PARTS))
+        return True
 
     def duplicate_label(self) -> None:
         ids = self.library_panel.selected_ids()

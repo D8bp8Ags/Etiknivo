@@ -180,6 +180,10 @@ Druk daarna opnieuw een kalibratietest af om te controleren. De Fichero begint u
 - **Dupliceren** (⌘D) maakt een kopie om snel een vergelijkbaar label te maken.
 - **Hernoemen** (F2) en **Verwijderen** werken ook op meerdere geselecteerde labels; verwijderen kun je ongedaan maken.
 
+### Nieuwe labels in een categorie
+
+Een nieuw label krijgt vanzelf de opmaak van het label dat je het laatst bewerkte in dezelfde categorie: layout, letters, opmaak, code en pictogram. De tekst begint leeg. Staat er een categoriefilter aan, dan gebeurt dat meteen bij **Nieuw label**. Kies je de categorie later, dan gebeurt het op dat moment, maar alleen als je de opmaak van het nieuwe label nog niet zelf hebt aangepast.
+
 ### Opmaak overnemen
 
 Wil je dat een hele categorie er hetzelfde uitziet, maak dan één label mooi en kies **Label → Opmaak overnemen…** (of rechtsklik in de bibliotheek). Vink aan wat er mee moet:
