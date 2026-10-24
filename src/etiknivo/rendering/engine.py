@@ -265,7 +265,11 @@ class RenderEngine:
     def _prepare_lines(self, label: Label, warnings: list[str]) -> list[_Prepared]:
         out: list[_Prepared] = []
         for slot, line in label.visible_lines():
-            text = " ".join(line.text.split("\n")).strip()
+            resolved, unknown = label.resolve(line.text)
+            for name in unknown:
+                warnings.append(f"Onbekend veld {{{name}}}: voeg '{name}' toe bij "
+                                "Specificaties")
+            text = " ".join(resolved.split("\n")).strip()
             face = self.fonts.resolve(line.font_family, line.bold, line.italic)
             missing = missing_glyphs(face, text)
             if missing:

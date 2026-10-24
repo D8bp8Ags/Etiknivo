@@ -358,7 +358,16 @@ class LibraryPanel(QWidget):
         it.setData(0, DIRTY_ROLE, lbl.id == self._dirty)
         it.setData(0, SUBTITLE_ROLE, self._subtitle(lbl))
         it.setIcon(0, self.thumbnail(lbl))
-        it.setToolTip(0, "\n".join(ln.text for _, ln in lbl.visible_lines()))
+        it.setToolTip(0, self._tooltip(lbl))
+
+    @staticmethod
+    def _tooltip(lbl: Label) -> str:
+        parts = ["\n".join(lbl.display_text(ln) for _, ln in lbl.visible_lines())]
+        if lbl.specs:
+            parts.append("\n".join(f"{k}: {v}" if v else k for k, v in lbl.specs.items()))
+        if lbl.notes.strip():
+            parts.append(lbl.notes.strip())
+        return "\n\n".join(p for p in parts if p)
 
     def _make_item(self, lbl: Label) -> QTreeWidgetItem:
         it = QTreeWidgetItem()

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -12,8 +14,10 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QMenu,
     QPlainTextEdit,
     QScrollArea,
+    QToolButton,
     QVBoxLayout,
     QWidget,
 )
@@ -51,7 +55,17 @@ class LineEditor(QGroupBox):
         self.slot = slot
         self.setCheckable(True)
         self.text = QLineEdit()
-        self.text.setPlaceholderText("Tekst…")
+        self.text.setPlaceholderText("Tekst of {veld}…")
+        # inserts a {field} that shows a specification's value on the label
+        self.fields: Callable[[], list[str]] = list
+        self.field_btn = QToolButton()
+        self.field_btn.setText("{ }")
+        self.field_btn.setToolTip("Veld invoegen: toont de waarde van een specificatie, "
+                                  "de naam, lade of categorie op het etiket")
+        self.field_btn.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
+        self._field_menu = QMenu(self.field_btn)
+        self._field_menu.aboutToShow.connect(self._fill_field_menu)
+        self.field_btn.setMenu(self._field_menu)
         self.font = QComboBox()
         self.font.setEditable(True)
         self.font.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
@@ -66,7 +80,11 @@ class LineEditor(QGroupBox):
 
         form = QFormLayout(self)
         form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
-        form.addRow("Tekst", self.text)
+        text_row = QHBoxLayout()
+        text_row.setSpacing(4)
+        text_row.addWidget(self.text, 1)
+        text_row.addWidget(self.field_btn)
+        form.addRow("Tekst", text_row)
         form.addRow("Lettertype", self.font)
         row = QHBoxLayout()
         row.addWidget(self.size)
@@ -83,6 +101,18 @@ class LineEditor(QGroupBox):
         self.bold.toggled.connect(self.changed)
         self.italic.toggled.connect(self.changed)
         self.align.currentIndexChanged.connect(self.changed)
+
+    def _fill_field_menu(self) -> None:
+        self._field_menu.clear()
+        for name in self.fields():
+            self._field_menu.addAction(f"{{{name}}}", lambda n=name: self.insert_field(n))
+        if not self._field_menu.actions():
+            self._field_menu.addAction("Nog geen velden").setEnabled(False)
+
+    def insert_field(self, name: str) -> None:
+        self.text.insert(f"{{{name}}}")
+        self.text.setFocus()
+        self.changed.emit()
 
     def set_families(self, families: list[str]) -> None:
         cur = self.font.currentText()
@@ -133,6 +163,8 @@ class PropertiesPanel(QScrollArea):
 
         self.lines = [LineEditor(i) for i in range(3)]
         for le in self.lines:
+            le.fields = lambda: self.label.field_names() if self.label else []
+        for le in self.lines:
             lay.addWidget(le)
             le.changed.connect(lambda le=le: self._line_changed(le))
 
@@ -164,11 +196,18 @@ class PropertiesPanel(QScrollArea):
         f3 = QFormLayout(meta)
         self.specs = QPlainTextEdit()
         self.specs.setPlaceholderText("Eén per regel, bv.\nSpanning: 50 V\nTolerantie: 10%")
-        self.specs.setFixedHeight(70)
+        self.specs.setFixedHeight(80)
         self.notes = QPlainTextEdit()
+        self.notes.setPlaceholderText("Alleen voor jezelf, bv. waar besteld")
         self.notes.setFixedHeight(60)
-        f3.addRow("Technisch", self.specs)
+        spec_hint = QLabel("Typ {Spanning} in een tekstregel (of gebruik de knop { }) om de "
+                           "waarde op het etiket te tonen. Pas je de specificatie aan, dan "
+                           "verandert het etiket mee. Notities komen niet op het etiket.")
+        spec_hint.setWordWrap(True)
+        spec_hint.setObjectName("hint")
+        f3.addRow("Specificaties", self.specs)
         f3.addRow("Notities", self.notes)
+        f3.addRow(spec_hint)
         lay.addWidget(meta)
         lay.addStretch(1)
         self.setWidget(body)
