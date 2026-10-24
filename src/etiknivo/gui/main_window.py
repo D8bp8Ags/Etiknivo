@@ -260,7 +260,8 @@ class MainWindow(QMainWindow):
         h2 = QLabel(f"PRINTERRASTER  ·  {self.profile.printhead_px} × "
                     f"{self.profile.label_length_px} DOTS")
         h2.setObjectName("caption")
-        h2.setToolTip("1-bit: exact wat er naar de printer gaat, inclusief kalibratie.")
+        h2.setToolTip("1-bit: exact de dots die geprint worden, op de plek waar ze op het "
+                      "etiket komen (inclusief je kalibratie).")
         self.raster_view = RasterView(self.engine)
         self.warnings = QLabel()
         self.warnings.setObjectName("pill")

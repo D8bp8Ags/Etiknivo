@@ -242,6 +242,18 @@ class RenderEngine:
         return raster.transpose(Image.Transpose.ROTATE_90 if self.calibration.rotate_clockwise
                                 else Image.Transpose.ROTATE_270)
 
+    def raster_on_label(self, raster: Image.Image) -> Image.Image:
+        """The raster in design orientation as it lands on the label: the printer's
+        built-in feed offset, which only compensates for where the printer starts
+        printing, is undone so the preview shows the real position."""
+        band = self.raster_to_design(raster)
+        shift = self.profile.feed_offset_px
+        if not shift:
+            return band
+        out = Image.new("1", band.size, 1)
+        out.paste(band, (-shift, 0))
+        return out
+
     # -- internals -----------------------------------------------------------------
 
     def _mask_unprintable(self, mono: Image.Image) -> Image.Image:

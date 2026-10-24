@@ -58,7 +58,7 @@ class PrintPreviewDialog(QDialog):
         self.overflow = 0
         for row, lbl in enumerate(labels):
             r = engine.render(lbl)
-            pm = pil_to_pixmap(engine.raster_to_design(r.raster).convert("L")).scaled(
+            pm = pil_to_pixmap(engine.raster_on_label(r.raster).convert("L")).scaled(
                 180, 84, Qt.AspectRatioMode.KeepAspectRatio,
                 Qt.TransformationMode.FastTransformation)
             icon_item = QTableWidgetItem()
