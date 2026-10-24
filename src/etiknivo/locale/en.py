@@ -438,4 +438,36 @@ EN: dict[str, str] = {
     "Ongeldig label op positie {n}": "Invalid label at position {n}",
     "Ongeldig label op positie {n}: {error}": "Invalid label at position {n}: {error}",
     "Bibliotheek kon niet worden gelezen: {error}": "The library could not be read: {error}",
+    # QR code and barcode
+    "Geen": "None",
+    "QR-code links": "QR code on the left",
+    "QR-code rechts": "QR code on the right",
+    "Barcode (Code 128) i.p.v. onderregel": "Barcode (Code 128) instead of bottom line",
+    "QR-code of barcode": "QR code or barcode",
+    "Tekst of {veld}, bv. {Lade} of een link": "Text or {field}, e.g. {Tray} or a link",
+    "Soort": "Type",
+    "Inhoud": "Content",
+    "{slot} (vervangen door barcode)": "{slot} (replaced by barcode)",
+    "Scan met je telefoon. Korte tekst geeft grotere blokjes die makkelijker scannen; een link "
+    "past tot ongeveer 40 tekens goed.":
+        "Scan it with your phone. Short text gives larger squares that scan more easily; a link "
+        "of up to about 40 characters works well.",
+    "Voor een handscanner. Komt op de plaats van de onderregel; die tekst blijft bewaard. Past "
+    "tot ongeveer 15 tekens (cijfers het dubbele); korter geeft dikkere streepjes. Alleen "
+    "letters, cijfers en leestekens zonder accenten.":
+        "For a handheld scanner. Takes the place of the bottom line, whose text is kept. Fits "
+        "about 15 characters (twice as many digits); shorter text gives thicker bars. Only "
+        "letters, digits and punctuation without accents.",
+    "De code is leeg: vul de tekst voor de code in": "The code is empty: fill in its content",
+    "Tekst is te lang voor een barcode op dit etiket": "Text is too long for a barcode on this label",
+    "QR-code wordt te klein om te scannen; kort de tekst in":
+        "The QR code gets too small to scan; shorten the text",
+    "Teken(s) {chars} kunnen niet in een barcode; gebruik letters, cijfers en leestekens zonder "
+    "accenten":
+        "Character(s) {chars} cannot go in a barcode; use letters, digits and punctuation without "
+        "accents",
+    "Tekst is te lang voor een QR-code (maximaal {n} tekens)":
+        "Text is too long for a QR code (at most {n} characters)",
+    "De barcode heeft erg dunne streepjes; kort de tekst in als hij slecht scant":
+        "The barcode has very thin bars; shorten the text if it scans poorly",
 }

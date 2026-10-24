@@ -25,7 +25,9 @@ from PySide6.QtWidgets import (
 from etiknivo.i18n import N_, tr
 from etiknivo.model import (
     LAYOUT_TITLES,
+    SLOT_BOTTOM,
     SLOT_NAMES,
+    CodeKind,
     HAlign,
     Label,
     LayoutPreset,
@@ -34,6 +36,13 @@ from etiknivo.model import (
 
 ALIGN_TEXT = {HAlign.LEFT: N_("Links"), HAlign.CENTER: N_("Midden"), HAlign.RIGHT: N_("Rechts")}
 VALIGN_TEXT = {VAlign.TOP: N_("Boven"), VAlign.CENTER: N_("Midden"), VAlign.BOTTOM: N_("Onder")}
+#: Choices for the code: (kind, QR side, text)
+CODE_CHOICES = (
+    (CodeKind.NONE, HAlign.LEFT, N_("Geen")),
+    (CodeKind.QR, HAlign.LEFT, N_("QR-code links")),
+    (CodeKind.QR, HAlign.RIGHT, N_("QR-code rechts")),
+    (CodeKind.CODE128, HAlign.LEFT, N_("Barcode (Code 128) i.p.v. onderregel")),
+)
 
 
 def _spin(lo: float, hi: float, step: float, suffix: str, decimals: int = 1) -> QDoubleSpinBox:
@@ -44,6 +53,36 @@ def _spin(lo: float, hi: float, step: float, suffix: str, decimals: int = 1) -> 
     s.setSuffix(suffix)
     s.setKeyboardTracking(False)
     return s
+
+
+class FieldButton(QToolButton):
+    """'{ }' button whose menu inserts a {field} into *edit*."""
+
+    inserted = Signal()
+
+    def __init__(self, edit: QLineEdit, fields: Callable[[], list[str]]) -> None:
+        super().__init__()
+        self.edit = edit
+        self.fields = fields
+        self.setText("{ }")
+        self.setToolTip(tr("Veld invoegen: toont de waarde van een specificatie, "
+                           "de naam, lade of categorie op het etiket"))
+        self.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
+        self._menu = QMenu(self)
+        self._menu.aboutToShow.connect(self._fill)
+        self.setMenu(self._menu)
+
+    def _fill(self) -> None:
+        self._menu.clear()
+        for name in self.fields():
+            self._menu.addAction(f"{{{name}}}", lambda n=name: self.insert_field(n))
+        if not self._menu.actions():
+            self._menu.addAction(tr("Nog geen velden")).setEnabled(False)
+
+    def insert_field(self, name: str) -> None:
+        self.edit.insert(f"{{{name}}}")
+        self.edit.setFocus()
+        self.inserted.emit()
 
 
 class LineEditor(QGroupBox):
@@ -59,14 +98,8 @@ class LineEditor(QGroupBox):
         self.text.setPlaceholderText(tr("Tekst of {veld}…"))
         # inserts a {field} that shows a specification's value on the label
         self.fields: Callable[[], list[str]] = list
-        self.field_btn = QToolButton()
-        self.field_btn.setText("{ }")
-        self.field_btn.setToolTip(tr("Veld invoegen: toont de waarde van een specificatie, "
-                                     "de naam, lade of categorie op het etiket"))
-        self.field_btn.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
-        self._field_menu = QMenu(self.field_btn)
-        self._field_menu.aboutToShow.connect(self._fill_field_menu)
-        self.field_btn.setMenu(self._field_menu)
+        self.field_btn = FieldButton(self.text, lambda: self.fields())
+        self.field_btn.inserted.connect(self.changed)
         self.font = QComboBox()
         self.font.setEditable(True)
         self.font.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
@@ -103,17 +136,8 @@ class LineEditor(QGroupBox):
         self.italic.toggled.connect(self.changed)
         self.align.currentIndexChanged.connect(self.changed)
 
-    def _fill_field_menu(self) -> None:
-        self._field_menu.clear()
-        for name in self.fields():
-            self._field_menu.addAction(f"{{{name}}}", lambda n=name: self.insert_field(n))
-        if not self._field_menu.actions():
-            self._field_menu.addAction(tr("Nog geen velden")).setEnabled(False)
-
     def insert_field(self, name: str) -> None:
-        self.text.insert(f"{{{name}}}")
-        self.text.setFocus()
-        self.changed.emit()
+        self.field_btn.insert_field(name)
 
     def set_families(self, families: list[str]) -> None:
         cur = self.font.currentText()
@@ -168,6 +192,29 @@ class PropertiesPanel(QScrollArea):
         for le in self.lines:
             lay.addWidget(le)
             le.changed.connect(lambda le=le: self._line_changed(le))
+
+        code = QGroupBox(tr("QR-code of barcode"))
+        fc = QFormLayout(code)
+        fc.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
+        self.code_kind = QComboBox()
+        for _kind, _side, text in CODE_CHOICES:
+            self.code_kind.addItem(tr(text))
+        self.code_text = QLineEdit()
+        self.code_text.setPlaceholderText(tr("Tekst of {veld}, bv. {Lade} of een link"))
+        self.code_field_btn = FieldButton(
+            self.code_text, lambda: self.label.field_names() if self.label else [])
+        self.code_field_btn.inserted.connect(lambda: self._apply(False))
+        code_row = QHBoxLayout()
+        code_row.setSpacing(4)
+        code_row.addWidget(self.code_text, 1)
+        code_row.addWidget(self.code_field_btn)
+        self.code_hint = QLabel()
+        self.code_hint.setWordWrap(True)
+        self.code_hint.setObjectName("hint")
+        fc.addRow(tr("Soort"), self.code_kind)
+        fc.addRow(tr("Inhoud"), code_row)
+        fc.addRow(self.code_hint)
+        lay.addWidget(code)
 
         st = QGroupBox(tr("Opmaak"))
         f2 = QFormLayout(st)
@@ -227,6 +274,8 @@ class PropertiesPanel(QScrollArea):
             w.valueChanged.connect(lambda: self._apply(False))
         for w in (self.autofit, self.border, self.invert):
             w.toggled.connect(lambda: self._apply(False))
+        self.code_kind.currentIndexChanged.connect(lambda: self._apply(False))
+        self.code_text.textEdited.connect(lambda: self._apply(False))
         self.specs.textChanged.connect(lambda: self._apply(False))
         self.notes.textChanged.connect(lambda: self._apply(False))
         self.setEnabled(False)
@@ -276,6 +325,11 @@ class PropertiesPanel(QScrollArea):
             self.rotation.setCurrentIndex(max(0, self.rotation.findData(s.rotation)))
             self.border.setChecked(s.border)
             self.invert.setChecked(s.invert)
+            c = label.code
+            self.code_kind.setCurrentIndex(self._code_index(c.kind, c.side))
+            if self.code_text.text() != c.text:
+                self.code_text.setText(c.text)
+            self._update_code_hint()
             specs = "\n".join(f"{k}: {v}" for k, v in label.specs.items())
             if self.specs.toPlainText() != specs:
                 self.specs.setPlainText(specs)
@@ -336,6 +390,10 @@ class PropertiesPanel(QScrollArea):
         s.rotation = int(self.rotation.currentData() or 0)
         s.border = self.border.isChecked()
         s.invert = self.invert.isChecked()
+        kind, side, _ = CODE_CHOICES[max(0, self.code_kind.currentIndex())]
+        lbl.code.kind, lbl.code.side = kind, side
+        lbl.code.text = self.code_text.text()
+        self._update_code_hint()
         specs: dict[str, str] = {}
         for line in self.specs.toPlainText().splitlines():
             if ":" in line:
@@ -347,6 +405,32 @@ class PropertiesPanel(QScrollArea):
         lbl.specs = specs
         lbl.notes = self.notes.toPlainText()
         self._emit(structural)
+
+    @staticmethod
+    def _code_index(kind: CodeKind, side: HAlign) -> int:
+        for i, (k, sd, _) in enumerate(CODE_CHOICES):
+            if k == kind and (k != CodeKind.QR or sd == side):
+                return i
+        return 0
+
+    def _update_code_hint(self) -> None:
+        kind = CODE_CHOICES[max(0, self.code_kind.currentIndex())][0]
+        self.code_text.setEnabled(kind != CodeKind.NONE)
+        self.code_field_btn.setEnabled(kind != CodeKind.NONE)
+        bottom = self.lines[SLOT_BOTTOM]
+        if kind == CodeKind.CODE128:
+            bottom.setTitle(tr("{slot} (vervangen door barcode)", slot=tr(SLOT_NAMES[SLOT_BOTTOM])))
+        else:
+            bottom.setTitle(tr(SLOT_NAMES[SLOT_BOTTOM]))
+        self.code_hint.setText({
+            CodeKind.NONE: "",
+            CodeKind.QR: tr("Scan met je telefoon. Korte tekst geeft grotere blokjes die "
+                            "makkelijker scannen; een link past tot ongeveer 40 tekens goed."),
+            CodeKind.CODE128: tr("Voor een handscanner. Komt op de plaats van de onderregel; "
+                                 "die tekst blijft bewaard. Past tot ongeveer 15 tekens "
+                                 "(cijfers het dubbele); korter geeft dikkere streepjes. "
+                                 "Alleen letters, cijfers en leestekens zonder accenten."),
+        }[kind])
 
     def _commit_category(self) -> None:
         if self._loading or self.label is None:

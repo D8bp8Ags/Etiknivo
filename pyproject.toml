@@ -33,6 +33,7 @@ dev = [
     "pytest>=8",
     "pytest-asyncio>=0.23",
     "pytest-qt>=4.4",
+    "zxing-cpp>=2.2",  # tests only: reads back the QR codes and barcodes
 ]
 build = [
     "pyinstaller>=6.6",
