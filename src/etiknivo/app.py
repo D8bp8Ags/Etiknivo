@@ -32,6 +32,9 @@ def main(argv: list[str] | None = None) -> int:
     app.setApplicationDisplayName(APP_NAME)
     app.setOrganizationName(APP_NAME)
     app.setApplicationVersion(__version__)
+    from etiknivo.gui import theme
+
+    app.setWindowIcon(theme.app_icon())
 
     try:
         library, seeded = open_library(data_dir() / "library.json")

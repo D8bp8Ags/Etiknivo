@@ -31,9 +31,9 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from etiknivo import APP_NAME, __version__
+from etiknivo import APP_NAME
 from etiknivo.gui import theme
-from etiknivo.gui.dialogs import CalibrationDialog, PrintPreviewDialog
+from etiknivo.gui.dialogs import AboutDialog, CalibrationDialog, PrintPreviewDialog
 from etiknivo.gui.library_panel import ALL_CATEGORIES, LibraryPanel
 from etiknivo.gui.preview import DesignView, RasterView
 from etiknivo.gui.printer_bridge import PrinterBridge
@@ -1162,15 +1162,7 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage("Back-up hersteld", 5000)
 
     def about(self) -> None:
-        QMessageBox.about(self, f"Over {APP_NAME}",
-                          f"<h3>{APP_NAME} {__version__}</h3>"
-                          "<p>Open-source Label Designer &amp; Printer Manager.</p>"
-                          f"<p>Printer: {self.profile.display_name}<br>"
-                          f"Printkop {self.profile.printhead_px} dots, {self.profile.dpi} dpi, "
-                          f"label {self.profile.label_width_mm:g} × "
-                          f"{self.profile.label_height_mm:g} mm.</p>"
-                          "<p>Lettertype: DejaVu Sans. Pictogrammen: Lucide (ISC).</p>"
-                          "<p>MIT-licentie.</p>")
+        AboutDialog(self.profile, data_dir(), log_dir(), self).exec()
 
     # -- shutdown ------------------------------------------------------------------------
 

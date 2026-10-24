@@ -32,7 +32,7 @@ coll = COLLECT(exe, a.binaries, a.datas, name="Etiknivo")  # noqa: F821
 app = BUNDLE(  # noqa: F821
     coll,
     name="Etiknivo.app",
-    icon=None,
+    icon=str(ROOT / "packaging" / "etiknivo.icns"),
     bundle_identifier="io.github.etiknivo",
     info_plist={
         "CFBundleName": "Etiknivo",

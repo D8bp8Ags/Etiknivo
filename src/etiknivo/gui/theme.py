@@ -188,6 +188,13 @@ def icon(name: str, color: str | None = None, size: int = 18) -> QIcon:
     return ic
 
 
+@cache
+def app_icon() -> QIcon:
+    """The application icon (Dock, window, About)."""
+    path = resources.files("etiknivo.gui.appicon").joinpath("etiknivo.png")
+    return QIcon(QPixmap(str(path)))
+
+
 def icon_file(name: str, color: str, size: int = 12) -> str:
     """Write a tinted icon to a temporary PNG (style sheets need a file path)."""
     folder = Path(tempfile.gettempdir()) / "etiknivo-icons"

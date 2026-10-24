@@ -1,3 +1,5 @@
+<img src="src/etiknivo/gui/appicon/etiknivo.png" width="96" alt="Etiknivo-icoon">
+
 # Etiknivo
 
 **Open-source Label Designer & Printer Manager**
@@ -167,7 +169,7 @@ uv run pyinstaller packaging/etiknivo.spec --noconfirm
 open dist/Etiknivo.app
 ```
 
-De bundle bevat de vereiste `NSBluetoothAlwaysUsageDescription`. Omdat de app niet ondertekend is, start je hem de eerste keer met rechtermuisklik → **Open**.
+De bundle bevat het app-icoon (`packaging/etiknivo.icns`) en de vereiste `NSBluetoothAlwaysUsageDescription`. Omdat de app niet ondertekend is, start je hem de eerste keer met rechtermuisklik → **Open**.
 
 ## Licentie
 

@@ -1,13 +1,15 @@
-"""Dialogs: print preview/confirmation and calibration settings."""
+"""Dialogs: print preview/confirmation, calibration settings and About."""
 
 from __future__ import annotations
 
 from dataclasses import replace
+from pathlib import Path
 
-from PySide6.QtCore import QSize, Qt
+from PySide6.QtCore import QSize, Qt, QUrl
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QAbstractItemView,
+    QApplication,
     QCheckBox,
     QComboBox,
     QDialog,
@@ -17,6 +19,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QHeaderView,
     QLabel,
+    QPushButton,
     QSpinBox,
     QTableWidget,
     QTableWidgetItem,
@@ -24,9 +27,11 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from etiknivo import APP_NAME, __version__
 from etiknivo.gui import theme
 from etiknivo.gui.qt_util import pil_to_pixmap
 from etiknivo.model import Label
+from etiknivo.printing.profiles import PrinterProfile
 from etiknivo.rendering.engine import RenderEngine
 from etiknivo.settings import Calibration
 
@@ -255,3 +260,114 @@ class CalibrationDialog(QDialog):
                        threshold=self.threshold.value(),
                        supersample=int(self.supersample.currentData()),
                        rotate_clockwise=self.clockwise.isChecked())
+
+
+class AboutDialog(QDialog):
+    """Name, version, the printer in use, where the data lives and the credits."""
+
+    REPO_URL = "https://github.com/D8bp8Ags/Etiknivo"
+
+    def __init__(self, profile: PrinterProfile, data_path: Path, log_path: Path,
+                 parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setWindowTitle(f"Over {APP_NAME}")
+        self.setMinimumWidth(460)
+        t = theme.tokens()
+        lay = QVBoxLayout(self)
+        lay.setContentsMargins(28, 24, 28, 18)
+        lay.setSpacing(4)
+
+        logo = QLabel()
+        logo.setPixmap(theme.app_icon().pixmap(QSize(112, 112)))
+        logo.setAlignment(Qt.AlignmentFlag.AlignHCenter)
+        name = QLabel(APP_NAME)
+        name.setStyleSheet("font-size: 22px; font-weight: 700;")
+        version = QLabel(f"Versie {__version__}")
+        version.setObjectName("muted")
+        tagline = QLabel("Etiketten ontwerpen, beheren en afdrukken.\n"
+                         "Open source, lokaal, zonder account.")
+        tagline.setWordWrap(True)
+        for w in (logo, name, version, tagline):
+            w.setAlignment(Qt.AlignmentFlag.AlignHCenter)
+            lay.addWidget(w)
+        lay.addSpacing(14)
+
+        def section(title: str, rows: list[tuple[str, str]]) -> None:
+            head = QLabel(title.upper())
+            head.setObjectName("caption")
+            lay.addWidget(head)
+            grid = QFormLayout()
+            grid.setHorizontalSpacing(14)
+            grid.setVerticalSpacing(3)
+            for key, value in rows:
+                k = QLabel(key)
+                k.setObjectName("muted")
+                v = QLabel(value)
+                v.setWordWrap(True)
+                v.setTextFormat(Qt.TextFormat.RichText)
+                v.setOpenExternalLinks(True)
+                v.setTextInteractionFlags(Qt.TextInteractionFlag.TextBrowserInteraction)
+                grid.addRow(k, v)
+            lay.addLayout(grid)
+            lay.addSpacing(10)
+
+        p = profile
+        section("Printer", [
+            ("Model", p.display_name),
+            ("Printkop", f"{p.printhead_px} dots · {p.dpi} dpi"),
+            ("Etiket", f"{p.label_width_mm:g} × {p.label_height_mm:g} mm, veilig gebied "
+                       f"{p.label_width_mm - 2 * p.feed_margin_mm:g} × "
+                       f"{p.printable_across_px / p.dots_per_mm:g} mm"),
+        ])
+        link = f"color:{t.accent}; text-decoration:none"
+        section("Gegevens", [
+            ("Bibliotheek", f"<a style='{link}' href='{QUrl.fromLocalFile(str(data_path)).toString()}'>"
+                            f"{data_path}</a>"),
+            ("Logs", f"<a style='{link}' href='{QUrl.fromLocalFile(str(log_path)).toString()}'>"
+                     f"{log_path}</a>"),
+            ("Broncode", f"<a style='{link}' href='{self.REPO_URL}'>"
+                         f"{self.REPO_URL.removeprefix('https://')}</a>"),
+        ])
+        section("Met dank aan", [
+            ("Interface", "Qt for Python (PySide6), LGPL"),
+            ("Bluetooth", "Bleak, MIT"),
+            ("Beeldbewerking", "Pillow, MIT-CMU"),
+            ("Lettertype", "DejaVu Sans, vrije licentie"),
+            ("Pictogrammen", "Lucide, ISC"),
+        ])
+        lic = QLabel(f"© {APP_NAME}-bijdragers · MIT-licentie")
+        lic.setObjectName("hint")
+        lic.setAlignment(Qt.AlignmentFlag.AlignHCenter)
+        lay.addWidget(lic)
+        lay.addSpacing(8)
+
+        bb = QDialogButtonBox()
+        copy = bb.addButton("Systeeminfo kopiëren", QDialogButtonBox.ButtonRole.ActionRole)
+        copy.setToolTip("Versies van Etiknivo, Python, Qt en macOS, handig bij een foutmelding")
+        copy.clicked.connect(self._copy_info)
+        close = bb.addButton("Sluiten", QDialogButtonBox.ButtonRole.AcceptRole)
+        close.setProperty("primary", True)
+        close.setDefault(True)
+        bb.accepted.connect(self.accept)
+        lay.addWidget(bb)
+        self._profile = profile
+
+    def system_info(self) -> str:
+        import platform
+
+        from PySide6 import __version__ as pyside_version
+        from PySide6.QtCore import qVersion
+
+        return "\n".join([
+            f"{APP_NAME} {__version__}",
+            f"Printer: {self._profile.display_name} ({self._profile.key})",
+            f"Python {platform.python_version()}",
+            f"PySide6 {pyside_version}, Qt {qVersion()}",
+            f"{platform.system()} {platform.release()} ({platform.machine()})",
+        ])
+
+    def _copy_info(self) -> None:
+        QApplication.clipboard().setText(self.system_info())
+        sender = self.sender()
+        if isinstance(sender, QPushButton):
+            sender.setText("Gekopieerd ✓")
