@@ -66,7 +66,7 @@ def export_pngs(engine: RenderEngine, labels: Iterable[Label], directory: Path,
 
 
 def export_pdf(engine: RenderEngine, labels: list[Label], path: Path) -> None:
-    """One page per label at true physical size (30 × 14 mm at 203 dpi)."""
+    """One page per label at true physical size (the label roll in the profile)."""
     if not labels:
         raise ValueError(tr("Geen labels om te exporteren"))
     pages = [engine.render(lbl).mono.convert("L") for lbl in labels]

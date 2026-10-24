@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
     QComboBox,
     QDialog,
     QDialogButtonBox,
+    QDoubleSpinBox,
     QFormLayout,
     QGroupBox,
     QHBoxLayout,
@@ -32,7 +33,7 @@ from etiknivo.gui import theme
 from etiknivo.gui.qt_util import pil_to_pixmap
 from etiknivo.i18n import N_, language, tr
 from etiknivo.model import Label
-from etiknivo.printing.profiles import PrinterProfile
+from etiknivo.printing.profiles import LABEL_HEIGHT_RANGE, LABEL_LENGTH_RANGE, PrinterProfile
 from etiknivo.rendering.engine import RenderEngine
 from etiknivo.settings import Calibration
 
@@ -266,6 +267,42 @@ class CalibrationDialog(QDialog):
                        threshold=self.threshold.value(),
                        supersample=int(self.supersample.currentData()),
                        rotate_clockwise=self.clockwise.isChecked())
+
+
+class LabelSizeDialog(QDialog):
+    """Asks for a custom label roll: length along the feed and height."""
+
+    def __init__(self, length_mm: float, height_mm: float, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setWindowTitle(tr("Andere etiketmaat"))
+        lay = QVBoxLayout(self)
+        intro = QLabel(tr("Meet een etiket op de rol, zonder de tussenruimte. De lengte is de "
+                          "richting waarin het papier uit de printer komt; de hoogte gaat over "
+                          "de printkop (die drukt maximaal 12 mm)."))
+        intro.setWordWrap(True)
+        lay.addWidget(intro)
+        form = QFormLayout()
+        self.length = QDoubleSpinBox()
+        self.length.setRange(*LABEL_LENGTH_RANGE)
+        self.length.setDecimals(1)
+        self.length.setSuffix(" mm")
+        self.length.setValue(length_mm)
+        self.height_mm = QDoubleSpinBox()
+        self.height_mm.setRange(*LABEL_HEIGHT_RANGE)
+        self.height_mm.setDecimals(1)
+        self.height_mm.setSuffix(" mm")
+        self.height_mm.setValue(height_mm)
+        form.addRow(tr("Lengte"), self.length)
+        form.addRow(tr("Hoogte"), self.height_mm)
+        lay.addLayout(form)
+        bb = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok
+                              | QDialogButtonBox.StandardButton.Cancel)
+        bb.accepted.connect(self.accept)
+        bb.rejected.connect(self.reject)
+        lay.addWidget(bb)
+
+    def size_mm(self) -> tuple[float, float]:
+        return round(self.length.value(), 1), round(self.height_mm.value(), 1)
 
 
 def short_path(path: Path) -> str:

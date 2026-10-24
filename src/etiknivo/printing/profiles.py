@@ -8,7 +8,11 @@ registering them in :mod:`etiknivo.printing.registry`.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
+
+#: Label sizes Etiknivo accepts (mm): length along the feed, height across the head.
+LABEL_LENGTH_RANGE = (15.0, 100.0)
+LABEL_HEIGHT_RANGE = (6.0, 20.0)
 
 
 @dataclass(frozen=True)
@@ -34,6 +38,22 @@ class PrinterProfile:
     #: backend (``print_raster(density=i)``).
     densities: tuple[str, ...] = ("Licht", "Normaal", "Donker")
     default_density: int = 1
+    #: Label rolls offered in the printer settings: (length, height) in mm.  The
+    #: first is the default; any other size within the ranges above can be typed in.
+    label_sizes: tuple[tuple[float, float], ...] = ()
+
+    def with_label(self, length_mm: float, height_mm: float) -> PrinterProfile:
+        """This profile for another label roll; sizes outside the accepted range
+        are clamped."""
+        lo, hi = LABEL_LENGTH_RANGE
+        length = min(hi, max(lo, float(length_mm)))
+        lo, hi = LABEL_HEIGHT_RANGE
+        height = min(hi, max(lo, float(height_mm)))
+        return replace(self, label_width_mm=length, label_height_mm=height)
+
+    @property
+    def label_size(self) -> tuple[float, float]:
+        return self.label_width_mm, self.label_height_mm
 
     @property
     def label_length_px(self) -> int:
@@ -75,4 +95,6 @@ FICHERO_5836 = PrinterProfile(
     feed_margin_mm=2.0,  # same safe area as the vendor app: 26 × 12 mm
     feed_offset_px=8,  # measured: the print starts ~1 mm early on the label
     name_prefixes=("FICHERO", "D11s_"),
+    label_sizes=((30.0, 14.0), (40.0, 14.0), (50.0, 14.0), (22.0, 14.0), (40.0, 12.0),
+                 (30.0, 12.0)),
 )
