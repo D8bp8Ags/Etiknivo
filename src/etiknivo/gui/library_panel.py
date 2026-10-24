@@ -138,6 +138,8 @@ class LibraryPanel(QWidget):
         self._thumbs: dict[str, tuple[str, QIcon]] = {}
         self._building = False
         self._restoring = False
+        self._explicit = False  # selection set by the program, not by a click
+        self._last_ids: list[str] = []
         self._pinned = ""  # label being edited: stays visible even if the search no longer matches
         self._dirty = ""  # label with unsaved changes (dot in the list)
 
@@ -268,7 +270,11 @@ class LibraryPanel(QWidget):
             self.tree.setCurrentItem(cur_item, 0,
                                      self.tree.selectionModel().SelectionFlag.NoUpdate)
             self.tree.scrollToItem(cur_item)
-        self._on_selection()
+        self._explicit = True
+        try:
+            self._on_selection()
+        finally:
+            self._explicit = False
 
     def _iter_items(self):  # type: ignore[no-untyped-def]
         stack = [self.tree.topLevelItem(i) for i in range(self.tree.topLevelItemCount())]
@@ -421,6 +427,9 @@ class LibraryPanel(QWidget):
         if self._building:
             return
         ids = self.selected_ids()
+        if not ids and not self._explicit and self._keep_last_selection():
+            return  # a click on a category heading or empty space keeps the open label
+        self._last_ids = ids
         if self._pinned and self._pinned not in ids and not self._restoring:
             self._pinned = ""
         self.selectionChanged.emit(ids)
@@ -428,6 +437,22 @@ class LibraryPanel(QWidget):
         if cur not in ids and ids:
             cur = ids[0]
         self.currentLabelChanged.emit(cur if ids else "")
+
+    def _keep_last_selection(self) -> bool:
+        """Select the previous labels again (silently) if they are still listed."""
+        wanted = set(self._last_ids)
+        items = [it for it in self._iter_items() if it.data(0, ID_ROLE) in wanted]
+        if not items:
+            return False
+        self._building = True
+        try:
+            for it in items:
+                it.setSelected(True)
+            self.tree.setCurrentItem(items[0], 0,
+                                     self.tree.selectionModel().SelectionFlag.NoUpdate)
+        finally:
+            self._building = False
+        return True
 
     def _context_menu(self, pos) -> None:  # noqa: ANN001
         m = QMenu(self)
