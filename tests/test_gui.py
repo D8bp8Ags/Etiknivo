@@ -147,3 +147,66 @@ def test_theme_switch_and_icons(window) -> None:  # noqa: ANN001
     names = [p.name[:-4] for p in resources.files("etiknivo.gui.icons").iterdir()
              if p.name.endswith(".svg")]
     assert names and all(not theme.icon(n).isNull() for n in names)
+
+
+def test_new_label_follows_category_change_without_losing_focus(window) -> None:  # noqa: ANN001
+    lp = window.library_panel
+    lp.category.setCurrentIndex(lp.category.findText("Dupont"))
+    window.new_label()
+    lbl = window.current
+    assert lbl.category == "Dupont" and lbl.id in lp.visible_ids()
+    combo = window.properties.category
+    combo.setEditText("Aud")  # half typed: nothing happens yet
+    assert lbl.category == "Dupont" and lp.category.currentText() == "Dupont"
+    combo.setEditText("Audio")
+    combo.lineEdit().editingFinished.emit()
+    assert lbl.category == "Audio"
+    assert lp.category.currentText() == "Audio"  # the filter followed the label
+    assert window.current is lbl and lp.selected_ids() == [lbl.id]
+    assert window.properties.isEnabled()
+
+
+def test_edited_label_stays_visible_during_search(window) -> None:  # noqa: ANN001
+    lp = window.library_panel
+    lp.search.setText("esp32")
+    window.new_label()  # "Nieuw label" does not match the search
+    lbl = window.current
+    assert lbl.id in lp.visible_ids()
+    lp.search.setText("esp3")  # refresh while still editing
+    assert lbl.id in lp.visible_ids() and window.current is lbl
+    lp.select_ids([lp.visible_ids()[0] if lp.visible_ids()[0] != lbl.id else lp.visible_ids()[1]])
+    lp.search.setText("esp32")
+    assert lbl.id not in lp.visible_ids()  # unpinned once another label is chosen
+
+
+def test_undo_redo_edits_and_delete(qtbot, window) -> None:  # noqa: ANN001
+    lbl_id = window.current.id
+    before = window.current.main.text
+    editor = window.properties.lines[1]
+    editor.text.setText("Gewijzigd")
+    editor.text.textEdited.emit("Gewijzigd")
+    assert window.act_undo.isEnabled()
+    window.undo()
+    assert window.current.id == lbl_id and window.current.main.text == before
+    assert window.properties.lines[1].text.text() == before
+    window.redo()
+    assert window.current.main.text == "Gewijzigd"
+    n = len(window.library)
+    window.delete_labels()
+    assert len(window.library) == n - 1
+    window.undo()
+    assert len(window.library) == n and window.current.id == lbl_id
+
+
+def test_ctrl_z_in_text_field_uses_app_undo(qtbot, window) -> None:  # noqa: ANN001
+    from PySide6.QtCore import Qt
+
+    window.activateWindow()
+    field = window.properties.lines[1].text
+    before = window.current.main.text
+    field.setFocus()
+    qtbot.waitUntil(field.hasFocus, timeout=2000)
+    qtbot.keyClicks(field, "XYZ")
+    assert window.current.main.text.endswith("XYZ")
+    qtbot.keyClick(field, Qt.Key.Key_Z, Qt.KeyboardModifier.ControlModifier)
+    assert window.current.main.text == before and field.text() == before

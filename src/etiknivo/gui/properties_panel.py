@@ -175,7 +175,11 @@ class PropertiesPanel(QScrollArea):
 
         self.name.textEdited.connect(lambda: self._apply(True))
         self.tray.textEdited.connect(lambda: self._apply(True))
-        self.category.currentTextChanged.connect(lambda: self._apply(True))
+        # The category is committed when editing is finished (Enter, leaving the
+        # field or picking from the list), not on every keystroke: a half-typed
+        # name must not create a category or move the label.
+        self.category.lineEdit().editingFinished.connect(self._commit_category)
+        self.category.activated.connect(self._commit_category)
         self.layout_combo.activated.connect(self._layout_chosen)
         for w in (self.valign, self.rotation):
             w.currentIndexChanged.connect(lambda: self._apply(False))
@@ -283,7 +287,6 @@ class PropertiesPanel(QScrollArea):
         lbl = self.label
         lbl.name = self.name.text()
         lbl.tray_id = self.tray.text().strip()
-        lbl.category = self.category.currentText().strip()
         s = lbl.style
         s.valign = VAlign(self.valign.currentData())
         s.line_spacing_mm = self.spacing.value()
@@ -304,6 +307,14 @@ class PropertiesPanel(QScrollArea):
         lbl.specs = specs
         lbl.notes = self.notes.toPlainText()
         self._emit(structural)
+
+    def _commit_category(self) -> None:
+        if self._loading or self.label is None:
+            return
+        cat = self.category.currentText().strip()
+        if cat != self.label.category:
+            self.label.category = cat
+            self._emit(True)
 
     def _emit(self, structural: bool) -> None:
         if self.label is not None:

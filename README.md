@@ -11,7 +11,8 @@ Etiknivo is een desktopapplicatie (Python + PySide6) om etiketten te ontwerpen, 
 ## Functies
 
 - **Moderne interface** die automatisch de lichte of donkere modus van macOS volgt (of vast licht/donker via *Weergave → Thema*): werkbalk met printerstatus en afdrukknop, bibliotheek als kaartjes, het label als papier op een canvas en een inspector met *Ontwerp* en *Printer*.
-- **Labelbibliotheek**: thumbnails (de echte 1-bit printeruitvoer), naam, categorie en lade-ID, zoeken, categoriefilter, sorteren, groeperen per categorie, meervoudige selectie, nieuw/dupliceren/hernoemen/verwijderen.
+- **Labelbibliotheek**: thumbnails (de echte 1-bit printeruitvoer), naam, categorie en lade-ID, zoeken, categoriefilter, sorteren, groeperen per categorie, meervoudige selectie, nieuw/dupliceren/hernoemen/verwijderen. Het label dat je bewerkt blijft altijd zichtbaar: krijgt het een andere categorie, dan springt het filter mee.
+- **Ongedaan maken en opnieuw** (⌘Z / ⇧⌘Z) voor alle wijzigingen: tekst, opmaak, categorie, nieuw, dupliceren, verwijderen en importeren. Snel achter elkaar typen in hetzelfde label telt als één stap.
 - **Editor met twee weergaven**:
   - *Ontwerpweergave* (antialiased, met de printbare band, marges en overflow gemarkeerd);
   - *Printerraster*: de exacte 1-bit bitmap van 96 × 240 dots die naar de printer gaat, inclusief kalibratie. Optioneel in native oriëntatie.
