@@ -105,7 +105,7 @@ class D11sBackend(PrinterBackend):
                    "Bluetooth-toestemming?", error=exc)) from exc
         devices = []
         for address, (dev, adv) in found.items():
-            name = dev.name or adv.local_name or "(naamloos)"
+            name = dev.name or adv.local_name or tr("(naamloos)")
             devices.append(DiscoveredDevice(name, address, int(adv.rssi or 0),
                                             self._is_supported(name, list(adv.service_uuids or []))))
         devices.sort(key=lambda d: (not d.supported, -d.rssi))

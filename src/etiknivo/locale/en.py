@@ -589,4 +589,15 @@ EN: dict[str, str] = {
     "Tekst '{text}' past niet in zijn vak, zelfs niet bij de minimale lettergrootte":
         "Text '{text}' does not fit its box, even at the smallest font size",
     "Kies een symbool": "Choose a symbol",
+    # -- files and devices ---------------------------------------------------------------
+    "Het bestand kon niet worden gelezen of geschreven:\n{error}":
+        "The file could not be read or written:\n{error}",
+    "(naamloos)": "(unnamed)",
+    "{found} apparaten gevonden, {n} ondersteunde printer(s)":
+        "{found} devices found, {n} supported printer(s)",
+    "CSV-bestand kon niet worden gedecodeerd": "CSV file could not be decoded",
+    "JSON kon niet worden gelezen: {error}": "JSON could not be read: {error}",
+    "CSV-bestand is leeg": "CSV file is empty",
+    "CSV-bestand bevat geen kopregel": "CSV file has no header row",
+    "{name} (kopie)": "{name} (copy)",
 }

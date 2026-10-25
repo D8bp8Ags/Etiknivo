@@ -38,7 +38,7 @@ def import_json(path: Path) -> list[Label]:
     try:
         doc = json.loads(Path(path).read_text("utf-8"))
     except (OSError, ValueError) as exc:
-        raise LibraryError(f"JSON kon niet worden gelezen: {exc}") from exc
+        raise LibraryError(tr("JSON kon niet worden gelezen: {error}", error=exc)) from exc
     return labels_from_document(doc)
 
 
@@ -70,7 +70,7 @@ def parse_csv_labels(text: str) -> tuple[list[Label], list[str]]:
     """
     text = text.lstrip("﻿")
     if not text.strip():
-        return [], ["CSV-bestand is leeg"]
+        return [], [tr("CSV-bestand is leeg")]
     try:
         dialect = csv.Sniffer().sniff(text.split("\n", 1)[0], delimiters=",;\t")
         delimiter = dialect.delimiter
@@ -78,7 +78,7 @@ def parse_csv_labels(text: str) -> tuple[list[Label], list[str]]:
         delimiter = ","
     reader = csv.DictReader(io.StringIO(text), delimiter=delimiter)
     if not reader.fieldnames:
-        return [], ["CSV-bestand bevat geen kopregel"]
+        return [], [tr("CSV-bestand bevat geen kopregel")]
     colmap = {name: _norm(name) for name in reader.fieldnames}
     if "main" not in colmap.values():
         return [], [tr("Kolom 'main' (of 'hoofdtekst') ontbreekt in de kopregel")]
@@ -123,7 +123,7 @@ def import_csv(path: Path) -> tuple[list[Label], list[str]]:
             return parse_csv_labels(raw.decode(enc))
         except UnicodeDecodeError:
             continue
-    return [], ["CSV-bestand kon niet worden gedecodeerd"]  # pragma: no cover
+    return [], [tr("CSV-bestand kon niet worden gedecodeerd")]  # pragma: no cover
 
 
 def labels_to_csv(labels: Iterable[Label]) -> str:

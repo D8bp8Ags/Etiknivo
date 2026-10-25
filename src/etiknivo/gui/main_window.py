@@ -492,9 +492,12 @@ class MainWindow(QMainWindow):
         m.addSeparator()
         act(m, tr("Printwachtrij tonen"), lambda: (self.queue_dock.show(), self.queue_dock.raise_()))
 
-
         m = mb.addMenu(tr("&Weergave"))
-        m.addAction(self.guides.text(), self.guides.toggle)
+        guides = m.addAction(self.guides.text())
+        guides.setCheckable(True)
+        guides.setChecked(self.guides.isChecked())
+        guides.toggled.connect(self.guides.setChecked)
+        self.guides.toggled.connect(guides.setChecked)
         m.addAction(tr("Printwachtrij"), lambda: self.queue_dock.setVisible(
             not self.queue_dock.isVisible()))
         m.addSeparator()
@@ -1180,6 +1183,12 @@ class MainWindow(QMainWindow):
         """Switch to another label roll: every label is shown and printed at that size."""
         self.settings.label_size_mm = [length_mm, height_mm]
         self._save_settings()
+        self._apply_roll()
+        self.statusBar().showMessage(tr("Etiketrol: {size}", size=size_text(*self.profile.label_size)),
+                                     5000)
+
+    def _apply_roll(self) -> None:
+        """Use the label roll from the settings in the views and for printing."""
         self.profile = self._roll_profile()
         self.engine.profile = self.profile
         self.printer_panel.set_label_size(self.profile)
@@ -1189,8 +1198,6 @@ class MainWindow(QMainWindow):
             view.updateGeometry()
             view.adjustSize()
         self.update_preview()
-        self.statusBar().showMessage(tr("Etiketrol: {size}", size=size_text(*self.profile.label_size)),
-                                     5000)
 
     def set_printer_model(self, key: str) -> None:
         if key == self.settings.printer_model:
@@ -1246,6 +1253,11 @@ class MainWindow(QMainWindow):
 
     # -- import / export -----------------------------------------------------------------
 
+    def _file_error(self, exc: OSError) -> None:
+        log.warning("Bestandsbewerking mislukt: %s", exc)
+        QMessageBox.critical(self, APP_NAME, tr("Het bestand kon niet worden gelezen of "
+                                                "geschreven:\n{error}", error=exc))
+
     def _selected_or_all(self) -> list[Label]:
         return self._selected_in_view_order() or self._with_draft(self.library.labels)
 
@@ -1274,15 +1286,21 @@ class MainWindow(QMainWindow):
         else:
             return
         self._after_library_change()
-        if self.current is not None:  # the open label may have been replaced
-            self._open(self.current.id)
+        cur = self.current
+        if cur is not None and (box.clickedButton() is replace
+                                or any(lbl.id == cur.id for lbl in labels)):
+            self._open(cur.id)  # the open label was replaced: show the imported version
         self.statusBar().showMessage(msg, 5000)
 
     def export_json(self) -> None:
         path, _ = QFileDialog.getSaveFileName(self, tr("Bibliotheek exporteren"),
                                               "etiknivo-bibliotheek.json", "JSON (*.json)")
         if path:
-            lio.export_json(self.library.labels, Path(path))
+            try:
+                lio.export_json(self.library.labels, Path(path))
+            except OSError as exc:
+                self._file_error(exc)
+                return
             self.statusBar().showMessage(tr("{n} labels geëxporteerd", n=len(self.library)),
                                          4000)
 
@@ -1290,7 +1308,11 @@ class MainWindow(QMainWindow):
         path, _ = QFileDialog.getOpenFileName(self, tr("CSV importeren"), "", "CSV (*.csv *.txt)")
         if not path:
             return
-        labels, errors = lio.import_csv(Path(path))
+        try:
+            labels, errors = lio.import_csv(Path(path))
+        except OSError as exc:
+            self._file_error(exc)
+            return
         for lbl in labels:
             self.library.add(lbl)
         self._after_library_change([lbl.id for lbl in labels])
@@ -1303,7 +1325,11 @@ class MainWindow(QMainWindow):
         path, _ = QFileDialog.getSaveFileName(self, tr("CSV exporteren"), "etiknivo-labels.csv",
                                               "CSV (*.csv)")
         if path:
-            lio.export_csv(self._selected_or_all(), Path(path))
+            try:
+                lio.export_csv(self._selected_or_all(), Path(path))
+            except OSError as exc:
+                self._file_error(exc)
+                return
             self.statusBar().showMessage(tr("CSV geëxporteerd"), 4000)
 
     def export_png(self) -> None:
@@ -1323,7 +1349,11 @@ class MainWindow(QMainWindow):
         box.exec()
         view, scale = ((ExportView.DESIGN, 4) if box.clickedButton() is design
                        else (ExportView.RASTER, 1))
-        paths = export_pngs(self.engine, labels, Path(directory), view, scale)
+        try:
+            paths = export_pngs(self.engine, labels, Path(directory), view, scale)
+        except OSError as exc:
+            self._file_error(exc)
+            return
         self.statusBar().showMessage(
             tr("{n} PNG's opgeslagen in {folder}", n=len(paths), folder=directory), 5000)
 
@@ -1332,7 +1362,11 @@ class MainWindow(QMainWindow):
         path, _ = QFileDialog.getSaveFileName(self, tr("PDF exporteren"), "etiknivo-labels.pdf",
                                               "PDF (*.pdf)")
         if path:
-            export_pdf(self.engine, labels, Path(path))
+            try:
+                export_pdf(self.engine, labels, Path(path))
+            except OSError as exc:
+                self._file_error(exc)
+                return
             self.statusBar().showMessage(tr("PDF met {n} pagina's opgeslagen", n=len(labels)),
                                          4000)
 
@@ -1342,7 +1376,10 @@ class MainWindow(QMainWindow):
         path, _ = QFileDialog.getSaveFileName(self, tr("SVG exporteren"),
                                               f"{safe_filename(self.current)}.svg", "SVG (*.svg)")
         if path:
-            export_svg(self.engine, self.current, Path(path))
+            try:
+                export_svg(self.engine, self.current, Path(path))
+            except OSError as exc:
+                self._file_error(exc)
 
     def backup(self) -> None:
         self.save_library()
@@ -1350,7 +1387,11 @@ class MainWindow(QMainWindow):
         path, _ = QFileDialog.getSaveFileName(self, tr("Back-up maken"), lio.default_backup_name(),
                                               "Zip (*.zip)")
         if path:
-            files = lio.create_backup(data_dir(), Path(path))
+            try:
+                files = lio.create_backup(data_dir(), Path(path))
+            except OSError as exc:
+                self._file_error(exc)
+                return
             self.statusBar().showMessage(tr("Back-up gemaakt ({files})", files=", ".join(files)),
                                          5000)
 
@@ -1368,10 +1409,14 @@ class MainWindow(QMainWindow):
         except LibraryError as exc:
             QMessageBox.critical(self, APP_NAME, str(exc))
             return
+        except OSError as exc:
+            self._file_error(exc)
+            return
+        self.current = None
         self.settings = load_settings()
         self.engine.calibration = self.settings.calibration
-        self.library_panel.invalidate_thumbnails()
-        self.current = None
+        theme.apply(self.settings.theme)
+        self._apply_roll()  # the back-up may be for another label roll
         self._after_library_change([])
         first = self.library_panel.visible_ids()
         if first:

@@ -50,6 +50,12 @@ PRINT_FIELDS = {
 }
 
 
+def spec_name(key: str) -> str:
+    """The field name of a specification.  Braces typed around it are not part
+    of the name: a specification "{Spanning}" is used as {Spanning}."""
+    return key.strip().strip("{}").strip()
+
+
 def today_text(day: date | None = None) -> str:
     """Today's date as shown by ``{Datum}``: 24-10-2026, or ISO in English."""
     day = day or date.today()
@@ -346,7 +352,7 @@ class Label:
 
     def field_names(self) -> list[str]:
         """Names usable as ``{Name}``: the specifications, then the built-ins."""
-        own = [k for k in self.specs if k]
+        own = [n for k in self.specs if (n := spec_name(k))]
         taken = {k.casefold() for k in own}
         builtin = [*BUILTIN_FIELDS.values(), *PRINT_FIELDS.values()]
         return own + [tr(shown) for shown, _ in builtin if tr(shown).casefold() not in taken]
@@ -354,7 +360,7 @@ class Label:
     def print_values(self, number: int = 1, count: int = 1,
                      day: date | None = None) -> dict[str, str]:
         """Values of the print-time fields, except names a specification uses."""
-        own = {k.strip().casefold() for k in self.specs}
+        own = {spec_name(k).casefold() for k in self.specs}
         values = {"date": today_text(day), "number": str(number), "count": str(count)}
         return {alias: values[key] for key, (_, aliases) in PRINT_FIELDS.items()
                 for alias in aliases if alias not in own}
@@ -363,7 +369,7 @@ class Label:
         values = {alias: getattr(self, attr) for attr, (_, aliases) in BUILTIN_FIELDS.items()
                   for alias in aliases}
         values.update(self.print_values())
-        values.update({k.strip().casefold(): v for k, v in self.specs.items()})
+        values.update({spec_name(k).casefold(): v for k, v in self.specs.items()})
         return values
 
     @property

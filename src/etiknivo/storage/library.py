@@ -98,7 +98,7 @@ class Library:
         if src is None:
             return None
         dup = src.clone()
-        dup.name = f"{src.name} (kopie)"
+        dup.name = tr("{name} (kopie)", name=src.name)
         idx = self._labels.index(src)
         self._labels.insert(idx + 1, dup)
         return dup

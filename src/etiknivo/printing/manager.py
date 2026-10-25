@@ -11,7 +11,7 @@ import asyncio
 import concurrent.futures
 import logging
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 from etiknivo.i18n import tr
 from etiknivo.printing.backend import (
@@ -105,8 +105,9 @@ class PrinterManager:
                 self._emit(message=str(exc))
                 raise
             n = sum(d.supported for d in devices)
-            self._emit(devices=devices, message=f"{len(devices)} apparaten gevonden, "
-                                                f"{n} ondersteunde printer(s)")
+            self._emit(devices=devices, message=tr(
+                "{found} apparaten gevonden, {n} ondersteunde printer(s)",
+                found=len(devices), n=n))
             return devices
         return self.runner.submit(_scan())
 
@@ -184,6 +185,6 @@ class PrinterManager:
                 if not b.connected:
                     self._lost()
                 continue
-            info = self.state.info or PrinterInfo()
-            info.status, info.battery = status, battery
+            # a new object: the GUI thread may still be reading the old one
+            info = replace(self.state.info or PrinterInfo(), status=status, battery=battery)
             self._emit(info=info)

@@ -126,6 +126,54 @@ def raster_to_bytes(img: Image.Image) -> bytes:
     return ImageOps.invert(img.convert("L")).convert("1").tobytes()
 
 
+
+def _warn_unknown(names: list[str], warnings: list[str]) -> None:
+    for name in names:
+        warnings.append(tr("Onbekend veld {{{name}}}: voeg '{name}' toe bij "
+                           "Specificaties", name=name))
+
+
+def _code_text(label: Label, text: str, warnings: list[str]) -> str | None:
+    """What a QR code or barcode contains, or None (with a warning) when there
+    is nothing sensible to encode."""
+    resolved, unknown = label.resolve(text)
+    _warn_unknown(unknown, warnings)
+    if unknown:  # a code with "{Name}" in it would scan as nonsense: leave it out
+        return None
+    resolved = resolved.strip()
+    if not resolved:
+        warnings.append(tr("De code is leeg: vul de tekst voor de code in"))
+        return None
+    return resolved
+
+
+def _qr_matrix(text: str, warnings: list[str]) -> list[list[bool]] | None:
+    try:
+        return codes.qr_matrix(text)
+    except codes.CodeError:
+        warnings.append(tr("Tekst is te lang voor een QR-code (maximaal {n} tekens)",
+                           n=codes.qr_capacity()))
+        return None
+
+
+def _barcode_modules(text: str, warnings: list[str]) -> list[bool] | None:
+    try:
+        return codes.code128_modules(text)
+    except codes.CodeError as e:
+        warnings.append(tr("Teken(s) {chars} kunnen niet in een barcode; gebruik "
+                           "letters, cijfers en leestekens zonder accenten", chars=str(e)))
+        return None
+
+
+def _bar_module(module: int, warnings: list[str]) -> int:
+    """Width of one barcode module in dots, with a warning when it is too thin."""
+    if module < 1:
+        warnings.append(tr("Tekst is te lang voor een barcode op dit etiket"))
+    elif module == 1:
+        warnings.append(tr("De barcode heeft erg dunne streepjes; kort de tekst in als "
+                           "hij slecht scant"))
+    return module
+
 @dataclass
 class _Prepared:
     slot: int
@@ -240,11 +288,9 @@ class RenderEngine:
                 if lb.y0 < area[1] - 0.5 or lb.y1 > area[3] + 0.5:
                     lb.overflow = True
         for lb in line_boxes:
-            if lb.overflow:
+            if lb.overflow:  # shrinking to fit is expected and not worth a warning
                 warnings.append(tr("Regel '{text}' valt buiten het printbare gebied",
                                    text=lb.text))
-            elif lb.size_pt < lb.requested_pt - 0.05:
-                pass  # shrunk to fit: expected behaviour, not a warning
         if style.autofit and any(lb.overflow for lb in line_boxes):
             warnings.append(tr("Tekst past niet, zelfs niet bij de minimale lettergrootte "
                                "({pt} pt). Kort de tekst in of verklein de marges.",
@@ -375,23 +421,13 @@ class RenderEngine:
 
     def _free_code(self, label: Label, el: LabelElement, box: tuple[float, float, float, float],
                    warnings: list[str]) -> list[tuple[int, int, int, int]]:
-        text, unknown = label.resolve(el.text)
-        for name in unknown:
-            warnings.append(tr("Onbekend veld {{{name}}}: voeg '{name}' toe bij "
-                               "Specificaties", name=name))
-        text = text.strip()
-        if unknown:
-            return []
-        if not text:
-            warnings.append(tr("De code is leeg: vul de tekst voor de code in"))
+        text = _code_text(label, el.text, warnings)
+        if text is None:
             return []
         bx0, by0, bx1, by1 = box
         if el.kind == ElementKind.QR:
-            try:
-                matrix = codes.qr_matrix(text)
-            except codes.CodeError:
-                warnings.append(tr("Tekst is te lang voor een QR-code (maximaal {n} tekens)",
-                                   n=codes.qr_capacity()))
+            matrix = _qr_matrix(text, warnings)
+            if matrix is None:
                 return []
             n = len(matrix)
             module = int(min(bx1 - bx0, by1 - by0) // n)
@@ -404,19 +440,12 @@ class RenderEngine:
             return [(x0 + c * module, y0 + r * module, x0 + (c + 1) * module,
                      y0 + (r + 1) * module)
                     for r, row in enumerate(matrix) for c, dark in enumerate(row) if dark]
-        try:
-            modules = codes.code128_modules(text)
-        except codes.CodeError as e:
-            warnings.append(tr("Teken(s) {chars} kunnen niet in een barcode; gebruik "
-                               "letters, cijfers en leestekens zonder accenten", chars=str(e)))
+        modules = _barcode_modules(text, warnings)
+        if modules is None:
             return []
-        module = int((bx1 - bx0) // len(modules))
+        module = _bar_module(int((bx1 - bx0) // len(modules)), warnings)
         if module < 1:
-            warnings.append(tr("Tekst is te lang voor een barcode op dit etiket"))
             return []
-        if module == 1:
-            warnings.append(tr("De barcode heeft erg dunne streepjes; kort de tekst in als "
-                               "hij slecht scant"))
         x0 = round(bx0 + (bx1 - bx0 - len(modules) * module) / 2)
         y0, y1 = round(by0), max(round(by0) + 1, round(by1))
         return [(x0 + i * module, y0, x0 + (i + 1) * module, y1)
@@ -582,23 +611,13 @@ class RenderEngine:
         spec = label.code
         if spec.kind == CodeKind.NONE:
             return None
-        text, unknown = label.resolve(spec.text)
-        for name in unknown:
-            warnings.append(tr("Onbekend veld {{{name}}}: voeg '{name}' toe bij "
-                               "Specificaties", name=name))
-        if unknown:  # a code with "{Name}" in it would scan as nonsense: leave it out
-            return None
-        text = text.strip()
-        if not text:
-            warnings.append(tr("De code is leeg: vul de tekst voor de code in"))
+        text = _code_text(label, spec.text, warnings)
+        if text is None:
             return None
         cx0, cy0, cx1, cy1 = content
         if spec.kind == CodeKind.QR:
-            try:
-                matrix = codes.qr_matrix(text)
-            except codes.CodeError:
-                warnings.append(tr("Tekst is te lang voor een QR-code (maximaal {n} tekens)",
-                                   n=codes.qr_capacity()))
+            matrix = _qr_matrix(text, warnings)
+            if matrix is None:
                 return None
             n = len(matrix)
             module = min(QR_MAX_MODULE_PX, int((cy1 - cy0) // n))
@@ -615,19 +634,12 @@ class RenderEngine:
             area = ((x0 + size + gap, cy0, cx1, cy1) if spec.side != HAlign.RIGHT
                     else (cx0, cy0, x0 - gap, cy1))
             return PlacedCode(spec.kind, text, (x0, y0, x0 + size, y0 + size), module, rects, area)
-        try:
-            modules = codes.code128_modules(text)
-        except codes.CodeError as e:
-            warnings.append(tr("Teken(s) {chars} kunnen niet in een barcode; gebruik "
-                               "letters, cijfers en leestekens zonder accenten", chars=str(e)))
+        modules = _barcode_modules(text, warnings)
+        if modules is None:
             return None
-        module = min(BAR_MAX_MODULE_PX, int((cx1 - cx0) // len(modules)))
+        module = _bar_module(min(BAR_MAX_MODULE_PX, int((cx1 - cx0) // len(modules))), warnings)
         if module < 1:
-            warnings.append(tr("Tekst is te lang voor een barcode op dit etiket"))
             return None
-        if module == 1:
-            warnings.append(tr("De barcode heeft erg dunne streepjes; kort de tekst in als "
-                               "hij slecht scant"))
         width = len(modules) * module
         height = round(min(self.mm_to_px(BAR_HEIGHT_MM), (cy1 - cy0) * 0.45)) if has_text \
             else round(cy1 - cy0)
@@ -700,9 +712,7 @@ class RenderEngine:
     def _prepare_text(self, label: Label, slot: int, line: TextLine,
                       warnings: list[str]) -> _Prepared:
         resolved, unknown = label.resolve(line.text)
-        for name in unknown:
-            warnings.append(tr("Onbekend veld {{{name}}}: voeg '{name}' toe bij "
-                               "Specificaties", name=name))
+        _warn_unknown(unknown, warnings)
         text = " ".join(resolved.split("\n")).strip()
         face = self.fonts.resolve(line.font_family, line.bold, line.italic)
         missing = missing_glyphs(face, text)
