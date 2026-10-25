@@ -240,6 +240,15 @@ class MainWindow(QMainWindow):
         self.act_redo.triggered.connect(self.redo)
         tb.addAction(self.act_undo)
         tb.addAction(self.act_redo)
+        tb.addSeparator()
+        # all labels at a glance, with export to PDF/PNG: worth a visible button
+        self.act_overview = QAction(tr("Overzicht"), self, toolTip=with_shortcut(
+            tr("Alle labels in één overzicht, ook als PDF of PNG"), "Ctrl+Shift+O"))
+        self.act_overview.triggered.connect(self.show_overview)
+        tb.addAction(self.act_overview)
+        btn = tb.widgetForAction(self.act_overview)
+        if isinstance(btn, QToolButton):
+            btn.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
 
         spacer = QWidget()
         spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
@@ -418,7 +427,8 @@ class MainWindow(QMainWindow):
         t = theme.tokens()
         for a, name in ((self.act_new, "plus"), (self.act_dup, "copy"),
                         (self.act_rename, "pencil"), (self.act_del, "trash-2"),
-                        (self.act_undo, "undo-2"), (self.act_redo, "redo-2")):
+                        (self.act_undo, "undo-2"), (self.act_redo, "redo-2"),
+                        (self.act_overview, "label-grid")):
             a.setIcon(theme.icon(name))
         self.guides.setIcon(theme.icon("square-dashed", size=16))
         self.native.setIcon(theme.icon("frame", size=16))

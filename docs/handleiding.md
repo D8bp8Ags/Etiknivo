@@ -248,7 +248,7 @@ Bij de eerste start staan er 23 voorbeeldlabels voor Raaco-laden met elektronica
 
 ## Labeloverzicht
 
-*Weergave → Labeloverzicht* (⇧⌘O) toont al je labels tegelijk, zoals ze geprint worden, gegroepeerd per categorie met de naam en lade-ID eronder. Kleine categorieën staan naast elkaar, zodat je veel laden in één oogopslag ziet.
+De knop **Overzicht** in de werkbalk (of *Weergave → Labeloverzicht*, ⇧⌘O) toont al je labels tegelijk, zoals ze geprint worden, gegroepeerd per categorie met de naam en lade-ID eronder. Kleine categorieën staan naast elkaar, zodat je veel laden in één oogopslag ziet.
 
 ![Het labeloverzicht](img/labeloverzicht.png)
 

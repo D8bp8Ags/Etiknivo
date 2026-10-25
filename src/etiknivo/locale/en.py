@@ -717,4 +717,6 @@ EN: dict[str, str] = {
     "vet": "bold",
     "cursief": "italic",
     "Lettertype, grootte, stijl en uitlijning": "Font, size, style and alignment",
+    "Overzicht": "Overview",
+    "Alle labels in één overzicht, ook als PDF of PNG": "All labels in one overview, also as PDF or PNG",
 }

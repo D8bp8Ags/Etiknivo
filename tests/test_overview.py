@@ -84,3 +84,10 @@ def test_window_follows_library_changes(window) -> None:  # noqa: ANN001
     ov = window._overview_window
     window.new_label()
     assert len(ov.canvas.labels) == 24
+
+
+def test_toolbar_button_opens_the_overview(window) -> None:  # noqa: ANN001
+    assert window.act_overview in window.toolbar.actions()
+    window.act_overview.trigger()
+    assert window._overview_window is not None and window._overview_window.isVisible()
+    window._overview_window.close()
