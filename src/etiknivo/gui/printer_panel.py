@@ -5,8 +5,8 @@ from __future__ import annotations
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QCheckBox,
-    QComboBox,
     QFormLayout,
+    QGridLayout,
     QGroupBox,
     QHBoxLayout,
     QLabel,
@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
 
 from etiknivo import i18n
 from etiknivo.gui import theme
+from etiknivo.gui.widgets import combo
 from etiknivo.i18n import N_, tr
 from etiknivo.printing import registry
 from etiknivo.printing.backend import ConnectionState
@@ -63,14 +64,15 @@ class PrinterPanel(QWidget):
         conn = QGroupBox(tr("Bluetooth-printer"))
         cl = QVBoxLayout(conn)
         # printer model choice: only shown once there is more than one model
-        self.model = QComboBox()
+        self.model = combo()
         for key, m in registry.MODELS.items():
             self.model.addItem(m.display_name, key)
         self.model.setCurrentIndex(max(0, self.model.findData(profile.key)))
         self.model.setVisible(len(registry.MODELS) > 1)
         self.model.activated.connect(lambda: self.modelChanged.emit(self.model.currentData()))
-        self.mock = QCheckBox(tr("Simulatieprinter gebruiken (geen hardware)"))
-        self.mock.setToolTip(tr("Voor testen zonder printer. Er wordt niets echt afgedrukt."))
+        self.mock = QCheckBox(tr("Simulatieprinter gebruiken"))
+        self.mock.setToolTip(tr("Voor testen zonder printer (geen hardware). Er wordt niets echt "
+                                 "afgedrukt."))
         self.only_printers = QCheckBox(tr("Alleen labelprinters tonen"))
         self.only_printers.setChecked(True)
         self.devices = QListWidget()
@@ -83,10 +85,11 @@ class PrinterPanel(QWidget):
         self.scan_busy.hide()
         self.connect_btn = QPushButton(tr("Verbinden"))
         self.disconnect_btn = QPushButton(tr("Verbreken"))
-        row = QHBoxLayout()
-        row.addWidget(self.scan_btn)
-        row.addWidget(self.connect_btn)
-        row.addWidget(self.disconnect_btn)
+        # two rows, so the panel stays usable when it is narrow
+        row = QGridLayout()
+        row.addWidget(self.scan_btn, 0, 0, 1, 2)
+        row.addWidget(self.connect_btn, 1, 0)
+        row.addWidget(self.disconnect_btn, 1, 1)
         cl.addWidget(self.model)
         cl.addWidget(self.mock)
         cl.addWidget(self.only_printers)
@@ -124,13 +127,13 @@ class PrinterPanel(QWidget):
 
         pr = QGroupBox(tr("Afdrukinstellingen"))
         f2 = QFormLayout(pr)
-        self.roll = QComboBox()
+        self.roll = combo()
         self.roll.setToolTip(tr("Welke etiketten er in de printer zitten. Alle labels worden "
                                 "voor deze maat ontworpen en afgedrukt."))
         self._sizes: list[tuple[float, float]] = []
         self.set_label_size(profile)
         self.roll.activated.connect(self._roll_chosen)
-        self.density = QComboBox()
+        self.density = combo()
         self.density.addItems(list(profile.densities))
         self.copies = QSpinBox()
         self.copies.setRange(1, 99)

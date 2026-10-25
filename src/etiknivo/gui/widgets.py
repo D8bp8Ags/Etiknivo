@@ -10,7 +10,15 @@ from PIL import Image, ImageOps
 from PySide6.QtCore import QBuffer, QIODevice, Qt, Signal
 from PySide6.QtGui import QIcon, QImage, QPainter
 from PySide6.QtSvg import QSvgRenderer
-from PySide6.QtWidgets import QDoubleSpinBox, QLineEdit, QMenu, QToolButton
+from PySide6.QtWidgets import (
+    QCheckBox,
+    QComboBox,
+    QDoubleSpinBox,
+    QHBoxLayout,
+    QLineEdit,
+    QMenu,
+    QToolButton,
+)
 
 from etiknivo.gui import theme
 from etiknivo.gui.qt_util import pil_to_pixmap
@@ -29,6 +37,26 @@ def spin(lo: float, hi: float, step: float, suffix: str, decimals: int = 1) -> Q
     s.setSuffix(suffix)
     s.setKeyboardTracking(False)
     return s
+
+
+def combo(min_chars: int = 6) -> QComboBox:
+    """A combo box that may get narrower than its longest entry (the text is
+    cut off with an ellipsis), so a narrow side panel never has to scroll
+    sideways."""
+    c = QComboBox()
+    c.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
+    c.setMinimumContentsLength(min_chars)
+    return c
+
+
+def style_row(*boxes: QCheckBox) -> QHBoxLayout:
+    """Check boxes such as Vet and Cursief side by side on their own form row."""
+    row = QHBoxLayout()
+    row.setSpacing(14)
+    for box in boxes:
+        row.addWidget(box)
+    row.addStretch(1)
+    return row
 
 
 def symbol_icon(key: str) -> QIcon:

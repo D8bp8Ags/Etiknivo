@@ -8,7 +8,6 @@ from PySide6.QtCore import QModelIndex, QRect, QRectF, QSize, Qt, Signal
 from PySide6.QtGui import QAction, QColor, QFont, QIcon, QKeySequence, QPainter, QPen
 from PySide6.QtWidgets import (
     QAbstractItemView,
-    QComboBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -25,6 +24,7 @@ from PySide6.QtWidgets import (
 
 from etiknivo.gui import theme
 from etiknivo.gui.qt_util import pil_to_pixmap
+from etiknivo.gui.widgets import combo
 from etiknivo.i18n import N_, tr
 from etiknivo.model import ElementKind, Label
 from etiknivo.rendering.engine import RenderEngine
@@ -153,8 +153,8 @@ class LibraryPanel(QWidget):
         self.search = QLineEdit(placeholderText=tr("Zoeken op naam, tekst, lade-ID…"))
         self.search.setClearButtonEnabled(True)
         self._search_icon = self.search.addAction(QIcon(), QLineEdit.ActionPosition.LeadingPosition)
-        self.category = QComboBox()
-        self.sort = QComboBox()
+        self.category = combo(11)
+        self.sort = combo()
         self.sort.setToolTip(tr("Sorteren"))
         for key, (text, _fn) in SORT_KEYS.items():
             self.sort.addItem(tr(text), key)

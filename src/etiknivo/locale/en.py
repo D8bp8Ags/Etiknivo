@@ -209,14 +209,6 @@ EN: dict[str, str] = {
     "Marge verticaal": "Vertical margin",
     "Rotatie": "Rotation",
     "Specificaties en notities": "Specifications and notes",
-    "Eén per regel, bv.\nSpanning: 50 V\nTolerantie: 10%":
-        "One per line, e.g.\nVoltage: 50 V\nTolerance: 10%",
-    "Alleen voor jezelf, bv. waar besteld": "Just for you, e.g. where you ordered it",
-    "Typ {Spanning} in een tekstregel (of gebruik de knop { }) om de waarde op het etiket te "
-    "tonen. Pas je de specificatie aan, dan verandert het etiket mee. Notities komen niet op "
-    "het etiket.": "Type {Voltage} in a text line (or use the { } button) to show its value on "
-                   "the label. When you change the specification, the label follows. Notes are "
-                   "not printed.",
     "Specificaties": "Specifications",
     "Notities": "Notes",
     "Automatisch verkleind tot {pt} pt": "Automatically reduced to {pt} pt",
@@ -224,9 +216,9 @@ EN: dict[str, str] = {
     "Niet verbonden": "Not connected",
     "Fout": "Error",
     "Bluetooth-printer": "Bluetooth printer",
-    "Simulatieprinter gebruiken (geen hardware)": "Use simulated printer (no hardware)",
-    "Voor testen zonder printer. Er wordt niets echt afgedrukt.":
-        "For testing without a printer. Nothing is actually printed.",
+    "Simulatieprinter gebruiken": "Use simulated printer",
+    "Voor testen zonder printer (geen hardware). Er wordt niets echt afgedrukt.":
+        "For testing without a printer (no hardware). Nothing is actually printed.",
     "Alleen labelprinters tonen": "Show label printers only",
     "Zoeken": "Search",
     "Status": "Status",
@@ -600,4 +592,28 @@ EN: dict[str, str] = {
     "CSV-bestand is leeg": "CSV file is empty",
     "CSV-bestand bevat geen kopregel": "CSV file has no header row",
     "{name} (kopie)": "{name} (copy)",
+    # -- specifications table and narrow inspector -------------------------------------
+    "Stijl": "Style",
+    "Een specificatie heeft een naam en een waarde, bv. Spanning en 50 V. Zet {Spanning} in "
+    "een tekstregel (of gebruik de knop { } achter de specificatie) om de waarde op het "
+    "etiket te tonen. Pas je de waarde aan, dan verandert het etiket mee.":
+        "A specification has a name and a value, e.g. Voltage and 50 V. Put {Voltage} in a "
+        "text line (or use the { } button after the specification) to show the value on the "
+        "label. Change the value and the label follows.",
+    "Alleen voor jezelf, bv. waar besteld. Komt niet op het etiket.":
+        "Just for you, e.g. where it was ordered. Not printed on the label.",
+    "Notities komen niet op het etiket, dus een {veld} wordt hier niet ingevuld. Zet het in "
+    "een tekstregel.":
+        "Notes are not printed, so a {field} is not filled in here. Put it in a text line.",
+    "het geselecteerde element": "the selected element",
+    "+ Specificatie": "+ Specification",
+    "Nieuwe specificatie, bv. Spanning met de waarde 50 V":
+        "New specification, e.g. Voltage with the value 50 V",
+    "Geselecteerde specificatie verwijderen": "Delete the selected specification",
+    "Een {veld} in een waarde wordt niet ingevuld: typ de waarde zelf, bv. 50 V.":
+        "A {field} in a value is not filled in: type the value itself, e.g. 50 V.",
+    "Waarde": "Value",
+    "In {place} zetten": "Put in {place}",
+    "{field} op het etiket zetten": "Put {field} on the label",
+    "Geef de specificatie eerst een naam": "Give the specification a name first",
 }

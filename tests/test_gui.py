@@ -269,7 +269,8 @@ def test_simulated_printer_connects_by_itself(qtbot, window) -> None:  # noqa: A
 
 def test_insert_field_from_specifications(qtbot, window) -> None:  # noqa: ANN001
     props = window.properties
-    props.specs.setPlainText("Spanning: 12 V")
+    props.specs.set_specs({"Spanning": "12 V"})
+    props.specs.changed.emit()
     le = props.lines[2]
     le.text.setText("")
     le.insert_field("Spanning")

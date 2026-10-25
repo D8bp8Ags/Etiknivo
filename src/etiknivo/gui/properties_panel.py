@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from pathlib import Path
 
-from PySide6.QtCore import QSize, Signal
+from PySide6.QtCore import QSize, Qt, Signal
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -24,9 +24,11 @@ from PySide6.QtWidgets import (
 )
 
 from etiknivo.gui.element_panel import ElementPanel
-from etiknivo.gui.widgets import ALIGN_TEXT, FieldButton, load_image, spin, symbol_icon
+from etiknivo.gui.specs_editor import SpecsEditor
+from etiknivo.gui.widgets import ALIGN_TEXT, FieldButton, combo, load_image, spin, style_row, symbol_icon
 from etiknivo.i18n import N_, tr
 from etiknivo.model import (
+    FIELD_RE,
     LAYOUT_TITLES,
     SLOT_BOTTOM,
     SLOT_NAMES,
@@ -67,13 +69,13 @@ class LineEditor(QGroupBox):
         self.fields: Callable[[], list[str]] = list
         self.field_btn = FieldButton(self.text, lambda: self.fields())
         self.field_btn.inserted.connect(self.changed)
-        self.font = QComboBox()
+        self.font = combo()
         self.font.setEditable(True)
         self.font.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
         self.size = spin(3, 60, 0.5, " pt")
         self.bold = QCheckBox(tr("Vet"))
         self.italic = QCheckBox(tr("Cursief"))
-        self.align = QComboBox()
+        self.align = combo()
         for a, t in ALIGN_TEXT.items():
             self.align.addItem(tr(t), a)
         self.fitted = QLabel()
@@ -87,11 +89,8 @@ class LineEditor(QGroupBox):
         text_row.addWidget(self.field_btn)
         form.addRow(tr("Tekst"), text_row)
         form.addRow(tr("Lettertype"), self.font)
-        row = QHBoxLayout()
-        row.addWidget(self.size)
-        row.addWidget(self.bold)
-        row.addWidget(self.italic)
-        form.addRow(tr("Grootte"), row)
+        form.addRow(tr("Grootte"), self.size)
+        form.addRow(tr("Stijl"), style_row(self.bold, self.italic))
         form.addRow(tr("Uitlijning"), self.align)
         form.addRow("", self.fitted)
 
@@ -124,6 +123,8 @@ class PropertiesPanel(QScrollArea):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setWidgetResizable(True)
+        # never scroll sideways: the fields get narrower instead
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.setObjectName("inspectorScroll")
         self.setFrameShape(QScrollArea.Shape.NoFrame)
         self.label: Label | None = None
@@ -141,10 +142,10 @@ class PropertiesPanel(QScrollArea):
         f = QFormLayout(gen)
         self.name = QLineEdit()
         self.tray = QLineEdit()
-        self.category = QComboBox()
+        self.category = combo()
         self.category.setEditable(True)
         self.category.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
-        self.layout_combo = QComboBox()
+        self.layout_combo = combo()
         for preset, title in LAYOUT_TITLES.items():
             self.layout_combo.addItem(tr(title), preset)
         f.addRow(tr("Naam"), self.name)
@@ -173,7 +174,7 @@ class PropertiesPanel(QScrollArea):
         code = self.code_group = QGroupBox(tr("QR-code of barcode"))
         fc = QFormLayout(code)
         fc.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
-        self.code_kind = QComboBox()
+        self.code_kind = combo()
         for _kind, _side, text in CODE_CHOICES:
             self.code_kind.addItem(tr(text))
         self.code_text = QLineEdit()
@@ -196,13 +197,13 @@ class PropertiesPanel(QScrollArea):
         pic = self.pic_group = QGroupBox(tr("Pictogram"))
         fp = QFormLayout(pic)
         fp.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
-        self.pic_kind = QComboBox()
+        self.pic_kind = combo()
         for _k, text in PICTURE_KINDS:
             self.pic_kind.addItem(tr(text))
-        self.pic_side = QComboBox()
+        self.pic_side = combo()
         for _s, text in SIDES:
             self.pic_side.addItem(tr(text))
-        self.pic_symbol = QComboBox()
+        self.pic_symbol = combo()
         self.pic_symbol.setIconSize(QSize(28, 28))
         for key, (name, _p) in symbols.SYMBOLS.items():
             self.pic_symbol.addItem(symbol_icon(key), tr(name), key)
@@ -218,14 +219,14 @@ class PropertiesPanel(QScrollArea):
 
         st = QGroupBox(tr("Opmaak"))
         f2 = QFormLayout(st)
-        self.valign = QComboBox()
+        self.valign = combo()
         for a, t in VALIGN_TEXT.items():
             self.valign.addItem(tr(t), a)
         self.spacing = spin(-3, 5, 0.1, " mm")
         self.margin_h = spin(0, 10, 0.25, " mm", 2)
         self.margin_v = spin(0, 5, 0.25, " mm", 2)
         self.autofit = QCheckBox(tr("Tekst automatisch passend maken"))
-        self.rotation = QComboBox()
+        self.rotation = combo()
         self.rotation.addItem("0°", 0)
         self.rotation.addItem(tr("90° (van onder naar boven lezen)"), 90)
         self.rotation.addItem(tr("180° (ondersteboven)"), 180)
@@ -247,20 +248,28 @@ class PropertiesPanel(QScrollArea):
 
         meta = QGroupBox(tr("Specificaties en notities"))
         f3 = QFormLayout(meta)
-        self.specs = QPlainTextEdit()
-        self.specs.setPlaceholderText(tr("Eén per regel, bv.\nSpanning: 50 V\nTolerantie: 10%"))
-        self.specs.setFixedHeight(80)
-        self.notes = QPlainTextEdit()
-        self.notes.setPlaceholderText(tr("Alleen voor jezelf, bv. waar besteld"))
-        self.notes.setFixedHeight(60)
-        spec_hint = QLabel(tr("Typ {Spanning} in een tekstregel (of gebruik de knop { }) om de "
-                              "waarde op het etiket te tonen. Pas je de specificatie aan, dan "
-                              "verandert het etiket mee. Notities komen niet op het etiket."))
+        f3.setRowWrapPolicy(QFormLayout.RowWrapPolicy.WrapAllRows)
+        self.specs = SpecsEditor()
+        self.specs.targets = self._field_targets
+        spec_hint = QLabel(tr("Een specificatie heeft een naam en een waarde, bv. Spanning en "
+                              "50 V. Zet {Spanning} in een tekstregel (of gebruik de knop { } "
+                              "achter de specificatie) om de waarde op het etiket te tonen. Pas "
+                              "je de waarde aan, dan verandert het etiket mee."))
         spec_hint.setWordWrap(True)
         spec_hint.setObjectName("hint")
+        self.notes = QPlainTextEdit()
+        self.notes.setPlaceholderText(tr("Alleen voor jezelf, bv. waar besteld. Komt niet op "
+                                         "het etiket."))
+        self.notes.setFixedHeight(60)
+        self.notes_hint = QLabel(tr("Notities komen niet op het etiket, dus een {veld} wordt "
+                                    "hier niet ingevuld. Zet het in een tekstregel."))
+        self.notes_hint.setWordWrap(True)
+        self.notes_hint.setObjectName("warnHint")
+        self.notes_hint.hide()
         f3.addRow(tr("Specificaties"), self.specs)
-        f3.addRow(tr("Notities"), self.notes)
         f3.addRow(spec_hint)
+        f3.addRow(tr("Notities"), self.notes)
+        f3.addRow(self.notes_hint)
         lay.addWidget(meta)
         lay.addStretch(1)
         self.setWidget(body)
@@ -283,9 +292,16 @@ class PropertiesPanel(QScrollArea):
         for w in (self.pic_kind, self.pic_side, self.pic_symbol):
             w.currentIndexChanged.connect(lambda: self._apply(False))
         self.code_text.textEdited.connect(lambda: self._apply(False))
-        self.specs.textChanged.connect(lambda: self._apply(False))
+        self.specs.changed.connect(lambda: self._apply(False))
         self.notes.textChanged.connect(lambda: self._apply(False))
         self.setEnabled(False)
+
+    def minimumSizeHint(self) -> QSize:  # noqa: N802 - Qt API
+        # as narrow as the fields allow, plus room for the vertical scroll bar
+        hint = super().minimumSizeHint()
+        body = self.widget().minimumSizeHint().width() if self.widget() else 0
+        return QSize(max(hint.width(), body + self.verticalScrollBar().sizeHint().width()),
+                     hint.height())
 
     # -- loading ----------------------------------------------------------------------
 
@@ -344,15 +360,23 @@ class PropertiesPanel(QScrollArea):
             self.pic_side.setCurrentIndex(1 if p.side == HAlign.RIGHT else 0)
             self.pic_symbol.setCurrentIndex(max(0, self.pic_symbol.findData(p.symbol)))
             self._update_picture_widgets()
-            specs = "\n".join(f"{k}: {v}" for k, v in label.specs.items())
-            if self.specs.toPlainText() != specs:
-                self.specs.setPlainText(specs)
+            self.specs.set_specs(label.specs)
             if self.notes.toPlainText() != label.notes:
                 self.notes.setPlainText(label.notes)
+            self.notes_hint.setVisible(bool(FIELD_RE.search(label.notes)))
             self.elements.set_label(label)
         finally:
             self._loading = False
         self._update_mode()
+
+    def _field_targets(self) -> list[tuple[str, Callable[[str], None] | None]]:
+        """Where the { } button of a specification can put its field."""
+        if self.label is not None and self.label.is_free:
+            el = self.elements.current()
+            ok = el is not None and el.has_text
+            return [(tr("het geselecteerde element"),
+                     self.elements.field_btn.insert_field if ok else None)]
+        return [(tr(SLOT_NAMES[le.slot]).lower(), le.insert_field) for le in self.lines]
 
     def _update_mode(self) -> None:
         """The free layout edits elements; the others the three lines."""
@@ -434,16 +458,9 @@ class PropertiesPanel(QScrollArea):
         lbl.picture.side = SIDES[max(0, self.pic_side.currentIndex())][0]
         lbl.picture.symbol = self.pic_symbol.currentData() or lbl.picture.symbol
         self._update_picture_widgets()
-        specs: dict[str, str] = {}
-        for line in self.specs.toPlainText().splitlines():
-            if ":" in line:
-                k, v = line.split(":", 1)
-                if k.strip():
-                    specs[k.strip()] = v.strip()
-            elif line.strip():
-                specs[line.strip()] = ""
-        lbl.specs = specs
+        lbl.specs = self.specs.specs()
         lbl.notes = self.notes.toPlainText()
+        self.notes_hint.setVisible(bool(FIELD_RE.search(lbl.notes)))
         self._emit(structural)
 
     def _update_picture_widgets(self) -> None:

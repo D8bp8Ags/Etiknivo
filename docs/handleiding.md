@@ -67,7 +67,7 @@ Wisselen van layout gooit geen tekst weg: zet je hem terug, dan staat alles er w
 
 ### Tekstregels
 
-Per regel (Bovenregel, Hoofdregel, Onderregel) stel je in: de tekst, het lettertype, de grootte, vet en cursief, en de uitlijning. Met het vinkje zet je een regel aan of uit.
+Per regel (Bovenregel, Hoofdregel, Onderregel) stel je in: de tekst, het lettertype, de grootte, de stijl (vet en cursief) en de uitlijning. Met het vinkje zet je een regel aan of uit.
 
 Onder de regels vind je instellingen voor het hele label: verticale uitlijning, regelafstand, marges, *Tekst automatisch passend maken* (verkleint de tekst tot alles past), rotatie, een rand rond het etiket, een dunne lijn tussen de tekstregels en wit-op-zwart.
 
@@ -90,15 +90,17 @@ Je kunt een concept ook afdrukken zonder het eerst op te slaan; er wordt dan ged
 
 Onderaan het tabblad *Ontwerp* staan **Specificaties** en **Notities**.
 
-Specificaties zet je één per regel, als `naam: waarde`:
+Specificaties staan in een tabel met een **naam** en een **waarde**. Klik op **+ Specificatie** en vul bijvoorbeeld in:
 
-```
-Spanning: 50 V
-Tolerantie: 10%
-Behuizing: 0805
-```
+| Naam | Waarde |
+|---|---|
+| Spanning | 50 V |
+| Tolerantie | 10% |
+| Behuizing | 0805 |
 
-Typ in een tekstregel `{Spanning}` en op het etiket verschijnt `50 V`. Je kunt ook op de knop **{ }** naast een tekstveld klikken en het veld uit de lijst kiezen. Pas je later de specificatie aan, dan verandert het etiket vanzelf mee. Hoofdletters maken niet uit.
+Typ in een tekstregel `{Spanning}` en op het etiket verschijnt `50 V`. Sneller: klik op **{ }** achter de specificatie en kies in welke regel hij moet. De knop **{ }** naast een tekstveld werkt ook: die toont alle velden die je kunt gebruiken. Pas je later de waarde aan, dan verandert het etiket vanzelf mee. Hoofdletters maken niet uit.
+
+De accolades horen alleen in de tekstregel, niet in de tabel en niet in de notities. Typ je ze toch in de naam van een specificatie, dan negeert Etiknivo ze. Staat er een `{veld}` in een waarde of in de notities, dan krijg je een oranje melding, want daar wordt niets ingevuld.
 
 Naast je eigen specificaties werken altijd `{Naam}`, `{Lade}` en `{Categorie}`. Een veld dat niet bestaat blijft als tekst staan en geeft een waarschuwing onder het voorbeeld, zodat je een tikfout meteen ziet.
 

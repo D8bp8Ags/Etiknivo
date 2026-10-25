@@ -249,6 +249,7 @@ QLabel#heading {{ font-size: 15px; font-weight: 600; }}
 QLabel#title {{ font-size: 14px; font-weight: 600; }}
 QLabel#subtitle, QLabel#hint, QLabel#muted {{ color: {t.muted}; }}
 QLabel#hint {{ font-size: 11px; }}
+QLabel#warnHint {{ font-size: 11px; color: {t.warning}; }}
 QLabel#caption {{ color: {t.muted}; font-size: 11px; font-weight: 600; }}
 QLabel#pill {{ border-radius: 11px; padding: 3px 10px; font-weight: 500; }}
 QLabel#pill[state="ok"] {{ color: {t.success}; background: {_alpha(t.success, 0.13)}; }}
@@ -269,6 +270,7 @@ QToolButton:disabled {{ color: {t.muted}; }}
 QToolButton::menu-indicator {{ image: none; width: 0; }}
 QToolButton#chip {{ border: 1px solid {t.border}; border-radius: 13px; padding: 3px 10px; }}
 QToolButton#chip:hover {{ background: {t.hover}; }}
+QToolButton#cellButton {{ padding: 0 2px; }}
 
 QPushButton {{
     background: {t.surface}; border: 1px solid {t.border}; border-radius: 7px;

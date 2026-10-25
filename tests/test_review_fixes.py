@@ -86,3 +86,43 @@ def test_import_keeps_an_unrelated_draft(window, monkeypatch, tmp_path) -> None:
     window.import_json()
     assert window.library.get(other.id) is not None
     assert window.current.main.text == "Nog niet opgeslagen"
+
+
+def test_specs_table_edits_the_label(window) -> None:  # noqa: ANN001
+    specs = window.properties.specs
+    specs.add_row()
+    row = specs.table.rowCount() - 1
+    specs.table.item(row, 0).setText("{Spanning}")  # braces typed by habit
+    specs.table.item(row, 1).setText("50 V")
+    assert window.current.specs["Spanning"] == "50 V"
+    assert specs.warning.isHidden()
+    specs.table.item(row, 1).setText("{Lade}")
+    assert not specs.warning.isHidden()  # a field in a value is not filled in
+
+
+def test_specs_button_puts_the_field_in_a_line(window) -> None:  # noqa: ANN001
+    props = window.properties
+    props.specs.set_specs({"Spanning": "12 V"})
+    props.specs.changed.emit()
+    props.lines[2].text.setText("")
+    targets = dict(props._field_targets())
+    targets[props.lines[2].title().lower()]("Spanning")
+    assert window.current.bottom.text == "{Spanning}"
+    assert window.current.display_text(window.current.bottom) == "12 V"
+
+
+def test_field_in_notes_shows_a_hint(window) -> None:  # noqa: ANN001
+    props = window.properties
+    props.notes.setPlainText("{Spanning}")
+    assert not props.notes_hint.isHidden()
+    props.notes.setPlainText("besteld bij de groothandel")
+    assert props.notes_hint.isHidden()
+
+
+def test_inspector_fits_a_narrow_window(window) -> None:  # noqa: ANN001
+    props = window.properties
+    body = props.widget()
+    assert props.horizontalScrollBarPolicy() == props.horizontalScrollBarPolicy().ScrollBarAlwaysOff
+    assert props.minimumSizeHint().width() >= body.minimumSizeHint().width()
+    assert body.minimumSizeHint().width() < 340
+    assert window.minimumSizeHint().width() < 1150

@@ -26,7 +26,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from etiknivo.gui.widgets import ALIGN_TEXT, FieldButton, load_image, spin, symbol_icon
+from etiknivo.gui.widgets import ALIGN_TEXT, FieldButton, combo, load_image, spin, style_row, symbol_icon
 from etiknivo.i18n import tr
 from etiknivo.model import ELEMENT_TITLES, ElementKind, HAlign, Label, LabelElement
 from etiknivo.rendering import pictures, symbols
@@ -140,20 +140,17 @@ class ElementPanel(QWidget):
         text_row.setSpacing(4)
         text_row.addWidget(self.text, 1)
         text_row.addWidget(self.field_btn)
-        self.font = QComboBox()
+        self.font = combo()
         self.font.setEditable(True)
         self.font.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
         self.size = spin(3, 60, 0.5, " pt")
         self.bold = QCheckBox(tr("Vet"))
         self.italic = QCheckBox(tr("Cursief"))
-        font_row = QHBoxLayout()
-        font_row.addWidget(self.size)
-        font_row.addWidget(self.bold)
-        font_row.addWidget(self.italic)
-        self.align = QComboBox()
+        font_row = style_row(self.bold, self.italic)
+        self.align = combo()
         for a, t in ALIGN_TEXT.items():
             self.align.addItem(tr(t), a)
-        self.symbol = QComboBox()
+        self.symbol = combo()
         self.symbol.setIconSize(QSize(28, 28))
         for key, (name, _p) in symbols.SYMBOLS.items():
             self.symbol.addItem(symbol_icon(key), tr(name), key)
@@ -165,7 +162,8 @@ class ElementPanel(QWidget):
         f.addRow(tr("Grootte (b, h)"), size)
         f.addRow(tr("Inhoud"), text_row)
         f.addRow(tr("Lettertype"), self.font)
-        f.addRow(tr("Grootte"), font_row)
+        f.addRow(tr("Grootte"), self.size)
+        f.addRow(tr("Stijl"), font_row)
         f.addRow(tr("Uitlijning"), self.align)
         f.addRow(tr("Symbool"), self.symbol)
         f.addRow(tr("Afbeelding"), self.image_btn)
@@ -281,7 +279,8 @@ class ElementPanel(QWidget):
             return
         kind = el.kind
         is_text = kind == ElementKind.TEXT
-        rows = ((self._text_row, el.has_text), (self.font, is_text), (self._font_row, is_text),
+        rows = ((self._text_row, el.has_text), (self.font, is_text), (self.size, is_text),
+                (self._font_row, is_text),
                 (self.align, is_text), (self.symbol, kind == ElementKind.SYMBOL),
                 (self.image_btn, kind == ElementKind.IMAGE), (self.fitted, is_text))
         for row, on in rows:
