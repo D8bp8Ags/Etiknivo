@@ -97,16 +97,21 @@ def test_print_uses_the_draft(window) -> None:  # noqa: ANN001
     assert sel[0] is window.current and sel[0].main.text == "Ongesaved"
 
 
-def test_layout_switch_in_gui_keeps_text(window) -> None:  # noqa: ANN001
+def test_line_count_buttons_keep_text_and_style(window) -> None:  # noqa: ANN001
     lbl = window.current
+    lbl.main.font_size_pt, lbl.main.italic = 11.0, True
     texts = [ln.text for ln in lbl.lines]
-    combo = window.properties.layout_combo
-    for preset in (LayoutPreset.SINGLE, LayoutPreset.MAIN_SPEC, LayoutPreset.CATEGORY_MAIN_SPEC):
-        combo.setCurrentIndex(combo.findData(preset))
-        combo.activated.emit(combo.currentIndex())
-        assert lbl.layout == preset
+    buttons = window.properties.count_buttons
+    for count, preset in ((1, LayoutPreset.SINGLE), (2, LayoutPreset.MAIN_SPEC),
+                          (3, LayoutPreset.CATEGORY_MAIN_SPEC)):
+        buttons[count - 1].click()
+        assert lbl.layout == preset and lbl.line_count() == count
+        assert [b.isChecked() for b in buttons] == [n == count for n in (1, 2, 3)]
         assert [ln.text for ln in lbl.lines] == texts
+        assert lbl.main.font_size_pt == 11.0 and lbl.main.italic  # the look stays
     assert len(window.design_view.result.lines) == 3
+    window.properties.lines[0].setChecked(False)  # a line turned off by hand
+    assert [b.isChecked() for b in buttons] == [False, True, False]
 
 
 def test_new_duplicate_delete(window) -> None:  # noqa: ANN001

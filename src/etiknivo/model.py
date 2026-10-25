@@ -85,14 +85,9 @@ class LayoutPreset(StrEnum):
     FREE = "free"
 
 
-LAYOUT_TITLES: dict[LayoutPreset, str] = {
-    LayoutPreset.SINGLE: N_("1 · Alleen grote naam"),
-    LayoutPreset.MAIN_SPEC: N_("2 · Naam + specificatie"),
-    LayoutPreset.CATEGORY_MAIN_SPEC: N_("3 · Categorie + naam + specificatie"),
-    LayoutPreset.CUSTOM: N_("Aangepast"),
-    LayoutPreset.FREE: N_("Vrij (elementen slepen)"),
-}
-
+#: the layout stored for each quick choice of 1, 2 or 3 lines
+LINE_COUNT_PRESETS = {1: LayoutPreset.SINGLE, 2: LayoutPreset.MAIN_SPEC,
+                      3: LayoutPreset.CATEGORY_MAIN_SPEC}
 
 def _now() -> str:
     return datetime.now(UTC).isoformat(timespec="seconds")
@@ -322,6 +317,8 @@ class Label:
     picture: LabelPicture = field(default_factory=LabelPicture)
     #: loose elements, used when ``layout`` is FREE
     elements: list[LabelElement] = field(default_factory=list)
+    #: :meth:`lines_key` of the lines the elements were made from
+    elements_from: str = ""
     specs: dict[str, str] = field(default_factory=dict)
     notes: str = ""
     created: str = field(default_factory=_now)
@@ -455,6 +452,26 @@ class Label:
         self.style.valign = VAlign.CENTER
         self.style.autofit = True
 
+    def show_lines(self, count: int) -> None:
+        """Quick choice of how many lines show: 1 (the main line), 2 (main
+        and bottom) or 3.  Fonts, sizes and alignment stay as they are."""
+        enabled = {1: (False, True, False), 2: (False, True, True)}.get(count, (True,) * 3)
+        for line, on in zip(self.lines, enabled):
+            line.enabled = on
+        self.layout = LINE_COUNT_PRESETS.get(count, LayoutPreset.CATEGORY_MAIN_SPEC)
+
+    def line_count(self) -> int | None:
+        """1, 2 or 3 when the lines that show match a quick choice, else None."""
+        enabled = tuple(line.enabled for line in self.lines)
+        return {(False, True, False): 1, (False, True, True): 2,
+                (True, True, True): 3}.get(enabled)  # type: ignore[arg-type]
+
+    def lines_key(self) -> str:
+        """Hash of what the free layout's elements are made from."""
+        d = {"lines": [asdict(x) for x in self.lines], "code": asdict(self.code),
+             "picture": asdict(self.picture)}
+        return hashlib.sha1(json.dumps(d, sort_keys=True, default=str).encode()).hexdigest()
+
     # -- (de)serialisation -----------------------------------------------------
 
     def to_dict(self) -> dict[str, Any]:
@@ -480,6 +497,7 @@ class Label:
             picture=LabelPicture.from_dict(data.get("picture") or {}),
             elements=[LabelElement.from_dict(x) for x in data.get("elements") or []
                       if isinstance(x, dict)],
+            elements_from=str(data.get("elements_from", "")),
             specs={str(k): str(v) for k, v in (data.get("specs") or {}).items()},
             notes=str(data.get("notes", "")),
         )

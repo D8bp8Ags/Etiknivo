@@ -172,10 +172,6 @@ EN: dict[str, str] = {
     "Bovenregel": "Top line",
     "Hoofdregel": "Main line",
     "Onderregel": "Bottom line",
-    "1 · Alleen grote naam": "1 · Large name only",
-    "2 · Naam + specificatie": "2 · Name + specification",
-    "3 · Categorie + naam + specificatie": "3 · Category + name + specification",
-    "Aangepast": "Custom",
     "Lade": "Tray",
     "Links": "Left",
     "Midden": "Centre",
@@ -195,14 +191,6 @@ EN: dict[str, str] = {
     "Uitlijning": "Alignment",
     "Label": "Label",
     "Layout": "Layout",
-    "De lade-ID komt alleen op het etiket als een element {Lade} bevat. De elementen staan "
-    "los van de regels van de andere layouts: wat je hier verandert, komt daar niet terug.":
-        "The tray ID is only printed if an element contains {Tray}. The elements are separate "
-        "from the lines of the other layouts: what you change here does not carry over.",
-    "De lade-ID komt alleen op het etiket als een regel {Lade} bevat. Een andere layout kiezen "
-    "bewaart de tekst van alle regels.":
-        "The tray ID is only printed if a line contains {Tray}. Choosing another layout keeps "
-        "the text of all lines.",
     "Opmaak": "Style",
     "Tekst automatisch passend maken": "Shrink text to fit",
     "180° (ondersteboven)": "180° (upside down)",
@@ -576,7 +564,6 @@ EN: dict[str, str] = {
     "Plaats (x, y)": "Position (x, y)",
     "Grootte (b, h)": "Size (w, h)",
     "Toevoegen": "Add",
-    "Vrij (elementen slepen)": "Free (drag elements)",
     "QR-code": "QR code",
     "Barcode": "Barcode",
     "Lijn": "Line",
@@ -690,4 +677,37 @@ EN: dict[str, str] = {
     "Huis en keuken": "Home and kitchen",
     "Kantoor en opslag": "Office and storage",
     "Regel '{text}' past niet en is ingekort": "Line '{text}' does not fit and was shortened",
+    # -- layout switch ----------------------------------------------------------------
+    "Tot drie tekstregels onder elkaar, met een QR-code of barcode en een pictogram ernaast":
+        "Up to three lines of text, with a QR code or barcode and a pictogram beside them",
+    "Losse elementen die je in het ontwerp versleept en schaalt":
+        "Loose elements you drag and resize in the design",
+    "Regels":
+        "Lines",
+    "Vrij":
+        "Free",
+    "Vrije layout":
+        "Free layout",
+    "De regels zijn veranderd sinds je de vrije layout maakte.":
+        "The lines have changed since you made the free layout.",
+    "Wil je de elementen opnieuw maken uit de regels, of je vorige vrije layout houden?":
+        "Do you want to make the elements again from the lines, or keep your earlier free layout?",
+    "Opnieuw maken":
+        "Make again",
+    "Vorige houden":
+        "Keep earlier",
+    "De lade-ID komt alleen op het etiket als een element {Lade} bevat. De elementen staan los van de"
+    " regels: wat je hier verandert, komt daar niet terug.":
+        "The tray ID is only printed if an element contains {Tray}. The elements are separate from "
+        "the lines: what you change here does not carry over.",
+    "De lade-ID komt alleen op het etiket als een regel {Lade} bevat. Met 1, 2 of 3 zet je regels aan"
+    " of uit; hun tekst en opmaak blijven bewaard.":
+        "The tray ID is only printed if a line contains {Tray}. 1, 2 or 3 turns lines on or off; "
+        "their text and style are kept.",
+    "Alleen de hoofdregel":
+        "Only the main line",
+    "Hoofdregel en onderregel":
+        "Main line and bottom line",
+    "Bovenregel, hoofdregel en onderregel":
+        "Top line, main line and bottom line",
 }

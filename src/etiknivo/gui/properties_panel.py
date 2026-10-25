@@ -33,6 +33,7 @@ from etiknivo.gui.widgets import (
     FieldButton,
     combo,
     load_image,
+    segmented,
     select_symbol,
     spin,
     style_row,
@@ -41,7 +42,7 @@ from etiknivo.gui.widgets import (
 from etiknivo.i18n import N_, tr
 from etiknivo.model import (
     FIELD_RE,
-    LAYOUT_TITLES,
+    LINE_COUNT_PRESETS,
     SLOT_BOTTOM,
     SLOT_NAMES,
     CodeKind,
@@ -158,13 +159,25 @@ class PropertiesPanel(QScrollArea):
         self.category = combo()
         self.category.setEditable(True)
         self.category.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
-        self.layout_combo = combo()
-        for preset, title in LAYOUT_TITLES.items():
-            self.layout_combo.addItem(tr(title), preset)
+        # Two ways of working: three text lines, or loose elements to drag.
+        mode, (self.mode_lines, self.mode_free) = segmented([tr("Regels"), tr("Vrij")])
+        self.mode_lines.setToolTip(tr("Tot drie tekstregels onder elkaar, met een QR-code of "
+                                      "barcode en een pictogram ernaast"))
+        self.mode_free.setToolTip(tr("Losse elementen die je in het ontwerp versleept en "
+                                     "schaalt"))
+        counts, self.count_buttons = segmented(["1", "2", "3"], exclusive=False)
+        for n, (btn, tip) in enumerate(zip(self.count_buttons, (
+                tr("Alleen de hoofdregel"), tr("Hoofdregel en onderregel"),
+                tr("Bovenregel, hoofdregel en onderregel"))), start=1):
+            btn.setToolTip(tip)
+            btn.clicked.connect(lambda _c=False, n=n: self._count_chosen(n))
         f.addRow(tr("Naam"), self.name)
         f.addRow(tr("Lade-ID"), self.tray)
         f.addRow(tr("Categorie"), self.category)
-        f.addRow(tr("Layout"), self.layout_combo)
+        f.addRow(tr("Layout"), mode)
+        f.addRow(tr("Regels"), counts)
+        self._label_form = f
+        self._counts_row = counts
         self.layout_hint = QLabel()
         self.layout_hint.setWordWrap(True)
         self.layout_hint.setObjectName("hint")
@@ -293,7 +306,8 @@ class PropertiesPanel(QScrollArea):
         # name must not create a category or move the label.
         self.category.lineEdit().editingFinished.connect(self._commit_category)
         self.category.activated.connect(self._commit_category)
-        self.layout_combo.activated.connect(self._layout_chosen)
+        self.mode_lines.clicked.connect(lambda: self._mode_chosen(free=False))
+        self.mode_free.clicked.connect(lambda: self._mode_chosen(free=True))
         for w in (self.valign, self.rotation):
             w.currentIndexChanged.connect(lambda: self._apply(False))
         for w in (self.spacing, self.margin_h, self.margin_v):
@@ -342,7 +356,9 @@ class PropertiesPanel(QScrollArea):
             self.name.setText(label.name)
             self.tray.setText(label.tray_id)
             self.category.setCurrentText(label.category)
-            self.layout_combo.setCurrentIndex(self.layout_combo.findData(label.layout))
+            self.mode_free.setChecked(label.is_free)
+            self.mode_lines.setChecked(not label.is_free)
+            self._show_count()
             for le, ln in zip(self.lines, label.lines):
                 le.setChecked(ln.enabled)
                 if le.text.text() != ln.text:
@@ -394,12 +410,13 @@ class PropertiesPanel(QScrollArea):
         """The free layout edits elements; the others the three lines."""
         free = self.label is not None and self.label.is_free
         self.elements.setVisible(free)
+        self._label_form.setRowVisible(self._counts_row, not free)
         self.layout_hint.setText(
             tr("De lade-ID komt alleen op het etiket als een element {Lade} bevat. De "
-               "elementen staan los van de regels van de andere layouts: wat je hier "
-               "verandert, komt daar niet terug.") if free else
-            tr("De lade-ID komt alleen op het etiket als een regel {Lade} bevat. Een andere "
-               "layout kiezen bewaart de tekst van alle regels."))
+               "elementen staan los van de regels: wat je hier verandert, komt daar niet "
+               "terug.") if free else
+            tr("De lade-ID komt alleen op het etiket als een regel {Lade} bevat. Met 1, 2 of "
+               "3 zet je regels aan of uit; hun tekst en opmaak blijven bewaard."))
         for w in (*self.lines, self.code_group, self.pic_group):
             w.setVisible(not free)
         for w in (self.valign, self.spacing, self.margin_h, self.margin_v, self.rotation,
@@ -423,26 +440,61 @@ class PropertiesPanel(QScrollArea):
 
     # -- applying -----------------------------------------------------------------------
 
-    def _layout_chosen(self) -> None:
+    def _mode_chosen(self, free: bool) -> None:
+        """Switch between the three lines and loose elements."""
+        lbl = self.label
+        if self._loading or lbl is None or free == lbl.is_free:
+            self.set_label(lbl)
+            return
+        if free:
+            if self.make_elements and (not lbl.elements or (
+                    lbl.elements_from not in ("", lbl.lines_key()) and self._ask_rebuild())):
+                lbl.elements = self.make_elements(lbl)
+                lbl.elements_from = lbl.lines_key()
+            lbl.layout = LayoutPreset.FREE
+        else:
+            count = lbl.line_count()
+            lbl.layout = LINE_COUNT_PRESETS[count] if count else LayoutPreset.CUSTOM
+        self.set_label(lbl)
+        self._emit(False)
+
+    def _ask_rebuild(self) -> bool:
+        """The lines changed since the elements were made: start again from
+        the lines (True) or keep the earlier free layout (False)?"""
+        box = QMessageBox(self)
+        box.setIcon(QMessageBox.Icon.Question)
+        box.setWindowTitle(tr("Vrije layout"))
+        box.setText(tr("De regels zijn veranderd sinds je de vrije layout maakte."))
+        box.setInformativeText(tr("Wil je de elementen opnieuw maken uit de regels, of je "
+                                  "vorige vrije layout houden?"))
+        again = box.addButton(tr("Opnieuw maken"), QMessageBox.ButtonRole.AcceptRole)
+        box.addButton(tr("Vorige houden"), QMessageBox.ButtonRole.RejectRole)
+        box.exec()
+        return box.clickedButton() is again
+
+    def _count_chosen(self, count: int) -> None:
+        """Quick choice of 1, 2 or 3 lines; the lines keep their look."""
         if self._loading or self.label is None:
             return
-        preset = LayoutPreset(self.layout_combo.currentData())
-        if preset == LayoutPreset.FREE and not self.label.elements and self.make_elements:
-            self.label.elements = self.make_elements(self.label)
-        self.label.apply_layout(preset)
+        self.label.show_lines(count)
         self.set_label(self.label)
         self._emit(False)
+
+    def _show_count(self) -> None:
+        count = self.label.line_count() if self.label is not None else None
+        for n, btn in enumerate(self.count_buttons, start=1):
+            btn.setChecked(n == count)
 
     def _line_changed(self, le: LineEditor) -> None:
         if self._loading or self.label is None:
             return
         ln = self.label.lines[le.slot]
-        if ln.enabled != le.isChecked():
-            self.label.layout = LayoutPreset.CUSTOM
-            self._loading = True
-            self.layout_combo.setCurrentIndex(self.layout_combo.findData(LayoutPreset.CUSTOM))
-            self._loading = False
+        toggled = ln.enabled != le.isChecked()
         ln.enabled = le.isChecked()
+        if toggled:
+            count = self.label.line_count()
+            self.label.layout = LINE_COUNT_PRESETS[count] if count else LayoutPreset.CUSTOM
+            self._show_count()
         ln.text = le.text.text()
         if le.font.currentText().strip():
             ln.font_family = le.font.currentText().strip()

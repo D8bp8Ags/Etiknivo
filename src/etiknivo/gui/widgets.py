@@ -17,7 +17,9 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLineEdit,
     QMenu,
+    QSizePolicy,
     QToolButton,
+    QWidget,
 )
 
 from etiknivo.gui import theme
@@ -139,3 +141,25 @@ class FieldButton(QToolButton):
         self.edit.insert(f"{{{name}}}")
         self.edit.setFocus()
         self.inserted.emit()
+
+
+def segmented(titles: list[str], exclusive: bool = True) -> tuple[QWidget, list[QToolButton]]:
+    """Buttons side by side as one control, like a switch with several
+    positions.  With *exclusive* one is always checked."""
+    box = QWidget()
+    lay = QHBoxLayout(box)
+    lay.setContentsMargins(0, 0, 0, 0)
+    lay.setSpacing(0)
+    buttons: list[QToolButton] = []
+    for n, title in enumerate(titles):
+        btn = QToolButton()
+        btn.setObjectName("segment")
+        btn.setProperty("pos", "first" if n == 0 else "last" if n == len(titles) - 1
+                        else "middle")
+        btn.setText(title)
+        btn.setCheckable(True)
+        btn.setAutoExclusive(exclusive)
+        btn.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        lay.addWidget(btn)
+        buttons.append(btn)
+    return box, buttons

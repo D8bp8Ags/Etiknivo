@@ -271,6 +271,18 @@ QToolButton::menu-indicator {{ image: none; width: 0; }}
 QToolButton#chip {{ border: 1px solid {t.border}; border-radius: 13px; padding: 3px 10px; }}
 QToolButton#chip:hover {{ background: {t.hover}; }}
 QToolButton#cellButton {{ padding: 0 2px; }}
+QToolButton#segment {{
+    border: 1px solid {t.border}; border-radius: 0; background: {t.surface}; padding: 4px 8px;
+}}
+QToolButton#segment[pos="first"] {{ border-top-left-radius: 7px; border-bottom-left-radius: 7px; }}
+QToolButton#segment[pos="last"] {{
+    border-top-right-radius: 7px; border-bottom-right-radius: 7px;
+}}
+QToolButton#segment[pos="middle"], QToolButton#segment[pos="last"] {{ border-left: none; }}
+QToolButton#segment:hover {{ background: {t.hover}; }}
+QToolButton#segment:checked {{
+    background: {t.accent}; border-color: {t.accent}; color: {t.on_accent};
+}}
 
 QPushButton {{
     background: {t.surface}; border: 1px solid {t.border}; border-radius: 7px;

@@ -55,16 +55,16 @@ Klik **+** in de werkbalk (⌘N). Je kiest een categorie en het label opent in d
 - **Naam**: hoe het label in de bibliotheek heet.
 - **Lade-ID**: bijvoorbeeld `A14`, om op te sorteren. Komt niet op het etiket, tenzij je `{Lade}` in een tekstregel zet.
 - **Categorie**: groepeert labels in de bibliotheek. Kies een bestaande of typ een nieuwe.
-- **Layout**: welke regels er op het etiket staan.
+- **Layout**: **Regels** of **Vrij**. Bij *Regels* staan er tot drie tekstregels onder elkaar, met een QR-code of barcode en een pictogram ernaast. Bij *Vrij* zet je losse elementen waar je wilt (zie [Vrije layout](#vrije-layout-elementen-slepen)).
+- **Regels** (alleen bij *Regels*): de snelknoppen **1**, **2** en **3** zetten regels aan of uit.
 
-| Layout | Regels |
+| Knop | Regels op het etiket |
 |---|---|
-| 1 · Alleen naam | één grote regel |
-| 2 · Naam + specificatie | grote regel met een kleinere eronder |
-| 3 · Categorie + naam + specificatie | kleine bovenregel, grote hoofdregel, kleine onderregel |
-| Aangepast | wat je zelf instelt |
+| 1 | alleen de hoofdregel |
+| 2 | hoofdregel en onderregel |
+| 3 | bovenregel, hoofdregel en onderregel |
 
-Wisselen van layout gooit geen tekst weg: zet je hem terug, dan staat alles er weer. Zodra je zelf een lettergrootte of uitlijning verandert, wordt de layout *Aangepast*.
+De snelknoppen veranderen alleen welke regels aan staan. Tekst, lettertype, grootte en uitlijning van elke regel blijven bewaard. Je kunt een regel ook zelf aan- of uitvinken; staat er een combinatie aan die bij geen knop hoort, dan is geen knop gekozen.
 
 ### Tekstregels
 
@@ -152,7 +152,7 @@ Etiknivo maakt QR-codes en barcodes zelf, zonder externe bibliotheek of internet
 
 ## Vrije layout: elementen slepen
 
-Wil je meer vrijheid dan drie regels onder elkaar, kies dan bij *Layout* **Vrij (elementen slepen)**. Wat er op het etiket staat (de regels, de QR-code of barcode en het pictogram) wordt dan omgezet in losse **elementen** op precies dezelfde plek. Het etiket ziet er dus eerst hetzelfde uit.
+Wil je meer vrijheid dan drie regels onder elkaar, kies dan bij *Layout* **Vrij**. Wat er op het etiket staat (de regels, de QR-code of barcode en het pictogram) wordt dan omgezet in losse **elementen** op precies dezelfde plek. Het etiket ziet er dus eerst hetzelfde uit.
 
 - **Selecteren en slepen**: klik een element in het ontwerp en sleep het. Het blauwe hoekje rechtsonder maakt het groter of kleiner. Alles springt per dot (0,125 mm), dus wat je ziet is precies wat er geprint wordt.
 - **Toetsen**: de pijltjes schuiven het geselecteerde element 1 dot, met Shift 1 mm. Delete verwijdert het.
@@ -161,7 +161,7 @@ Wil je meer vrijheid dan drie regels onder elkaar, kies dan bij *Layout* **Vrij 
 
 Tekst wordt zo groot als je instelt, maar krimpt als hij niet in zijn vak past. Codes, symbolen en afbeeldingen worden zo groot mogelijk in hun vak gezet. Een symbool vult zijn vak tot aan de rand, zonder witruimte eromheen. Een **lijn** vult zijn hele vak, dus een plat vak is een streep en een vierkant vak een zwart blok. Een **kader** is een rand van 1 dot om het vak. Velden zoals `{Lade}`, `{Datum}` en `{Nr}` werken in alle tekst en codes.
 
-Ga je terug naar een gewone layout, dan krijg je je drie regels terug zoals ze waren. De elementen blijven bewaard voor als je weer *Vrij* kiest. In de vrije layout gelden marges, regelafstand en rotatie niet, want je zet alles zelf neer. Met **Opmaak overnemen → Layout** krijgen andere labels dezelfde elementen. Gebruik velden zoals `{Naam}` en `{Lade}` in de tekst, dan toont elk label zijn eigen gegevens.
+Ga je terug naar *Regels*, dan krijg je je drie regels terug zoals ze waren. De elementen blijven bewaard voor als je weer *Vrij* kiest. Heb je de regels intussen veranderd, dan vraagt Etiknivo of je de elementen **opnieuw wilt maken** uit de regels of je **vorige vrije layout wilt houden**. In de vrije layout gelden marges, regelafstand en rotatie niet, want je zet alles zelf neer. Met **Opmaak overnemen → Layout** krijgen andere labels dezelfde elementen. Gebruik velden zoals `{Naam}` en `{Lade}` in de tekst, dan toont elk label zijn eigen gegevens.
 
 ## Afdrukken
 

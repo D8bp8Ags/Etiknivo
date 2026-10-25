@@ -107,8 +107,7 @@ def test_copy_format_takes_the_free_layout() -> None:
 def test_free_layout_in_the_window(qtbot, window) -> None:  # noqa: ANN001, F811
     pp, dv = window.properties, window.design_view
     before = window.engine.render(window.current).mono
-    pp.layout_combo.setCurrentIndex(pp.layout_combo.findData(LayoutPreset.FREE))
-    pp.layout_combo.activated.emit(pp.layout_combo.currentIndex())
+    pp.mode_free.click()
     lbl = window.current
     assert lbl.is_free and len(lbl.elements) == 3
     assert pp.elements.isVisible() and not pp.lines[0].isVisible()
@@ -156,3 +155,27 @@ def test_a_symbol_fills_its_box(engine: RenderEngine) -> None:
     assert ink is not None and ink[1] <= 1 and ink[3] >= by1 - by0 - 1  # top to bottom
     star.x_mm = -3
     assert any(star.title in w for w in engine.render(free_label(star)).warnings)
+
+
+def test_back_to_free_asks_when_the_lines_changed(window, monkeypatch) -> None:  # noqa: ANN001, F811
+    pp = window.properties
+    lbl = window.current
+    pp.mode_free.click()
+    made = lbl.elements
+    lbl.elements[0].x_mm += 1  # an edit in the free layout
+    pp.mode_lines.click()
+    assert not lbl.is_free and pp.lines[0].isVisible()
+    asked: list[bool] = []
+    monkeypatch.setattr(type(pp), "_ask_rebuild", lambda self: asked.append(True) or False)
+    pp.mode_free.click()  # nothing changed: the free layout comes back as it was
+    assert lbl.elements is made and not asked
+    pp.mode_lines.click()
+    pp.lines[1].text.setText("Iets anders")
+    pp.lines[1].text.textEdited.emit("Iets anders")
+    pp.mode_free.click()  # lines changed: asked, and "keep" keeps the edit
+    assert asked == [True] and lbl.elements is made
+    pp.mode_lines.click()
+    monkeypatch.setattr(type(pp), "_ask_rebuild", lambda self: True)
+    pp.mode_free.click()  # "make again" uses the new text
+    assert lbl.elements is not made
+    assert any(e.text == "Iets anders" for e in lbl.elements)
