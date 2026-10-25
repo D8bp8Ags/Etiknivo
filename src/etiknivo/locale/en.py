@@ -689,4 +689,5 @@ EN: dict[str, str] = {
     "Stroom en kabels": "Power and cables",
     "Huis en keuken": "Home and kitchen",
     "Kantoor en opslag": "Office and storage",
+    "Regel '{text}' past niet en is ingekort": "Line '{text}' does not fit and was shortened",
 }

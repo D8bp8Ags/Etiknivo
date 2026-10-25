@@ -205,7 +205,7 @@ def test_overflow_detected_without_autofit(engine: RenderEngine) -> None:
     lbl.style.autofit = False
     r = engine.render(lbl)
     assert r.has_overflow
-    assert any("buiten het printbare gebied" in w for w in r.warnings)
+    assert any("past niet en is ingekort" in w for w in r.warnings)  # cut short with "…"
 
 
 def test_too_much_text_warns_even_with_autofit(engine: RenderEngine) -> None:

@@ -63,6 +63,8 @@ BAR_HEIGHT_MM = 3.5
 BAR_GAP_MM = 0.75
 PICTURE_GAP_MM = 1.0
 PICTURE_MAX_WIDTH = 0.5  # share of the room left for text
+#: sizes a pictogram may take (share of the text height) before the text shrinks
+PICTURE_SCALES = (1.0, 0.85, 0.7, 0.55, 0.4)
 SEPARATOR_GAP_PX = 3  # minimum line gap with separators: white, line, white
 ITALIC_SHEAR = 0.2
 
@@ -238,19 +240,25 @@ class RenderEngine:
         prepared = self._prepare_lines(label, warnings)
         code = self._place_code(label, content, bool(prepared), warnings)
         area = code.text_area if code else content
-        picture = self._place_picture(label, area, warnings)
-        if picture is not None:
-            area = picture[2]
-        avail_w = max(1.0, area[2] - area[0])
-        avail_h = max(1.0, area[3] - area[1])
         sizes = [ln.line.font_size_pt for ln in prepared]
         spacing = self.mm_to_px(style.line_spacing_mm)
         if style.separators and len(prepared) > 1:
             spacing = max(spacing, SEPARATOR_GAP_PX)  # room for the line and white around it
+        picture = self._fit_picture(label, area, prepared, sizes, spacing, warnings)
+        if picture is not None:
+            area = picture[2]
+        avail_w = max(1.0, area[2] - area[0])
+        avail_h = max(1.0, area[3] - area[1])
 
         if style.autofit and prepared:
             sizes = self._autofit(prepared, sizes, avail_w, avail_h, spacing)
 
+        # A line that is still too wide is cut short with "…" rather than
+        # printed over the code or pictogram; it still gets a warning.
+        cut = {n: p.text for n, p in enumerate(prepared)
+               if self._width(p, sizes[n]) > avail_w + 0.5}
+        prepared = [self._shorten(p, sizes[n], avail_w) if n in cut else p
+                    for n, p in enumerate(prepared)]
         boxes = [self._measure(p, s) for p, s in zip(prepared, sizes)]
         heights = [b[3] - b[1] for b in boxes]
         block_h = sum(heights) + spacing * max(0, len(prepared) - 1)
@@ -277,9 +285,9 @@ class RenderEngine:
             else:
                 x = area[0] + (avail_w - lw) / 2
             self._draw_line(hires, p, size, x - bbox[0], y - bbox[1], ss)
-            overflow = (lw > avail_w + 0.5) or (x < area[0] - 0.5) or (x + lw > area[2] + 0.5) \
-                or (y < py0 - 0.5) or (y + lh > py1 + 0.5)
-            line_boxes.append(LineBox(p.slot, p.text, x, y, x + lw, y + lh, size,
+            overflow = (n in cut) or (lw > avail_w + 0.5) or (x < area[0] - 0.5) \
+                or (x + lw > area[2] + 0.5) or (y < py0 - 0.5) or (y + lh > py1 + 0.5)
+            line_boxes.append(LineBox(p.slot, cut.get(n, p.text), x, y, x + lw, y + lh, size,
                                       p.line.font_size_pt, overflow))
             y += lh + spacing
 
@@ -287,8 +295,10 @@ class RenderEngine:
             for lb in line_boxes:
                 if lb.y0 < area[1] - 0.5 or lb.y1 > area[3] + 0.5:
                     lb.overflow = True
-        for lb in line_boxes:
-            if lb.overflow:  # shrinking to fit is expected and not worth a warning
+        for n, lb in enumerate(line_boxes):
+            if n in cut:
+                warnings.append(tr("Regel '{text}' past niet en is ingekort", text=lb.text))
+            elif lb.overflow:  # shrinking to fit is expected and not worth a warning
                 warnings.append(tr("Regel '{text}' valt buiten het printbare gebied",
                                    text=lb.text))
         if style.autofit and any(lb.overflow for lb in line_boxes):
@@ -673,9 +683,47 @@ class RenderEngine:
         area = (cx0, cy0, cx1, y0 - self.mm_to_px(BAR_GAP_MM))
         return PlacedCode(spec.kind, text, (x0, y0, x0 + width, y1), module, rects, area)
 
+    def _fit_picture(self, label: Label, area: tuple[float, float, float, float],
+                     prepared: list[_Prepared], sizes: list[float], spacing: float,
+                     warnings: list[str]) -> tuple[tuple[int, int, int, int], str | Image.Image,
+                                                   tuple[float, float, float, float]] | None:
+        """The pictogram as large as possible, but smaller when the text would
+        otherwise have to shrink: the text is what the label is for."""
+        best, best_score = None, -1.0
+        for scale in PICTURE_SCALES:
+            tried: list[str] = []
+            placed = self._place_picture(label, area, tried, scale)
+            if placed is None:
+                if best is None:
+                    warnings.extend(tried)
+                break
+            score = self._text_fit(prepared, sizes, placed[2], spacing, label.style.autofit)
+            if score > best_score + 1e-3:
+                best, best_score = placed, score
+            if score >= 1.0:
+                break
+        return best
+
+    def _text_fit(self, prepared: list[_Prepared], sizes: list[float],
+                  area: tuple[float, float, float, float], spacing: float,
+                  autofit: bool) -> float:
+        """How well the lines fit in *area*: 1.0 at their own size, less when
+        they have to shrink (or, without auto-fit, stick out)."""
+        if not prepared:
+            return 1.0
+        avail_w, avail_h = max(1.0, area[2] - area[0]), max(1.0, area[3] - area[1])
+        if autofit:
+            fitted = self._autofit(prepared, sizes, avail_w, avail_h, spacing)
+        else:
+            fitted = sizes
+        score = min(f / s for f, s in zip(fitted, sizes))
+        widest = max(self._width(p, f) for p, f in zip(prepared, fitted))
+        return score * min(1.0, avail_w / max(1.0, widest))
+
     def _place_picture(self, label: Label, area: tuple[float, float, float, float],
-                       warnings: list[str]) -> tuple[tuple[int, int, int, int], str | Image.Image,
-                                                      tuple[float, float, float, float]] | None:
+                       warnings: list[str], scale: float = 1.0,
+                       ) -> tuple[tuple[int, int, int, int], str | Image.Image,
+                                  tuple[float, float, float, float]] | None:
         """Box for the label's pictogram at the outer edge of *area*:
         (box in design dots, source, area left for the text) or None."""
         pic = label.picture
@@ -694,7 +742,7 @@ class RenderEngine:
         else:
             return None
         ax0, ay0, ax1, ay1 = area
-        h = int(ay1 - ay0)
+        h = int((ay1 - ay0) * scale)
         w = round(h * aspect)
         max_w = int((ax1 - ax0) * PICTURE_MAX_WIDTH)
         if w > max_w:
@@ -705,12 +753,15 @@ class RenderEngine:
             return None
         y0 = round(ay0 + (ay1 - ay0 - h) / 2)
         gap = self.mm_to_px(PICTURE_GAP_MM)
+        # a symbol's white space left and right does not push the text away
+        fx0, _fy0, fx1, _fy1 = (symbols.ink_box(source) if isinstance(source, str)
+                                else (0.0, 0.0, 1.0, 1.0))
         if pic.side == HAlign.RIGHT:
-            x0 = int(ax1) - w
-            rest = (ax0, ay0, x0 - gap, ay1)
+            x0 = round(ax1 - fx1 * w)
+            rest = (ax0, ay0, x0 + fx0 * w - gap, ay1)
         else:
-            x0 = round(ax0)
-            rest = (x0 + w + gap, ay0, ax1, ay1)
+            x0 = round(ax0 - fx0 * w)
+            rest = (x0 + fx1 * w + gap, ay0, ax1, ay1)
         return (x0, y0, x0 + w, y0 + h), source, rest
 
     @staticmethod
@@ -774,6 +825,20 @@ class RenderEngine:
         if p.face.synthetic_italic:
             r += (b - t) * ITALIC_SHEAR
         return l / ss, t / ss, r / ss, b / ss
+
+    def _width(self, p: _Prepared, size_pt: float) -> float:
+        l, _t, r, _b = self._measure(p, size_pt)
+        return r - l
+
+    def _shorten(self, p: _Prepared, size_pt: float, avail_w: float) -> _Prepared:
+        """*p* with its text cut short and ending in "…" so it fits *avail_w*."""
+        text = p.text
+        while len(text) > 1:
+            text = text[:-1]
+            short = replace(p, text=text.rstrip() + "…")
+            if self._width(short, size_pt) <= avail_w + 0.5:
+                return short
+        return replace(p, text="…")
 
     def _autofit(self, prepared: list[_Prepared], sizes: list[float], avail_w: float,
                  avail_h: float, spacing: float) -> list[float]:

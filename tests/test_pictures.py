@@ -38,11 +38,13 @@ def test_symbol_beside_text(side: HAlign) -> None:
     r = eng.render(_label(PictureKind.SYMBOL, side))
     assert not r.warnings and not r.has_overflow
     px0, _py0, px1, _py1 = eng.printable_box
+    bx0, _by0, bx1, _by1 = r.picture_box
+    fx0, _fy0, fx1, _fy1 = symbols.ink_box(_label(PictureKind.SYMBOL).picture.symbol)
     if side == HAlign.LEFT:
-        assert min(lb.x0 for lb in r.lines) > px0 + 80
+        assert min(lb.x0 for lb in r.lines) > bx0 + fx1 * (bx1 - bx0)  # right of its ink
         assert r.mono.crop((px0, 0, px0 + 60, r.mono.height)).getextrema()[0] == 0  # ink
     else:
-        assert max(lb.x1 for lb in r.lines) < px1 - 80
+        assert max(lb.x1 for lb in r.lines) < bx0 + fx0 * (bx1 - bx0)
     assert plain.lines[1].size_pt >= r.lines[1].size_pt
 
 
@@ -133,3 +135,22 @@ def test_panel_rejects_unreadable_file(qtbot, tmp_path: Path, monkeypatch) -> No
     bad.write_bytes(b"nee")
     assert not panel.set_image_file(bad)
     assert shown and lbl.picture.kind == PictureKind.NONE
+
+
+def test_tight_label_with_qr_and_symbol_never_overlaps() -> None:
+    """On a small label the symbol gives way and long lines are cut short,
+    so nothing is printed over the QR code or the symbol."""
+    from etiknivo.printing.profiles import FICHERO_5836
+
+    eng = RenderEngine(FICHERO_5836.with_label(30, 12))
+    lbl = make_label("A1", "Schuifpotmeters", "10 kΩ", "Mono · 75 / 88 mm")
+    lbl.lines[0].text = "{Categorie}"
+    lbl.code.kind = CodeKind.QR
+    lbl.picture.kind, lbl.picture.symbol = PictureKind.SYMBOL, "connector"
+    r = eng.render(lbl)
+    bx0, _by0, bx1, _by1 = r.picture_box
+    ink_right = bx0 + symbols.ink_box("connector")[2] * (bx1 - bx0)
+    assert r.code is not None and bx0 + symbols.ink_box("connector")[0] * (bx1 - bx0) \
+        >= r.code.box[2]
+    assert all(lb.x0 >= ink_right and lb.x1 <= eng.printable_box[2] + 0.5 for lb in r.lines)
+    assert any("ingekort" in w for w in r.warnings)
