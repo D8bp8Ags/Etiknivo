@@ -44,6 +44,7 @@ from etiknivo.gui.dialogs import (
 from etiknivo.gui.history_window import HistoryWindow
 from etiknivo.gui.library_panel import LibraryPanel
 from etiknivo.gui.log_window import LogWindow
+from etiknivo.gui.overview_window import OverviewWindow
 from etiknivo.gui.preview import DesignView, RasterView
 from etiknivo.gui.printer_bridge import PrinterBridge
 from etiknivo.gui.printer_panel import PrinterPanel, size_text
@@ -105,6 +106,7 @@ class MainWindow(QMainWindow):
         self._applying_history = False
         self._log_window: LogWindow | None = None
         self._history_window: HistoryWindow | None = None
+        self._overview_window: OverviewWindow | None = None
         self.print_history = PrintHistory(data_dir() / HISTORY_FILE)
         self._recorded_jobs: set[int] = set()
         self._element_count = 0  # elements of the open label at the last undo record
@@ -494,6 +496,8 @@ class MainWindow(QMainWindow):
         act(m, tr("Printwachtrij tonen"), lambda: (self.queue_dock.show(), self.queue_dock.raise_()))
 
         m = mb.addMenu(tr("&Weergave"))
+        act(m, tr("Labeloverzicht…"), self.show_overview, "Ctrl+Shift+O")
+        m.addSeparator()
         guides = m.addAction(self.guides.text())
         guides.setCheckable(True)
         guides.setChecked(self.guides.isChecked())
@@ -652,6 +656,8 @@ class MainWindow(QMainWindow):
         self._update_title()
         self._update_dirty()
         self.update_preview()
+        if self._overview_window is not None:
+            self._overview_window.set_current(self.current.id if self.current else "")
 
     def _reselect(self, label_id: str) -> None:
         self._switching = True
@@ -733,6 +739,7 @@ class MainWindow(QMainWindow):
             self.library_panel.update_label(self.current)
         self._update_dirty()
         self._record()
+        self._refresh_overview()
 
     def revert_current(self) -> None:
         if self.current is None or not self.is_dirty():
@@ -852,6 +859,7 @@ class MainWindow(QMainWindow):
 
     def _after_library_change(self, select: list[str] | None = None) -> None:
         self.library_panel.refresh()
+        self._refresh_overview()
         self.properties.set_categories(self.library.categories())
         if select is not None:
             self.library_panel.select_ids(select)
@@ -1195,6 +1203,8 @@ class MainWindow(QMainWindow):
         self.printer_panel.set_label_size(self.profile)
         self._update_size_texts()
         self.library_panel.invalidate_thumbnails()
+        if self._overview_window is not None:
+            self._overview_window.canvas.invalidate()
         for view in (self.design_view, self.raster_view):
             view.updateGeometry()
             view.adjustSize()
@@ -1432,6 +1442,37 @@ class MainWindow(QMainWindow):
         self._log_window.show()
         self._log_window.raise_()
         self._log_window.activateWindow()
+
+    def show_overview(self) -> None:
+        """All labels at a glance; a click opens one here."""
+        if self._overview_window is None or not self._overview_window.isVisible():
+            w = OverviewWindow(self.engine, lambda: self.library.labels, self)
+            w.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
+            w.labelActivated.connect(self.open_label)
+            w.destroyed.connect(lambda: setattr(self, "_overview_window", None))
+            self._overview_window = w
+        if self.current is not None:
+            self._overview_window.set_current(self.current.id)
+        self._overview_window.show()
+        self._overview_window.raise_()
+        self._overview_window.activateWindow()
+
+    def open_label(self, label_id: str) -> None:
+        """Show *label_id* in the library and the editor, even when a search or
+        category filter would hide it."""
+        lbl = self.library.get(label_id)
+        if lbl is None:
+            return
+        self.library_panel.pin(label_id)
+        self.library_panel.reveal(lbl)
+        if self.current is not None and self.current.id == label_id:
+            self.right_tabs.setCurrentWidget(self.design_tab)
+        elif self._overview_window is not None and self.current is not None:
+            self._overview_window.set_current(self.current.id)  # switch was cancelled
+
+    def _refresh_overview(self) -> None:
+        if self._overview_window is not None:
+            self._overview_window.reload()
 
     def show_print_history(self) -> None:
         if self._history_window is None or not self._history_window.isVisible():

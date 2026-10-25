@@ -13,35 +13,22 @@ from pathlib import Path
 
 os.environ.setdefault("ETIKNIVO_DATA_DIR", tempfile.mkdtemp(prefix="etiknivo-shots-"))
 
-from PIL import Image, ImageDraw  # noqa: E402
+from PIL import Image  # noqa: E402
 from PySide6.QtWidgets import QApplication, QDialog  # noqa: E402
 
 from etiknivo.gui import main_window as mw  # noqa: E402
 from etiknivo.gui.dialogs import PrintPreviewDialog  # noqa: E402
 from etiknivo.printing.mock import MockPrinterBackend  # noqa: E402
 from etiknivo.rendering.engine import RenderEngine  # noqa: E402
-from etiknivo.rendering.fonts import FontRegistry, pil_font  # noqa: E402
+from etiknivo.rendering.overview import overview_pages  # noqa: E402
 from etiknivo.settings import Settings, data_dir  # noqa: E402
 from etiknivo.storage.library import open_library, seed_labels  # noqa: E402
 
 
 def label_sheet(out: Path) -> None:
-    """All seed labels as 1-bit printer output (design orientation, 3× enlarged)."""
-    eng = RenderEngine()
-    labels = seed_labels()
-    cols, scale, pad = 4, 3, 14
-    w, h = eng.design_size
-    cell_w, cell_h = w * scale + pad, h * scale + pad + 18
-    rows = (len(labels) + cols - 1) // cols
-    sheet = Image.new("RGB", (cols * cell_w + pad, rows * cell_h + pad), (225, 225, 225))
-    d = ImageDraw.Draw(sheet)
-    font = pil_font(FontRegistry.fallback().path, 0, 13)
-    for i, lbl in enumerate(labels):
-        x, y = pad + (i % cols) * cell_w, pad + (i // cols) * cell_h
-        img = eng.render(lbl).mono.convert("RGB").resize((w * scale, h * scale), Image.NEAREST)
-        sheet.paste(img, (x, y + 18))
-        d.text((x, y), f"{lbl.tray_id}", font=font, fill=(60, 60, 60))
-    sheet.save(out)
+    """All seed labels as the label overview (one long sheet, one pixel per dot)."""
+    img = overview_pages(RenderEngine(), seed_labels(), paginate=False)[0]
+    img.resize((img.width // 2, img.height // 2), Image.Resampling.BOX).save(out)
 
 
 def window_shots(app: QApplication, out: Path, theme: str, suffix: str) -> None:
@@ -71,6 +58,12 @@ def window_shots(app: QApplication, out: Path, theme: str, suffix: str) -> None:
     win.right_tabs.setCurrentWidget(win.printer_panel)
     pump(5)
     win.grab().save(str(out / f"printer-and-queue{suffix}.png"))
+    win.show_overview()
+    overview = win._overview_window
+    overview.resize(960, 680)
+    pump(10)
+    overview.grab().save(str(out / f"labeloverzicht{suffix}.png"))
+    overview.close()
     win.close()
 
 

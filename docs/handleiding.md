@@ -13,6 +13,7 @@ Etiknivo maakt en print etiketten op de Action Fichero 5836, standaard 30 × 14 
 - [Een andere etiketrol](#een-andere-etiketrol)
 - [Kalibreren](#kalibreren)
 - [De bibliotheek beheren](#de-bibliotheek-beheren)
+- [Labeloverzicht](#labeloverzicht)
 - [Importeren, exporteren en back-up](#importeren-exporteren-en-back-up)
 - [Taal en thema](#taal-en-thema)
 - [Nieuwe versies](#nieuwe-versies)
@@ -236,6 +237,18 @@ Kies daarna op welke labels het moet: de geselecteerde labels, alle labels in ee
 
 Bij de eerste start staan er 23 voorbeeldlabels voor Raaco-laden met elektronicaonderdelen in. Die kun je gewoon aanpassen of verwijderen.
 
+## Labeloverzicht
+
+*Weergave → Labeloverzicht* (⇧⌘O) toont al je labels tegelijk, zoals ze geprint worden, gegroepeerd per categorie met de naam en lade-ID eronder. Kleine categorieën staan naast elkaar, zodat je veel laden in één oogopslag ziet.
+
+![Het labeloverzicht](img/labeloverzicht.png)
+
+- **Klik** op een label om het in het hoofdvenster te openen. Dat werkt ook als een zoekopdracht of categoriefilter het in de bibliotheek verbergt.
+- **Zoeken** bovenin beperkt het overzicht; de schuif ernaast maakt de etiketjes groter of kleiner.
+- **Opslaan als PDF** maakt A4-pagina's met de labels op ware grootte, handig om af te drukken en bij je ladekast te hangen. **Opslaan als PNG** maakt één lange afbeelding. Beide nemen alleen de labels mee die je op dat moment ziet.
+
+Het overzicht toont de opgeslagen versie van elk label en werkt zichzelf bij als je opslaat, importeert of labels toevoegt.
+
 ## Importeren, exporteren en back-up
 
 Alles staat in het menu **Bestand**.
@@ -287,5 +300,6 @@ Op Windows en Linux gebruik je Ctrl in plaats van ⌘.
 | ⌘Z / ⇧⌘Z | Ongedaan maken / opnieuw |
 | ⌘P | Huidig label afdrukken |
 | ⇧⌘P | Geselecteerde labels afdrukken |
+| ⇧⌘O | Labeloverzicht |
 | ⌘L | Log tonen |
 | ⌘Q | Afsluiten |

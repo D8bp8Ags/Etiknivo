@@ -616,4 +616,19 @@ EN: dict[str, str] = {
     "In {place} zetten": "Put in {place}",
     "{field} op het etiket zetten": "Put {field} on the label",
     "Geef de specificatie eerst een naam": "Give the specification a name first",
+    # -- label overview ----------------------------------------------------------------
+    "Labeloverzicht…": "Label overview…",
+    "Labeloverzicht": "Label overview",
+    "Grootte van de etiketjes": "Size of the labels",
+    "Klik op een label om het te openen.": "Click a label to open it.",
+    "Opslaan als PDF…": "Save as PDF…",
+    "A4-pagina's met de labels op ware grootte, om af te drukken en bij je ladekast te hangen":
+        "A4 pages with the labels at real size, to print and hang next to your drawers",
+    "Opslaan als PNG…": "Save as PNG…",
+    "Eén afbeelding met alle labels": "One image with all labels",
+    "Labeloverzicht opslaan": "Save label overview",
+    "Geen labels gevonden": "No labels found",
+    "{app} · pagina {n} van {total}": "{app} · page {n} of {total}",
+    "{n} labels · {date}": "{n} labels · {date}",
+    "(vervolg)": "(continued)",
 }

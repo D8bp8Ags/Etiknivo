@@ -34,6 +34,7 @@ Etiknivo is een desktopapplicatie (Python + PySide6) om etiketten te ontwerpen, 
 - **Bluetooth-printerbeheer**: zoeken, verbinden/verbreken, opnieuw verbinden na een fout, batterij, status (deksel open, papier op, oververhit), printdichtheid licht/normaal/donker, aantal exemplaren, testlabel, kalibratietest en kalibratie-instellingen. Alle Bluetooth-I/O draait op een aparte asyncio-thread; de GUI blokkeert nooit.
 - **Printwachtrij**: sequentieel, voortgang per opdracht, stopt bij een fout, mislukte opdrachten opnieuw uitvoeren, wachtende annuleren, dubbelklikbescherming. Resultaten en fouten gaan naar `print.log`.
 - **Afdrukken**: huidig label, selectie, een hele categorie of alles, met afdrukvoorbeeld en aantallen per label.
+- **Labeloverzicht**: Weergave → Labeloverzicht toont alle labels per categorie zoals ze geprint worden; klik om er een te openen. Opslaan als PDF (A4, ware grootte, om bij de ladekast te hangen) of als PNG.
 - **Afdrukgeschiedenis**: wat wanneer is geprint, met zoeken en opnieuw afdrukken (`print_history.json`, laatste 1000 opdrachten).
 - **Updates**: Help → Zoeken naar updates kijkt naar de nieuwste release op GitHub (automatisch bij opstarten is optioneel en staat uit).
 - **Opslag en uitwisseling**: bibliotheek als JSON (met `.bak`), JSON import/export (samenvoegen of vervangen), CSV import/export, PNG-export van selecties (ontwerp of printerraster), PDF (ware grootte) en SVG, volledige back-up en herstel (zip).
@@ -41,7 +42,7 @@ Etiknivo is een desktopapplicatie (Python + PySide6) om etiketten te ontwerpen, 
 - **Nederlands en Engels**: Weergave → Taal / Language kiest Nederlands, Engels of de taal van het systeem (na herstart). Vertalingen staan in `src/etiknivo/locale/en.py`; `uv run python scripts/i18n_strings.py --missing` toont teksten zonder vertaling, en een test bewaakt dat er geen ontbreken.
 - **23 vooraf ingevulde Raaco-labels** voor elektronicacomponenten bij de eerste start (startdata in `src/etiknivo/data/raaco_seed.csv`).
 
-![De 23 voorbeeldlabels als 1-bit printeruitvoer](docs/img/raaco-labels.png)
+![Labeloverzicht van de 23 voorbeeldlabels](docs/img/raaco-labels.png)
 
 ## Installatie
 
