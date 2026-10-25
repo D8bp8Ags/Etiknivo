@@ -39,6 +39,7 @@ from etiknivo.gui.dialogs import (
     AboutDialog,
     CalibrationDialog,
     CopyFormatDialog,
+    PictogramsDialog,
     PrintPreviewDialog,
 )
 from etiknivo.gui.history_window import HistoryWindow
@@ -53,7 +54,7 @@ from etiknivo.gui.qt_util import with_shortcut
 from etiknivo.gui.queue_panel import QueuePanel
 from etiknivo.i18n import LANGUAGES, language, tr
 from etiknivo.i18n import resolve as resolve_language
-from etiknivo.model import FORMAT_PARTS, Label, copy_format, make_label
+from etiknivo.model import FORMAT_PARTS, HAlign, Label, PictureKind, copy_format, make_label
 from etiknivo.printing.backend import ConnectionState, PrinterBackend
 from etiknivo.printing.manager import PrinterState
 from etiknivo.printing.profiles import PrinterProfile
@@ -483,6 +484,7 @@ class MainWindow(QMainWindow):
         act(m, tr("Verwijderen"), self.delete_labels)
         m.addSeparator()
         self.act_copy_format = act(m, tr("Opmaak overnemen…"), self.copy_format)
+        act(m, tr("Pictogrammen kiezen…"), self.choose_pictograms)
 
         m = mb.addMenu(tr("&Afdrukken"))
         self.act_print = act(m, tr("Huidig label…"), self.print_current, QKeySequence.StandardKey.Print)
@@ -1023,6 +1025,36 @@ class MainWindow(QMainWindow):
         self._after_library_change(None)
         self.statusBar().showMessage(tr("Opmaak overgenomen op {n} label(s)", n=changed), 5000)
         return changed
+
+    def choose_pictograms(self) -> None:
+        """A fitting symbol per label (selection, or all labels), checked first."""
+        ids = self.library_panel.selected_ids()
+        labels = [self.library.get(i) for i in ids] if len(ids) > 1 else list(self.library.labels)
+        labels = [lbl for lbl in labels if lbl is not None]
+        if self.current is not None:  # the open label as shown, with its draft
+            labels = [self.current if lbl.id == self.current.id else lbl for lbl in labels]
+        dlg = PictogramsDialog(labels, self)
+        if dlg.exec() != PictogramsDialog.DialogCode.Accepted:
+            return
+        side = HAlign(dlg.side.currentData())
+        for lid, key in dlg.changes().items():
+            lbl = self.current if self.current is not None and lid == self.current.id \
+                else self.library.get(lid)
+            if lbl is None:
+                continue
+            if not key:
+                lbl.picture.kind = PictureKind.NONE
+            else:
+                if lbl.picture.kind == PictureKind.NONE:
+                    lbl.picture.side = side
+                lbl.picture.kind, lbl.picture.symbol = PictureKind.SYMBOL, key
+            lbl.touch()
+        if self.current is not None:
+            self.properties.set_label(self.current)
+        self.library_panel.invalidate_thumbnails()
+        self._after_library_change(None)
+        self.statusBar().showMessage(
+            tr("Pictogram aangepast op {n} label(s)", n=len(dlg.changes())), 5000)
 
     def delete_labels(self) -> None:
         ids = self.library_panel.selected_ids()

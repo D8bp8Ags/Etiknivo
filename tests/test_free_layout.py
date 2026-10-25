@@ -109,7 +109,7 @@ def test_free_layout_in_the_window(qtbot, window) -> None:  # noqa: ANN001, F811
     before = window.engine.render(window.current).mono
     pp.mode_free.click()
     lbl = window.current
-    assert lbl.is_free and len(lbl.elements) == 3
+    assert lbl.is_free and len(lbl.elements) == 3 + (lbl.picture.kind != PictureKind.NONE)
     assert pp.elements.isVisible() and not pp.lines[0].isVisible()
     assert ImageChops.difference(before, window.engine.render(lbl).mono).getbbox() is None
 
@@ -133,15 +133,16 @@ def test_free_layout_in_the_window(qtbot, window) -> None:  # noqa: ANN001, F811
     QTest.keyClick(dv, Qt.Key.Key_Right)
     assert el.x_mm == pytest.approx(x + 10 / 8 + 1 / 8, abs=0.13)
     QTest.keyClick(dv, Qt.Key.Key_Delete)
-    assert el not in lbl.elements and pp.elements.list.count() == 2
+    assert el not in lbl.elements and pp.elements.list.count() == len(lbl.elements)
 
     # add from the panel; undo brings the deleted element back
+    before_delete = len(lbl.elements) + 1
     added = pp.elements.add(ElementKind.QR)
     assert added in lbl.elements and dv.selected == added.id
     assert added.text == "{Lade}"
     window.undo()
     window.undo()
-    assert len(window.current.elements) == 3
+    assert len(window.current.elements) == before_delete
 
 
 def test_a_symbol_fills_its_box(engine: RenderEngine) -> None:

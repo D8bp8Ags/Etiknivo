@@ -35,9 +35,10 @@ from etiknivo import APP_NAME, __version__
 from etiknivo.gui import theme
 from etiknivo.gui.qt_util import pil_to_pixmap
 from etiknivo.i18n import N_, language, tr
-from etiknivo.model import FORMAT_PARTS, Label
+from etiknivo.model import FORMAT_PARTS, Label, PictureKind
 from etiknivo.printing.profiles import LABEL_HEIGHT_RANGE, LABEL_LENGTH_RANGE, PrinterProfile
 from etiknivo.rendering.engine import RenderEngine
+from etiknivo.rendering.symbols import suggest_symbol
 from etiknivo.settings import Calibration
 
 
@@ -346,6 +347,83 @@ class CopyFormatDialog(QDialog):
         n = self._count(*self.target())
         self.ok.setText(tr("Toepassen op {n} label(s)", n=n))
         self.ok.setEnabled(n > 0 and bool(self.chosen_parts()))
+
+
+class PictogramsDialog(QDialog):
+    """'Pictogrammen kiezen': a fitting symbol per label, suggested from its
+    category and name, to check and change before it is applied."""
+
+    def __init__(self, labels: list[Label], parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        from etiknivo.gui.widgets import select_symbol, symbol_combo
+
+        self.setWindowTitle(tr("Pictogrammen kiezen"))
+        self.resize(620, 560)
+        self._labels = labels
+        lay = QVBoxLayout(self)
+        intro = QLabel(tr("Per label een passend symbool, gekozen op categorie en naam. Pas aan "
+                          "wat niet klopt; 'Geen' haalt het pictogram weg. Eigen afbeeldingen "
+                          "blijven staan."))
+        intro.setWordWrap(True)
+        lay.addWidget(intro)
+        self.table = QTableWidget(len(labels), 3)
+        self.table.setHorizontalHeaderLabels([tr("Lade-ID"), tr("Label"), tr("Symbool")])
+        self.table.verticalHeader().hide()
+        self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.table.setSelectionMode(QAbstractItemView.SelectionMode.NoSelection)
+        head = self.table.horizontalHeader()
+        head.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        head.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        head.setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
+        head.resizeSection(2, 210)
+        self.table.verticalHeader().setDefaultSectionSize(34)
+        self.combos: list[QComboBox] = []
+        for row, lbl in enumerate(labels):
+            self.table.setItem(row, 0, QTableWidgetItem(lbl.tray_id))
+            title = f"{lbl.category} · {lbl.name}" if lbl.category else lbl.name
+            self.table.setItem(row, 1, QTableWidgetItem(title))
+            if lbl.picture.kind == PictureKind.IMAGE:
+                self.table.setItem(row, 2, QTableWidgetItem(tr("Eigen afbeelding")))
+                self.combos.append(None)  # type: ignore[arg-type]
+                continue
+            c = symbol_combo(none=tr("Geen"))
+            current = lbl.picture.symbol if lbl.picture.kind == PictureKind.SYMBOL else ""
+            select_symbol(c, current or suggest_symbol(lbl.category, lbl.name) or "")
+            c.currentIndexChanged.connect(self._update)
+            self.table.setCellWidget(row, 2, c)
+            self.combos.append(c)
+        lay.addWidget(self.table, 1)
+        side_row = QHBoxLayout()
+        side_row.addWidget(QLabel(tr("Plaats bij labels zonder pictogram")))
+        self.side = QComboBox()
+        self.side.addItem(tr("Links"), "left")
+        self.side.addItem(tr("Rechts"), "right")
+        side_row.addWidget(self.side)
+        side_row.addStretch(1)
+        lay.addLayout(side_row)
+        bb = QDialogButtonBox(QDialogButtonBox.StandardButton.Cancel)
+        self.ok = bb.addButton(tr("Toepassen"), QDialogButtonBox.ButtonRole.AcceptRole)
+        bb.accepted.connect(self.accept)
+        bb.rejected.connect(self.reject)
+        lay.addWidget(bb)
+        self._update()
+
+    def changes(self) -> dict[str, str]:
+        """{label id: symbol key, or "" for none} for the labels that change."""
+        out: dict[str, str] = {}
+        for lbl, c in zip(self._labels, self.combos):
+            if c is None:
+                continue
+            key = c.currentData() or ""
+            current = lbl.picture.symbol if lbl.picture.kind == PictureKind.SYMBOL else ""
+            if key != current:
+                out[lbl.id] = key
+        return out
+
+    def _update(self) -> None:
+        n = len(self.changes())
+        self.ok.setText(tr("Toepassen op {n} label(s)", n=n))
+        self.ok.setEnabled(n > 0)
 
 
 class LabelSizeDialog(QDialog):

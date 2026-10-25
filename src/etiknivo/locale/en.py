@@ -719,4 +719,13 @@ EN: dict[str, str] = {
     "Lettertype, grootte, stijl en uitlijning": "Font, size, style and alignment",
     "Overzicht": "Overview",
     "Alle labels in één overzicht, ook als PDF of PNG": "All labels in one overview, also as PDF or PNG",
+    # -- pictograms per label -----------------------------------------------------------
+    "Pictogrammen kiezen": "Choose pictograms",
+    "Pictogrammen kiezen…": "Choose pictograms…",
+    "Per label een passend symbool, gekozen op categorie en naam. Pas aan wat niet klopt; "
+    "'Geen' haalt het pictogram weg. Eigen afbeeldingen blijven staan.":
+        "A fitting symbol per label, chosen from its category and name. Change what is not "
+        "right; 'None' removes the pictogram. Own images stay.",
+    "Plaats bij labels zonder pictogram": "Position on labels without a pictogram",
+    "Pictogram aangepast op {n} label(s)": "Pictogram changed on {n} label(s)",
 }

@@ -135,7 +135,7 @@ Onder *QR-code of barcode* staat **Pictogram**. Bij *Soort* kies je:
   - *Aanduidingen*: let op, verboden, informatie, vinkje, kruis, deze kant boven, breekbaar, ster en hart.
 - **Eigen afbeelding**: klik **Afbeelding kiezen…** en kies een PNG, JPG of SVG, bijvoorbeeld je logo. Etiknivo maakt hem zwart-wit, haalt witte randen weg en bewaart hem in het label zelf. Het originele bestand heb je daarna niet meer nodig, en de afbeelding gaat mee in exports en back-ups.
 
-Met *Plaats* zet je het pictogram links of rechts van de tekst. De tekst schuift opzij en wordt zo nodig kleiner. Staan een QR-code en een pictogram aan dezelfde kant, dan komt de QR-code aan de buitenkant en het pictogram ernaast.
+Met *Plaats* zet je het pictogram links of rechts van de tekst. De tekst schuift opzij en wordt zo nodig kleiner. Een passend symbool voor al je labels tegelijk kies je met [Pictogrammen kiezen](#pictogrammen-kiezen). Staan een QR-code en een pictogram aan dezelfde kant, dan komt de QR-code aan de buitenkant en het pictogram ernaast.
 
 Afbeeldingen met veel kleine details of zachte kleurverlopen worden op 12 mm vaak onduidelijk. Eenvoudige vormen met dikke lijnen werken het best.
 
@@ -243,6 +243,12 @@ Wil je dat een hele categorie er hetzelfde uitziet, maak dan één label mooi en
 - **Pictogram**: symbool of afbeelding en de plaats.
 
 Kies daarna op welke labels het moet: de geselecteerde labels, alle labels in een categorie, of alle labels. De knop laat zien hoeveel labels er veranderen. De tekst, specificaties en notities van die labels blijven zoals ze waren. Klopt het resultaat niet, dan zet ⌘Z alles in één keer terug.
+
+### Pictogrammen kiezen
+
+Met **Opmaak overnemen** krijgt elk label hetzelfde pictogram. Wil je per lade een passend symbool, kies dan **Label → Pictogrammen kiezen…**. Etiknivo stelt per label een symbool voor op basis van de categorie en de naam: *Weerstanden* krijgt een weerstand, *Antennes* een antenne, *Dupont* en *Audiojacks* een connector, *ESP32* een IC, enzovoort. In de lijst pas je aan wat niet klopt; *Geen* haalt het pictogram weg. Labels met een eigen afbeelding blijven zoals ze zijn. Heb je in de bibliotheek meer dan één label geselecteerd, dan gaat het alleen om die labels, anders om alle labels. ⌘Z zet alles in één keer terug.
+
+Het pictogram is op elk label even groot, zodat een ladekast er rustig uitziet. Alleen als een regel anders niet meer past, wordt het pictogram op dat label kleiner.
 
 Bij de eerste start staan er 23 voorbeeldlabels voor Raaco-laden met elektronicaonderdelen in. Die kun je gewoon aanpassen of verwijderen.
 

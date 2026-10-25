@@ -155,3 +155,29 @@ def test_compact_lines_and_section_summaries(window) -> None:  # noqa: ANN001
     assert props.code_group.toggle.text().startswith(props.code_group._title + "  ·  ")
     props.code_group.set_open(True)
     assert props.code_group.toggle.text() == props.code_group._title
+
+
+def test_pictograms_dialog_suggests_and_applies(window, monkeypatch) -> None:  # noqa: ANN001
+    from etiknivo.gui.dialogs import PictogramsDialog
+    from etiknivo.model import PictureKind
+    from etiknivo.rendering.symbols import suggest_symbol
+
+    assert suggest_symbol("Weerstanden", "") == "resistor"
+    assert suggest_symbol("Ringkern", "") is None  # a short word must be whole
+    for lbl in window.library.labels:
+        lbl.picture.kind = PictureKind.NONE
+    window.current.picture.kind = PictureKind.NONE
+    seen: list[PictogramsDialog] = []
+
+    def accept(dlg: PictogramsDialog) -> int:
+        seen.append(dlg)
+        row = next(i for i, lbl in enumerate(dlg._labels) if lbl.category == "Antennes")
+        dlg.combos[row].setCurrentIndex(dlg.combos[row].findData(""))  # "Geen" for this one
+        return QDialog.DialogCode.Accepted
+
+    monkeypatch.setattr(PictogramsDialog, "exec", accept)
+    window.choose_pictograms()
+    labels = {lbl.category: lbl for lbl in window.library.labels}
+    assert labels["Weerstanden"].picture.kind == PictureKind.SYMBOL
+    assert labels["Weerstanden"].picture.symbol == "resistor"
+    assert labels["Antennes"].picture.kind == PictureKind.NONE

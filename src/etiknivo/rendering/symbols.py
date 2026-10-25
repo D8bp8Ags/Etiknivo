@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import functools
 import math
+import re
 
 from PIL import Image, ImageDraw, ImageOps
 
@@ -337,3 +338,51 @@ def draw_symbol(key: str, size_px: int) -> Image.Image:
         else:
             raise ValueError(kind)
     return img
+
+
+#: (word at the start of a word in the category or name, symbol); the first
+#: match wins, so specific words come before general ones
+SUGGESTIONS: tuple[tuple[str, str], ...] = (
+    ("audiojack", "connector"), ("jack", "connector"), ("dupont", "connector"),
+    ("lasklem", "connector"), ("wago", "connector"), ("connector", "connector"),
+    ("breadboard", "connector"), ("krimpkous", "cable"), ("isolatie", "cable"),
+    ("header", "connector"), ("klem", "connector"),
+    ("schuifpot", "potentiometer"), ("potmeter", "potentiometer"),
+    ("potentiometer", "potentiometer"), ("encoder", "potentiometer"),
+    ("weerstand", "resistor"), ("resistor", "resistor"),
+    ("elco", "electrolytic"), ("condensator", "capacitor"), ("capacitor", "capacitor"),
+    ("led", "led"), ("diode", "diode"), ("transistor", "transistor"), ("mosfet", "transistor"),
+    ("ic", "ic"), ("esp32", "ic"), ("esp8266", "ic"), ("arduino", "ic"), ("logica", "ic"),
+    ("microcontroller", "ic"), ("chip", "ic"),
+    ("zekering", "fuse"), ("fuse", "fuse"),
+    ("drukknop", "switch"), ("schakelaar", "switch"), ("knop", "switch"), ("switch", "switch"),
+    ("button", "switch"),
+    ("spoel", "inductor"), ("inductor", "inductor"), ("kristal", "crystal"),
+    ("crystal", "crystal"), ("oscillator", "crystal"),
+    ("antenne", "antenna"), ("antenna", "antenna"),
+    ("buzzer", "speaker"), ("speaker", "speaker"), ("luidspreker", "speaker"),
+    ("audio", "speaker"),
+    ("usb", "usb"), ("batterij", "battery"), ("battery", "battery"), ("accu", "battery"),
+    ("voeding", "power_plug"), ("adapter", "power_plug"), ("stekker", "power_plug"),
+    ("stopcontact", "socket"), ("lamp", "bulb"),
+    ("kabel", "cable"), ("draad", "cable"), ("cable", "cable"), ("wire", "cable"),
+    ("schroef", "screw"), ("screw", "screw"), ("moer", "nut"), ("bout", "bolt"),
+    ("ring", "washer"), ("spijker", "nail"), ("plug", "wall_plug"), ("haak", "hook"),
+    ("veer", "spring"), ("hamer", "hammer"), ("schroevendraaier", "screwdriver"),
+    ("sleutel", "key"), ("zaag", "saw"), ("boor", "drill"), ("lijm", "bottle"),
+    ("tape", "tag"), ("label", "tag"), ("papier", "document"), ("pennen", "pencil"),
+    ("pen", "pencil"),
+)
+
+
+def suggest_symbol(*texts: str) -> str | None:
+    """A fitting symbol for a label with these texts (category first, then
+    name), or None when nothing fits."""
+    for text in texts:
+        low = text.casefold()
+        for word, key in SUGGESTIONS:
+            # short words must be whole (plurals allowed): "ring" is not "ringkern"
+            end = r"(?:en|pen|s|n|e)?(?![a-z0-9])" if len(word) <= 5 else ""
+            if re.search(rf"(?<![a-z0-9]){re.escape(word)}{end}", low):
+                return key
+    return None

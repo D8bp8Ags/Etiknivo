@@ -18,7 +18,8 @@ from pathlib import Path
 from typing import Any
 
 from etiknivo.i18n import tr
-from etiknivo.model import SCHEMA_VERSION, Label
+from etiknivo.model import SCHEMA_VERSION, Label, PictureKind
+from etiknivo.rendering.symbols import suggest_symbol
 from etiknivo.storage.atomic import atomic_write_text
 
 log = logging.getLogger(__name__)
@@ -156,6 +157,10 @@ def seed_labels() -> list[Label]:
     labels, errors = parse_csv_labels(text)
     if errors:  # pragma: no cover - bundled data is validated by tests
         raise LibraryError("; ".join(errors))
+    for lbl in labels:  # a fitting symbol beside the text, where there is one
+        key = suggest_symbol(lbl.category, lbl.name)
+        if key:
+            lbl.picture.kind, lbl.picture.symbol = PictureKind.SYMBOL, key
     return labels
 
 

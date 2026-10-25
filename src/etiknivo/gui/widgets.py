@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import functools
 import io
 from collections.abc import Callable
 from pathlib import Path
@@ -61,11 +62,14 @@ def style_row(*boxes: QCheckBox) -> QHBoxLayout:
     return row
 
 
-def symbol_combo() -> QComboBox:
-    """Picker for a label symbol: the symbols under a heading per category."""
+def symbol_combo(none: str = "") -> QComboBox:
+    """Picker for a label symbol: the symbols under a heading per category.
+    With *none*, a first choice by that name stands for no symbol (data "")."""
     c = combo()
     c.setIconSize(QSize(28, 28))
     c.setMaxVisibleItems(16)
+    if none:
+        c.addItem(none, "")
     heading = QFont(c.font())
     heading.setWeight(QFont.Weight.DemiBold)
     for category, keys in symbols.SYMBOL_CATEGORIES:
@@ -86,9 +90,14 @@ def select_symbol(c: QComboBox, key: str) -> None:
 
 def symbol_icon(key: str) -> QIcon:
     """A symbol in the current text colour, for the picker."""
+    return _symbol_icon(key, theme.tokens().text)
+
+
+@functools.cache
+def _symbol_icon(key: str, colour: str) -> QIcon:
     img = symbols.draw_symbol(key, 56)
     mask = ImageOps.invert(img)
-    rgba = Image.new("RGBA", img.size, theme.tokens().text)
+    rgba = Image.new("RGBA", img.size, colour)
     rgba.putalpha(mask)
     return QIcon(pil_to_pixmap(rgba))
 

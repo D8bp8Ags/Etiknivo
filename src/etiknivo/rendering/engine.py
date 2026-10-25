@@ -63,8 +63,9 @@ BAR_HEIGHT_MM = 3.5
 BAR_GAP_MM = 0.75
 PICTURE_GAP_MM = 1.0
 PICTURE_MAX_WIDTH = 0.5  # share of the room left for text
-#: sizes a pictogram may take (share of the text height) before the text shrinks
-PICTURE_SCALES = (1.0, 0.85, 0.7, 0.55, 0.4)
+#: sizes a pictogram takes (share of the text height): the first on every label alike, the
+#: smaller ones only when the text would otherwise have to shrink
+PICTURE_SCALES = (0.6, 0.45, 0.35)
 SEPARATOR_GAP_PX = 3  # minimum line gap with separators: white, line, white
 ITALIC_SHEAR = 0.2
 
@@ -687,38 +688,30 @@ class RenderEngine:
                      prepared: list[_Prepared], sizes: list[float], spacing: float,
                      warnings: list[str]) -> tuple[tuple[int, int, int, int], str | Image.Image,
                                                    tuple[float, float, float, float]] | None:
-        """The pictogram as large as possible, but smaller when the text would
-        otherwise have to shrink: the text is what the label is for."""
-        best, best_score = None, -1.0
+        """The pictogram at the same size on every label, so a drawer cabinet
+        looks even; smaller only when a line would otherwise be cut short."""
+        placed = None
         for scale in PICTURE_SCALES:
             tried: list[str] = []
-            placed = self._place_picture(label, area, tried, scale)
-            if placed is None:
-                if best is None:
+            attempt = self._place_picture(label, area, tried, scale)
+            if attempt is None:
+                if placed is None:
                     warnings.extend(tried)
                 break
-            score = self._text_fit(prepared, sizes, placed[2], spacing, label.style.autofit)
-            if score > best_score + 1e-3:
-                best, best_score = placed, score
-            if score >= 1.0:
+            placed = attempt
+            if self._lines_fit(prepared, sizes, placed[2], spacing, label.style.autofit):
                 break
-        return best
+        return placed
 
-    def _text_fit(self, prepared: list[_Prepared], sizes: list[float],
-                  area: tuple[float, float, float, float], spacing: float,
-                  autofit: bool) -> float:
-        """How well the lines fit in *area*: 1.0 at their own size, less when
-        they have to shrink (or, without auto-fit, stick out)."""
+    def _lines_fit(self, prepared: list[_Prepared], sizes: list[float],
+                   area: tuple[float, float, float, float], spacing: float,
+                   autofit: bool) -> bool:
+        """Whether every line fits in the width of *area* (after auto-fit)."""
         if not prepared:
-            return 1.0
+            return True
         avail_w, avail_h = max(1.0, area[2] - area[0]), max(1.0, area[3] - area[1])
-        if autofit:
-            fitted = self._autofit(prepared, sizes, avail_w, avail_h, spacing)
-        else:
-            fitted = sizes
-        score = min(f / s for f, s in zip(fitted, sizes))
-        widest = max(self._width(p, f) for p, f in zip(prepared, fitted))
-        return score * min(1.0, avail_w / max(1.0, widest))
+        fitted = self._autofit(prepared, sizes, avail_w, avail_h, spacing) if autofit else sizes
+        return all(self._width(p, f) <= avail_w + 0.5 for p, f in zip(prepared, fitted))
 
     def _place_picture(self, label: Label, area: tuple[float, float, float, float],
                        warnings: list[str], scale: float = 1.0,
