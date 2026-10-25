@@ -567,4 +567,26 @@ EN: dict[str, str] = {
     "Onverwacht antwoord van GitHub": "Unexpected answer from GitHub",
     "Huidig label afdrukken": "Print current label",
     "Wijzigingen opslaan": "Save changes",
+    # free layout
+    "Elementen": "Elements",
+    "Naar voren: boven de andere elementen tekenen": "Bring forward: draw above the other elements",
+    "Naar achteren: onder de andere elementen tekenen": "Send backward: draw below the other elements",
+    "Sleep een element in het ontwerp om het te verplaatsen; sleep het hoekje rechtsonder om het "
+    "groter of kleiner te maken. Pijltjestoetsen schuiven 1 dot (met Shift 1 mm).":
+        "Drag an element in the design to move it; drag its bottom-right corner to make it "
+        "larger or smaller. Arrow keys move it 1 dot (with Shift 1 mm).",
+    "Element": "Element",
+    "Plaats (x, y)": "Position (x, y)",
+    "Grootte (b, h)": "Size (w, h)",
+    "Toevoegen": "Add",
+    "Vrij (elementen slepen)": "Free (drag elements)",
+    "QR-code": "QR code",
+    "Barcode": "Barcode",
+    "Lijn": "Line",
+    "Kader": "Frame",
+    "Label bevat geen elementen: voeg er een toe": "Label has no elements: add one",
+    "{element} valt deels buiten het printbare gebied": "{element} is partly outside the printable area",
+    "Tekst '{text}' past niet in zijn vak, zelfs niet bij de minimale lettergrootte":
+        "Text '{text}' does not fit its box, even at the smallest font size",
+    "Kies een symbool": "Choose a symbol",
 }

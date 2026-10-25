@@ -31,7 +31,16 @@ from dataclasses import dataclass, field, replace
 from PIL import Image, ImageChops, ImageDraw, ImageOps
 
 from etiknivo.i18n import tr
-from etiknivo.model import CodeKind, HAlign, Label, PictureKind, TextLine, VAlign
+from etiknivo.model import (
+    CodeKind,
+    ElementKind,
+    HAlign,
+    Label,
+    LabelElement,
+    PictureKind,
+    TextLine,
+    VAlign,
+)
 from etiknivo.printing.profiles import FICHERO_5836, PrinterProfile
 from etiknivo.rendering import codes, pictures, symbols
 from etiknivo.rendering.fonts import (
@@ -96,6 +105,10 @@ class RenderResult:
     warnings: list[str] = field(default_factory=list)
     content_box: tuple[float, float, float, float] = (0, 0, 0, 0)  # x0,y0,x1,y1 in dots
     code: PlacedCode | None = None
+    picture_box: tuple[int, int, int, int] | None = None
+    text_area: tuple[float, float, float, float] = (0, 0, 0, 0)  # room the lines had
+    #: free layout: element id -> its box in design dots
+    element_boxes: dict[str, tuple[float, float, float, float]] = field(default_factory=dict)
 
     @property
     def has_overflow(self) -> bool:
@@ -162,6 +175,8 @@ class RenderEngine:
     # -- public API ----------------------------------------------------------------
 
     def render(self, label: Label) -> RenderResult:
+        if label.is_free:
+            return self._render_free(label)
         if label.style.rotation in (90, 270):
             return self._render_turned(label)
         ss = max(1, int(self.calibration.supersample))
@@ -244,7 +259,10 @@ class RenderEngine:
 
         if style.rotation == 180:
             hires = hires.rotate(180)
-        return self._finish(hires, label, ss, line_boxes, warnings, content, code)
+        result = self._finish(hires, label, ss, line_boxes, warnings, content, code)
+        result.picture_box = picture[0] if picture is not None else None
+        result.text_area = area
+        return result
 
     def _finish(self, hires: Image.Image, label: Label, ss: int, line_boxes: list[LineBox],
                 warnings: list[str], content: tuple[float, float, float, float],
@@ -267,6 +285,212 @@ class RenderEngine:
         raster = self.to_raster(mono)
         return RenderResult(self.profile, gray, hires, mono, raster, line_boxes, warnings, content,
                             code)
+
+    # -- free layout -------------------------------------------------------------------
+
+    def element_box(self, el: LabelElement) -> tuple[float, float, float, float]:
+        """An element's box in design dots."""
+        px0, py0 = self.printable_box[:2]
+        x0, y0 = px0 + self.mm_to_px(el.x_mm), py0 + self.mm_to_px(el.y_mm)
+        return x0, y0, x0 + self.mm_to_px(el.w_mm), y0 + self.mm_to_px(el.h_mm)
+
+    def _render_free(self, label: Label) -> RenderResult:
+        """Free layout: every element in its own box."""
+        ss = max(1, int(self.calibration.supersample))
+        w, h = self.design_size
+        px0, py0, px1, py1 = self.printable_box
+        hires = Image.new("L", (w * ss, h * ss), 255)
+        draw = ImageDraw.Draw(hires)
+        warnings: list[str] = []
+        line_boxes: list[LineBox] = []
+        boxes: dict[str, tuple[float, float, float, float]] = {}
+        for n, el in enumerate(label.elements):
+            box = self.element_box(el)
+            boxes[el.id] = box
+            bx0, by0, bx1, by1 = box
+            if el.kind == ElementKind.TEXT:  # for text the ink counts, not the box
+                lb = self._free_text(hires, label, n, el, box, ss, warnings)
+                if lb is not None:
+                    line_boxes.append(lb)
+                    bx0, by0, bx1, by1 = lb.x0, lb.y0, lb.x1, lb.y1
+                else:
+                    bx0, by0, bx1, by1 = px0, py0, px0, py0
+            if bx0 < px0 - 0.5 or by0 < py0 - 0.5 or bx1 > px1 + 0.5 or by1 > py1 + 0.5:
+                warnings.append(tr("{element} valt deels buiten het printbare gebied",
+                                   element=el.title))
+            if el.kind == ElementKind.TEXT:
+                continue
+            if el.kind in (ElementKind.QR, ElementKind.BARCODE):
+                for x0, y0, x1, y1 in self._free_code(label, el, box, warnings):
+                    draw.rectangle((x0 * ss, y0 * ss, x1 * ss - 1, y1 * ss - 1), fill=0)
+            elif el.kind in (ElementKind.SYMBOL, ElementKind.IMAGE):
+                self._free_picture(hires, el, box, ss, warnings)
+            else:
+                ix0, iy0 = round(bx0), round(by0)
+                ix1, iy1 = max(ix0 + 1, round(bx1)), max(iy0 + 1, round(by1))
+                if el.kind == ElementKind.LINE:
+                    draw.rectangle((ix0 * ss, iy0 * ss, ix1 * ss - 1, iy1 * ss - 1), fill=0)
+                else:
+                    draw.rectangle((ix0 * ss, iy0 * ss, ix1 * ss - 1, iy1 * ss - 1),
+                                   outline=0, width=ss)
+        if not label.elements:
+            warnings.append(tr("Label bevat geen elementen: voeg er een toe"))
+        for lb in line_boxes:
+            if lb.overflow:
+                warnings.append(tr("Tekst '{text}' past niet in zijn vak, zelfs niet bij de "
+                                   "minimale lettergrootte", text=lb.text))
+        # no rotation: elements are placed exactly where they should print
+        result = self._finish(hires, label, ss, line_boxes, warnings,
+                              (px0, py0, px1, py1), None)
+        result.element_boxes = boxes
+        return result
+
+    def _free_text(self, canvas: Image.Image, label: Label, n: int, el: LabelElement,
+                   box: tuple[float, float, float, float], ss: int,
+                   warnings: list[str]) -> LineBox | None:
+        p = self._prepare_text(label, n, el.as_line(), warnings)
+        if not p.text:
+            return None
+        bx0, by0, bx1, by1 = box
+        bw, bh = bx1 - bx0, by1 - by0
+        size = el.font_size_pt
+        for _ in range(24):
+            l, t, r, b = self._measure(p, size)
+            tw, th = r - l, b - t
+            if (tw <= bw and th <= bh) or size <= MIN_FONT_PT:
+                break
+            size = max(MIN_FONT_PT, size * min(0.98, bw / max(tw, 1e-6), bh / max(th, 1e-6)))
+        l, t, r, b = self._measure(p, size)
+        tw, th = r - l, b - t
+        if el.align == HAlign.LEFT:
+            x = bx0
+        elif el.align == HAlign.RIGHT:
+            x = bx1 - tw
+        else:
+            x = bx0 + (bw - tw) / 2
+        y = by0 + (bh - th) / 2
+        self._draw_line(canvas, p, size, x - l, y - t, ss)
+        return LineBox(n, p.text, x, y, x + tw, y + th, size, el.font_size_pt,
+                       tw > bw + 0.5 or th > bh + 0.5)
+
+    def _free_code(self, label: Label, el: LabelElement, box: tuple[float, float, float, float],
+                   warnings: list[str]) -> list[tuple[int, int, int, int]]:
+        text, unknown = label.resolve(el.text)
+        for name in unknown:
+            warnings.append(tr("Onbekend veld {{{name}}}: voeg '{name}' toe bij "
+                               "Specificaties", name=name))
+        text = text.strip()
+        if unknown:
+            return []
+        if not text:
+            warnings.append(tr("De code is leeg: vul de tekst voor de code in"))
+            return []
+        bx0, by0, bx1, by1 = box
+        if el.kind == ElementKind.QR:
+            try:
+                matrix = codes.qr_matrix(text)
+            except codes.CodeError:
+                warnings.append(tr("Tekst is te lang voor een QR-code (maximaal {n} tekens)",
+                                   n=codes.qr_capacity()))
+                return []
+            n = len(matrix)
+            module = int(min(bx1 - bx0, by1 - by0) // n)
+            if module < QR_MIN_MODULE_PX:
+                warnings.append(tr("QR-code wordt te klein om te scannen; kort de tekst in"))
+                module = max(1, module)
+            size = n * module
+            x0 = round(bx0 + (bx1 - bx0 - size) / 2)
+            y0 = round(by0 + (by1 - by0 - size) / 2)
+            return [(x0 + c * module, y0 + r * module, x0 + (c + 1) * module,
+                     y0 + (r + 1) * module)
+                    for r, row in enumerate(matrix) for c, dark in enumerate(row) if dark]
+        try:
+            modules = codes.code128_modules(text)
+        except codes.CodeError as e:
+            warnings.append(tr("Teken(s) {chars} kunnen niet in een barcode; gebruik "
+                               "letters, cijfers en leestekens zonder accenten", chars=str(e)))
+            return []
+        module = int((bx1 - bx0) // len(modules))
+        if module < 1:
+            warnings.append(tr("Tekst is te lang voor een barcode op dit etiket"))
+            return []
+        if module == 1:
+            warnings.append(tr("De barcode heeft erg dunne streepjes; kort de tekst in als "
+                               "hij slecht scant"))
+        x0 = round(bx0 + (bx1 - bx0 - len(modules) * module) / 2)
+        y0, y1 = round(by0), max(round(by0) + 1, round(by1))
+        return [(x0 + i * module, y0, x0 + (i + 1) * module, y1)
+                for i, bar in enumerate(modules) if bar]
+
+    def _free_picture(self, canvas: Image.Image, el: LabelElement,
+                      box: tuple[float, float, float, float], ss: int,
+                      warnings: list[str]) -> None:
+        if el.kind == ElementKind.SYMBOL:
+            if el.symbol not in symbols.SYMBOLS:
+                warnings.append(tr("Kies een symbool"))
+                return
+            source: str | Image.Image = el.symbol
+            aspect = 1.0
+        else:
+            img = pictures.decode(el.image_png)
+            if img is None:
+                warnings.append(tr("Geen afbeelding gekozen"))
+                return
+            source, aspect = img, img.width / max(1, img.height)
+        bx0, by0, bx1, by1 = box
+        w, h = bx1 - bx0, (by1 - by0)
+        if w / max(h, 1e-6) > aspect:
+            w = h * aspect
+        else:
+            h = w / aspect
+        x0 = round(bx0 + (bx1 - bx0 - w) / 2)
+        y0 = round(by0 + (by1 - by0 - h) / 2)
+        iw, ih = max(1, round(w)), max(1, round(h))
+        self._draw_picture(canvas, (x0, y0, x0 + iw, y0 + ih), source, ss)
+
+    def to_elements(self, label: Label) -> list[LabelElement]:
+        """Loose elements that look like *label* does now: the starting point
+        when a label switches to the free layout."""
+        if label.is_free:
+            return [replace(el) for el in label.elements]
+        flat = label.clone(new_id=False)
+        flat.style.rotation = 0
+        r = self.render(flat)
+        px0, py0 = self.printable_box[:2]
+        dpm = self.profile.dots_per_mm
+
+        def make(kind: ElementKind, box: tuple[float, float, float, float],
+                 **kw: object) -> LabelElement:
+            x0, y0, x1, y1 = box
+            el = LabelElement(kind, **kw)  # type: ignore[arg-type]
+            el.move_to((x0 - px0) / dpm, (y0 - py0) / dpm)
+            el.resize((x1 - x0) / dpm, (y1 - y0) / dpm)
+            return el
+
+        out: list[LabelElement] = []
+        for lb in r.lines:
+            line = label.lines[lb.slot]
+            pad = 1.0  # a dot of air around the ink, so the size stays the same
+            out.append(make(ElementKind.TEXT, (lb.x0 - pad, lb.y0 - pad, lb.x1 + pad,
+                                               lb.y1 + pad),
+                            text=line.text, font_family=line.font_family,
+                            font_size_pt=lb.size_pt, bold=line.bold,
+                            italic=line.italic, align=line.align))
+        if label.style.separators:
+            ax0, _, ax1, _ = r.text_area
+            for above, below in zip(r.lines, r.lines[1:]):
+                mid = round((above.y1 + below.y0) / 2 - 0.5)
+                out.append(make(ElementKind.LINE, (round(ax0), mid, round(ax1), mid + 1)))
+        if r.code is not None:
+            kind = ElementKind.QR if r.code.kind == CodeKind.QR else ElementKind.BARCODE
+            out.append(make(kind, r.code.box, text=label.code.text))
+        if r.picture_box is not None:
+            pic = label.picture
+            if pic.kind == PictureKind.SYMBOL:
+                out.append(make(ElementKind.SYMBOL, r.picture_box, symbol=pic.symbol))
+            else:
+                out.append(make(ElementKind.IMAGE, r.picture_box, image_png=pic.image_png))
+        return out
 
     def _render_turned(self, label: Label) -> RenderResult:
         """Text turned a quarter: lay the label out on an upright (portrait)
@@ -470,30 +694,32 @@ class RenderEngine:
         canvas.paste(ImageChops.darker(region, img), (ox, oy))
 
     def _prepare_lines(self, label: Label, warnings: list[str]) -> list[_Prepared]:
-        out: list[_Prepared] = []
-        for slot, line in label.visible_lines():
-            resolved, unknown = label.resolve(line.text)
-            for name in unknown:
-                warnings.append(tr("Onbekend veld {{{name}}}: voeg '{name}' toe bij "
-                                   "Specificaties", name=name))
-            text = " ".join(resolved.split("\n")).strip()
-            face = self.fonts.resolve(line.font_family, line.bold, line.italic)
-            missing = missing_glyphs(face, text)
-            if missing:
-                fb = self.fonts.fallback(line.bold, line.italic)
-                if not missing_glyphs(fb, text):
-                    warnings.append(tr("Lettertype '{font}' mist teken(s) {chars}; '{fallback}' "
-                                       "gebruikt voor deze regel", font=line.font_family,
-                                       chars=missing, fallback=fb.family))
-                    face = fb
-                else:
-                    warnings.append(tr("Teken(s) {chars} kunnen niet worden weergegeven",
-                                       chars=missing))
-            elif face.family != line.font_family:
-                warnings.append(tr("Lettertype '{font}' niet gevonden; '{used}' gebruikt",
-                                   font=line.font_family, used=face.family))
-            out.append(_Prepared(slot, line, face, text))
-        return out
+        return [self._prepare_text(label, slot, line, warnings)
+                for slot, line in label.visible_lines()]
+
+    def _prepare_text(self, label: Label, slot: int, line: TextLine,
+                      warnings: list[str]) -> _Prepared:
+        resolved, unknown = label.resolve(line.text)
+        for name in unknown:
+            warnings.append(tr("Onbekend veld {{{name}}}: voeg '{name}' toe bij "
+                               "Specificaties", name=name))
+        text = " ".join(resolved.split("\n")).strip()
+        face = self.fonts.resolve(line.font_family, line.bold, line.italic)
+        missing = missing_glyphs(face, text)
+        if missing:
+            fb = self.fonts.fallback(line.bold, line.italic)
+            if not missing_glyphs(fb, text):
+                warnings.append(tr("Lettertype '{font}' mist teken(s) {chars}; '{fallback}' "
+                                   "gebruikt voor deze regel", font=line.font_family,
+                                   chars=missing, fallback=fb.family))
+                face = fb
+            else:
+                warnings.append(tr("Teken(s) {chars} kunnen niet worden weergegeven",
+                                   chars=missing))
+        elif face.family != line.font_family:
+            warnings.append(tr("Lettertype '{font}' niet gevonden; '{used}' gebruikt",
+                               font=line.font_family, used=face.family))
+        return _Prepared(slot, line, face, text)
 
     def _font(self, p: _Prepared, size_pt: float, ss: int = 1):  # type: ignore[no-untyped-def]
         return pil_font(p.face.path, p.face.index, round(self.pt_to_px(size_pt) * ss * 4) / 4)

@@ -76,10 +76,10 @@ PRINT_GUARD_SECONDS = 1.0
 def _format_key(lbl: Label) -> str:
     """The look of a label (not its text), to see whether it was changed by hand."""
     d = lbl.to_dict()
-    for line in d["lines"]:
-        line.pop("text", None)
-    return json.dumps([d["layout"], d["lines"], d["style"], d["code"], d["picture"]],
-                      sort_keys=True, default=str)
+    for part in (*d["lines"], *d["elements"]):
+        part.pop("text", None)
+    return json.dumps([d["layout"], d["lines"], d["style"], d["code"], d["picture"],
+                       d["elements"]], sort_keys=True, default=str)
 
 
 class MainWindow(QMainWindow):
@@ -107,6 +107,7 @@ class MainWindow(QMainWindow):
         self._history_window: HistoryWindow | None = None
         self.print_history = PrintHistory(data_dir() / HISTORY_FILE)
         self._recorded_jobs: set[int] = set()
+        self._element_count = 0  # elements of the open label at the last undo record
         #: labels made with Nieuw label whose look is still untouched:
         #: id -> (category, look); they take the style of a category they move to
         self._fresh: dict[str, tuple[str, str]] = {}
@@ -589,6 +590,12 @@ class MainWindow(QMainWindow):
         self.bridge.queueChanged.connect(self._record_finished)
         self.bridge.taskFinished.connect(self.on_task_finished)
         self.fontsLoaded.connect(self.properties.set_families)
+        # free layout: the design view and the element list share one selection
+        self.properties.area_mm = self._printable_mm
+        self.properties.make_elements = self.engine.to_elements
+        self.properties.elementSelected.connect(self.design_view.select)
+        self.design_view.elementSelected.connect(self.properties.elements.select)
+        self.design_view.elementChanged.connect(self._element_changed)
         self.updateChecked.connect(self.on_update_checked)
 
     def _load_fonts_async(self) -> None:
@@ -636,6 +643,7 @@ class MainWindow(QMainWindow):
             self.current = draft
         else:
             self.current = saved.clone(new_id=False)
+        self._element_count = len(self.current.elements) if self.current else 0
         self.properties.set_label(self.current)
         self._update_title()
         self._update_dirty()
@@ -763,9 +771,27 @@ class MainWindow(QMainWindow):
         self._update_title()
         self.library_panel.pin(self.current.id)
         self._update_dirty()
-        self._record(merge_key=self.current.id)
+        # adding or removing an element is its own undo step, not merged with typing
+        count = len(self.current.elements)
+        merge = self.current.id if count == self._element_count else None
+        self._element_count = count
+        self._record(merge_key=merge)
+
+    def _printable_mm(self) -> tuple[float, float]:
+        x0, y0, x1, y1 = self.engine.printable_box
+        dpm = self.engine.profile.dots_per_mm
+        return (x1 - x0) / dpm, (y1 - y0) / dpm
+
+    def _element_changed(self) -> None:
+        """An element was dragged, resized or deleted in the design view."""
+        if self.current is None:
+            return
+        self.current.touch()
+        self.properties.elements.refresh()
+        self.on_label_edited(False)
 
     def update_preview(self) -> None:
+        self.design_view.set_label(self.current)
         if self.current is None:
             self.design_view.set_result(None)
             self.raster_view.set_result(None)

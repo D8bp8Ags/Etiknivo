@@ -2,36 +2,29 @@
 
 from __future__ import annotations
 
-import io
 from collections.abc import Callable
 from pathlib import Path
 
-from PIL import Image, ImageOps
-from PySide6.QtCore import QBuffer, QIODevice, QSize, Qt, Signal
-from PySide6.QtGui import QIcon, QImage, QPainter
-from PySide6.QtSvg import QSvgRenderer
+from PySide6.QtCore import QSize, Signal
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
-    QDoubleSpinBox,
     QFileDialog,
     QFormLayout,
     QGroupBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
-    QMenu,
     QMessageBox,
     QPlainTextEdit,
     QPushButton,
     QScrollArea,
-    QToolButton,
     QVBoxLayout,
     QWidget,
 )
 
-from etiknivo.gui import theme
-from etiknivo.gui.qt_util import pil_to_pixmap
+from etiknivo.gui.element_panel import ElementPanel
+from etiknivo.gui.widgets import ALIGN_TEXT, FieldButton, load_image, spin, symbol_icon
 from etiknivo.i18n import N_, tr
 from etiknivo.model import (
     LAYOUT_TITLES,
@@ -46,7 +39,6 @@ from etiknivo.model import (
 )
 from etiknivo.rendering import pictures, symbols
 
-ALIGN_TEXT = {HAlign.LEFT: N_("Links"), HAlign.CENTER: N_("Midden"), HAlign.RIGHT: N_("Rechts")}
 VALIGN_TEXT = {VAlign.TOP: N_("Boven"), VAlign.CENTER: N_("Midden"), VAlign.BOTTOM: N_("Onder")}
 PICTURE_KINDS = ((PictureKind.NONE, N_("Geen")), (PictureKind.SYMBOL, N_("Symbool")),
                  (PictureKind.IMAGE, N_("Eigen afbeelding")))
@@ -58,75 +50,6 @@ CODE_CHOICES = (
     (CodeKind.QR, HAlign.RIGHT, N_("QR-code rechts")),
     (CodeKind.CODE128, HAlign.LEFT, N_("Barcode (Code 128) i.p.v. onderregel")),
 )
-
-
-def _spin(lo: float, hi: float, step: float, suffix: str, decimals: int = 1) -> QDoubleSpinBox:
-    s = QDoubleSpinBox()
-    s.setRange(lo, hi)
-    s.setSingleStep(step)
-    s.setDecimals(decimals)
-    s.setSuffix(suffix)
-    s.setKeyboardTracking(False)
-    return s
-
-
-def symbol_icon(key: str) -> QIcon:
-    """A symbol in the current text colour, for the picker."""
-    img = symbols.draw_symbol(key, 56)
-    mask = ImageOps.invert(img)
-    rgba = Image.new("RGBA", img.size, theme.tokens().text)
-    rgba.putalpha(mask)
-    return QIcon(pil_to_pixmap(rgba))
-
-
-def load_image(path: Path) -> str:
-    """An image file encoded for a label; SVG files are drawn with Qt first."""
-    if path.suffix.lower() != ".svg":
-        return pictures.load_file(path)
-    renderer = QSvgRenderer(str(path))
-    if not renderer.isValid():
-        raise pictures.ImageError(path.name)
-    size = renderer.defaultSize().scaled(pictures.MAX_SIDE, pictures.MAX_SIDE,
-                                         Qt.AspectRatioMode.KeepAspectRatio)
-    qimg = QImage(size, QImage.Format.Format_ARGB32)
-    qimg.fill(Qt.GlobalColor.transparent)
-    painter = QPainter(qimg)
-    renderer.render(painter)
-    painter.end()
-    buf = QBuffer()
-    buf.open(QIODevice.OpenModeFlag.WriteOnly)
-    qimg.save(buf, "PNG")
-    return pictures.encode(Image.open(io.BytesIO(bytes(buf.data()))))
-
-
-class FieldButton(QToolButton):
-    """'{ }' button whose menu inserts a {field} into *edit*."""
-
-    inserted = Signal()
-
-    def __init__(self, edit: QLineEdit, fields: Callable[[], list[str]]) -> None:
-        super().__init__()
-        self.edit = edit
-        self.fields = fields
-        self.setText("{ }")
-        self.setToolTip(tr("Veld invoegen: toont de waarde van een specificatie, "
-                           "de naam, lade of categorie op het etiket"))
-        self.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
-        self._menu = QMenu(self)
-        self._menu.aboutToShow.connect(self._fill)
-        self.setMenu(self._menu)
-
-    def _fill(self) -> None:
-        self._menu.clear()
-        for name in self.fields():
-            self._menu.addAction(f"{{{name}}}", lambda n=name: self.insert_field(n))
-        if not self._menu.actions():
-            self._menu.addAction(tr("Nog geen velden")).setEnabled(False)
-
-    def insert_field(self, name: str) -> None:
-        self.edit.insert(f"{{{name}}}")
-        self.edit.setFocus()
-        self.inserted.emit()
 
 
 class LineEditor(QGroupBox):
@@ -147,7 +70,7 @@ class LineEditor(QGroupBox):
         self.font = QComboBox()
         self.font.setEditable(True)
         self.font.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
-        self.size = _spin(3, 60, 0.5, " pt")
+        self.size = spin(3, 60, 0.5, " pt")
         self.bold = QCheckBox(tr("Vet"))
         self.italic = QCheckBox(tr("Cursief"))
         self.align = QComboBox()
@@ -196,6 +119,7 @@ class PropertiesPanel(QScrollArea):
     """Edits the current label in place and emits :attr:`changed`."""
 
     changed = Signal(bool)  # True when the library list needs a rebuild (name/category)
+    elementSelected = Signal(str)  # free layout: element id, "" for none
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -204,6 +128,10 @@ class PropertiesPanel(QScrollArea):
         self.setFrameShape(QScrollArea.Shape.NoFrame)
         self.label: Label | None = None
         self._loading = False
+        #: size of the printable area in mm (new elements are placed in it)
+        self.area_mm: Callable[[], tuple[float, float]] = lambda: (26.0, 12.0)
+        #: turns a label's lines, code and picture into loose elements
+        self.make_elements: Callable[[Label], list] | None = None
         body = QWidget()
         lay = QVBoxLayout(body)
         lay.setContentsMargins(14, 0, 14, 14)
@@ -230,6 +158,11 @@ class PropertiesPanel(QScrollArea):
         f.addRow(hint)
         lay.addWidget(gen)
 
+        self.elements = ElementPanel(lambda: self.area_mm())
+        self.elements.changed.connect(lambda: self._emit(False))
+        self.elements.selected.connect(self.elementSelected)
+        lay.addWidget(self.elements)
+
         self.lines = [LineEditor(i) for i in range(3)]
         for le in self.lines:
             le.fields = lambda: self.label.field_names() if self.label else []
@@ -237,7 +170,7 @@ class PropertiesPanel(QScrollArea):
             lay.addWidget(le)
             le.changed.connect(lambda le=le: self._line_changed(le))
 
-        code = QGroupBox(tr("QR-code of barcode"))
+        code = self.code_group = QGroupBox(tr("QR-code of barcode"))
         fc = QFormLayout(code)
         fc.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
         self.code_kind = QComboBox()
@@ -260,7 +193,7 @@ class PropertiesPanel(QScrollArea):
         fc.addRow(self.code_hint)
         lay.addWidget(code)
 
-        pic = QGroupBox(tr("Pictogram"))
+        pic = self.pic_group = QGroupBox(tr("Pictogram"))
         fp = QFormLayout(pic)
         fp.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
         self.pic_kind = QComboBox()
@@ -288,9 +221,9 @@ class PropertiesPanel(QScrollArea):
         self.valign = QComboBox()
         for a, t in VALIGN_TEXT.items():
             self.valign.addItem(tr(t), a)
-        self.spacing = _spin(-3, 5, 0.1, " mm")
-        self.margin_h = _spin(0, 10, 0.25, " mm", 2)
-        self.margin_v = _spin(0, 5, 0.25, " mm", 2)
+        self.spacing = spin(-3, 5, 0.1, " mm")
+        self.margin_h = spin(0, 10, 0.25, " mm", 2)
+        self.margin_v = spin(0, 5, 0.25, " mm", 2)
         self.autofit = QCheckBox(tr("Tekst automatisch passend maken"))
         self.rotation = QComboBox()
         self.rotation.addItem("0°", 0)
@@ -309,6 +242,7 @@ class PropertiesPanel(QScrollArea):
         f2.addRow(self.border)
         f2.addRow(self.separators)
         f2.addRow(self.invert)
+        self._style_form = f2
         lay.addWidget(st)
 
         meta = QGroupBox(tr("Specificaties en notities"))
@@ -359,6 +293,7 @@ class PropertiesPanel(QScrollArea):
         self._loading = True
         for le in self.lines:
             le.set_families(families)
+        self.elements.set_families(families)
         self._loading = False
 
     def set_categories(self, cats: list[str]) -> None:
@@ -414,11 +349,29 @@ class PropertiesPanel(QScrollArea):
                 self.specs.setPlainText(specs)
             if self.notes.toPlainText() != label.notes:
                 self.notes.setPlainText(label.notes)
+            self.elements.set_label(label)
         finally:
             self._loading = False
+        self._update_mode()
+
+    def _update_mode(self) -> None:
+        """The free layout edits elements; the others the three lines."""
+        free = self.label is not None and self.label.is_free
+        self.elements.setVisible(free)
+        for w in (*self.lines, self.code_group, self.pic_group):
+            w.setVisible(not free)
+        for w in (self.valign, self.spacing, self.margin_h, self.margin_v, self.rotation,
+                  self.autofit, self.separators):
+            self._style_form.setRowVisible(w, not free)
 
     def show_fitted_sizes(self, sizes: dict[int, tuple[float, float]]) -> None:
-        """Show the auto-fit result per slot: {slot: (fitted_pt, requested_pt)}."""
+        """Show the auto-fit result per slot: {slot: (fitted_pt, requested_pt)};
+        in the free layout the slot is the element's index."""
+        if self.label is not None and self.label.is_free:
+            el = self.elements.current()
+            idx = self.label.elements.index(el) if el is not None else -1
+            self.elements.show_fitted(sizes[idx][0] if idx in sizes else None)
+            return
         for le in self.lines:
             fitted = sizes.get(le.slot)
             if fitted and fitted[0] < fitted[1] - 0.05:
@@ -431,7 +384,10 @@ class PropertiesPanel(QScrollArea):
     def _layout_chosen(self) -> None:
         if self._loading or self.label is None:
             return
-        self.label.apply_layout(LayoutPreset(self.layout_combo.currentData()))
+        preset = LayoutPreset(self.layout_combo.currentData())
+        if preset == LayoutPreset.FREE and not self.label.elements and self.make_elements:
+            self.label.elements = self.make_elements(self.label)
+        self.label.apply_layout(preset)
         self.set_label(self.label)
         self._emit(False)
 

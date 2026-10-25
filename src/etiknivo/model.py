@@ -69,12 +69,14 @@ class VAlign(StrEnum):
 
 
 class LayoutPreset(StrEnum):
-    """The three standard layouts plus a free 'custom' mode."""
+    """The three standard layouts, a 'custom' mode for the three lines and
+    'free': loose elements placed anywhere (see :class:`LabelElement`)."""
 
     SINGLE = "single"
     MAIN_SPEC = "main_spec"
     CATEGORY_MAIN_SPEC = "category_main_spec"
     CUSTOM = "custom"
+    FREE = "free"
 
 
 LAYOUT_TITLES: dict[LayoutPreset, str] = {
@@ -82,6 +84,7 @@ LAYOUT_TITLES: dict[LayoutPreset, str] = {
     LayoutPreset.MAIN_SPEC: N_("2 · Naam + specificatie"),
     LayoutPreset.CATEGORY_MAIN_SPEC: N_("3 · Categorie + naam + specificatie"),
     LayoutPreset.CUSTOM: N_("Aangepast"),
+    LayoutPreset.FREE: N_("Vrij (elementen slepen)"),
 }
 
 
@@ -210,6 +213,89 @@ class LabelPicture:
         return p
 
 
+class ElementKind(StrEnum):
+    TEXT = "text"
+    QR = "qr"
+    BARCODE = "barcode"
+    SYMBOL = "symbol"
+    IMAGE = "image"
+    LINE = "line"
+    BOX = "box"
+
+
+ELEMENT_TITLES: dict[ElementKind, str] = {
+    ElementKind.TEXT: N_("Tekst"),
+    ElementKind.QR: N_("QR-code"),
+    ElementKind.BARCODE: N_("Barcode"),
+    ElementKind.SYMBOL: N_("Symbool"),
+    ElementKind.IMAGE: N_("Afbeelding"),
+    ElementKind.LINE: N_("Lijn"),
+    ElementKind.BOX: N_("Kader"),
+}
+
+#: Smallest element side: one printer dot.
+ELEMENT_MIN_MM = 0.125
+
+
+@dataclass
+class LabelElement:
+    """A loose element of a label in the free layout.
+
+    The box is in millimetres from the top-left corner of the printable area,
+    in design orientation.  Text shrinks to fit its box; codes, symbols and
+    images are scaled to fit and centred; a line fills its box (a thin box is
+    a line); a frame is a one-dot outline of its box.
+    """
+
+    kind: ElementKind = ElementKind.TEXT
+    x_mm: float = 0.0
+    y_mm: float = 0.0
+    w_mm: float = 10.0
+    h_mm: float = 4.0
+    text: str = ""  # text, or what a QR code or barcode contains
+    font_family: str = DEFAULT_FONT
+    font_size_pt: float = 10.0  # largest size; smaller when the box is too small
+    bold: bool = False
+    italic: bool = False
+    align: HAlign = HAlign.CENTER
+    symbol: str = ""
+    image_png: str = ""  # base64 PNG, see rendering.pictures
+    id: str = field(default_factory=lambda: uuid.uuid4().hex[:10])
+
+    @property
+    def title(self) -> str:
+        return tr(ELEMENT_TITLES[self.kind])
+
+    @property
+    def has_text(self) -> bool:
+        return self.kind in (ElementKind.TEXT, ElementKind.QR, ElementKind.BARCODE)
+
+    def as_line(self) -> TextLine:
+        """Font settings of a text element, as the renderer knows them."""
+        return TextLine(self.text, True, self.font_family, self.font_size_pt, self.bold,
+                        self.italic, self.align)
+
+    def move_to(self, x_mm: float, y_mm: float) -> None:
+        self.x_mm, self.y_mm = round(x_mm, 6), round(y_mm, 6)
+
+    def resize(self, w_mm: float, h_mm: float) -> None:
+        self.w_mm = round(max(ELEMENT_MIN_MM, w_mm), 6)
+        self.h_mm = round(max(ELEMENT_MIN_MM, h_mm), 6)
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> LabelElement:
+        known = {f.name for f in fields(cls)}
+        kwargs = {k: v for k, v in data.items() if k in known}
+        kwargs["kind"] = ElementKind(kwargs.get("kind", ElementKind.TEXT))
+        kwargs["align"] = HAlign(kwargs.get("align", HAlign.CENTER))
+        for k in ("x_mm", "y_mm", "w_mm", "h_mm", "font_size_pt"):
+            if k in kwargs:
+                kwargs[k] = float(kwargs[k])
+        el = cls(**kwargs)
+        el.resize(el.w_mm, el.h_mm)
+        return el
+
+
 def default_lines() -> list[TextLine]:
     return [TextLine(), TextLine(), TextLine()]
 
@@ -228,6 +314,8 @@ class Label:
     format: LabelFormat = field(default_factory=LabelFormat)
     code: LabelCode = field(default_factory=LabelCode)
     picture: LabelPicture = field(default_factory=LabelPicture)
+    #: loose elements, used when ``layout`` is FREE
+    elements: list[LabelElement] = field(default_factory=list)
     specs: dict[str, str] = field(default_factory=dict)
     notes: str = ""
     created: str = field(default_factory=_now)
@@ -278,8 +366,13 @@ class Label:
         values.update({k.strip().casefold(): v for k, v in self.specs.items()})
         return values
 
+    @property
+    def is_free(self) -> bool:
+        return self.layout == LayoutPreset.FREE
+
     def _texts(self) -> list[str]:
-        return [ln.text for ln in self.lines] + [self.code.text]
+        return [ln.text for ln in self.lines] + [self.code.text] + \
+            [el.text for el in self.elements if el.has_text]
 
     def uses_copy_number(self) -> bool:
         """Whether ``{Nr}`` appears, so every copy looks different."""
@@ -299,6 +392,8 @@ class Label:
         for ln in c.lines:
             ln.text = FIELD_RE.sub(sub, ln.text)
         c.code.text = FIELD_RE.sub(sub, c.code.text)
+        for el in c.elements:
+            el.text = FIELD_RE.sub(sub, el.text)
         return c
 
     def resolve(self, text: str) -> tuple[str, list[str]]:
@@ -326,9 +421,10 @@ class Label:
 
     def apply_layout(self, preset: LayoutPreset) -> None:
         """Switch layout.  Text in every slot is kept; only visibility and
-        default styling change."""
+        default styling change.  The free layout keeps the lines too; its
+        elements are made by the renderer (``RenderEngine.to_elements``)."""
         self.layout = LayoutPreset(preset)
-        if preset == LayoutPreset.CUSTOM:
+        if preset in (LayoutPreset.CUSTOM, LayoutPreset.FREE):
             return
         top, main, bottom = self.lines
         main.enabled = True
@@ -376,6 +472,8 @@ class Label:
             format=LabelFormat.from_dict(data.get("format", {})),
             code=LabelCode.from_dict(data.get("code") or {}),
             picture=LabelPicture.from_dict(data.get("picture") or {}),
+            elements=[LabelElement.from_dict(x) for x in data.get("elements") or []
+                      if isinstance(x, dict)],
             specs={str(k): str(v) for k, v in (data.get("specs") or {}).items()},
             notes=str(data.get("notes", "")),
         )
@@ -396,7 +494,8 @@ class Label:
         """Stable hash of everything that affects the rendered output."""
         d = {"lines": [asdict(x) for x in self.lines], "style": asdict(self.style),
              "format": asdict(self.format), "code": asdict(self.code),
-             "picture": asdict(self.picture),
+             "picture": asdict(self.picture), "layout": str(self.layout),
+             "elements": [asdict(x) for x in self.elements] if self.is_free else [],
              "fields": self.field_values()}
         return hashlib.sha1(json.dumps(d, sort_keys=True, default=str).encode()).hexdigest()
 
@@ -422,6 +521,13 @@ def copy_format(src: Label, dst: Label, parts: set[str] | list[str]) -> None:
             d_line.bold = s_line.bold
             d_line.italic = s_line.italic
             d_line.align = s_line.align
+        if src.is_free:
+            # same positions and fonts; a label that had the same elements keeps its texts
+            old = dst.elements
+            dst.elements = copy.deepcopy(src.elements)
+            if [e.kind for e in old] == [e.kind for e in src.elements]:
+                for new, mine in zip(dst.elements, old):
+                    new.text, new.symbol, new.image_png = mine.text, mine.symbol, mine.image_png
     if "style" in parts:
         dst.style = copy.deepcopy(src.style)
     if "code" in parts:

@@ -26,7 +26,7 @@ from PySide6.QtWidgets import (
 from etiknivo.gui import theme
 from etiknivo.gui.qt_util import pil_to_pixmap
 from etiknivo.i18n import N_, tr
-from etiknivo.model import Label
+from etiknivo.model import ElementKind, Label
 from etiknivo.rendering.engine import RenderEngine
 from etiknivo.storage.library import Library
 
@@ -292,7 +292,8 @@ class LibraryPanel(QWidget):
         if not needle or lbl.id == self._pinned:
             return True
         hay = " ".join([lbl.name, lbl.tray_id, lbl.category, lbl.notes,
-                        *(ln.text for ln in lbl.lines), *lbl.specs.values()]).casefold()
+                        *(ln.text for ln in lbl.lines), *(e.text for e in lbl.elements),
+                        *lbl.specs.values()]).casefold()
         return all(part in hay for part in needle.casefold().split())
 
     def thumbnail(self, lbl: Label) -> QIcon:
@@ -371,7 +372,12 @@ class LibraryPanel(QWidget):
 
     @staticmethod
     def _tooltip(lbl: Label) -> str:
-        parts = ["\n".join(lbl.display_text(ln) for _, ln in lbl.visible_lines())]
+        if lbl.is_free:
+            texts = [lbl.resolve(e.text)[0] for e in lbl.elements
+                     if e.kind == ElementKind.TEXT and e.text.strip()]
+        else:
+            texts = [lbl.display_text(ln) for _, ln in lbl.visible_lines()]
+        parts = ["\n".join(texts)]
         if lbl.specs:
             parts.append("\n".join(f"{k}: {v}" if v else k for k, v in lbl.specs.items()))
         if lbl.notes.strip():

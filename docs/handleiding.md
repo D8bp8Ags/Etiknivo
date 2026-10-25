@@ -8,6 +8,7 @@ Etiknivo maakt en print etiketten op de Action Fichero 5836, standaard 30 × 14 
 - [Specificaties en gekoppelde velden](#specificaties-en-gekoppelde-velden)
 - [Pictogrammen en afbeeldingen](#pictogrammen-en-afbeeldingen)
 - [QR-code en barcode](#qr-code-en-barcode)
+- [Vrije layout: elementen slepen](#vrije-layout-elementen-slepen)
 - [Afdrukken](#afdrukken)
 - [Een andere etiketrol](#een-andere-etiketrol)
 - [Kalibreren](#kalibreren)
@@ -138,6 +139,19 @@ Bij *Inhoud* zet je wat de code bevat. Standaard is dat `{Lade}`, de lade-ID. Ve
 Hoe korter de inhoud, hoe groter de blokjes of streepjes en hoe makkelijker het scant. Een QR-code past tot 134 tekens, maar tot ongeveer 40 tekens scant hij het best. Een barcode past tot ongeveer 15 tekens (cijfers het dubbele) en kan alleen letters, cijfers en leestekens zonder accenten bevatten; Ω of µ geven een waarschuwing.
 
 Etiknivo maakt QR-codes en barcodes zelf, zonder externe bibliotheek of internet.
+
+## Vrije layout: elementen slepen
+
+Wil je meer vrijheid dan drie regels onder elkaar, kies dan bij *Layout* **Vrij (elementen slepen)**. Wat er op het etiket staat (de regels, de QR-code of barcode en het pictogram) wordt dan omgezet in losse **elementen** op precies dezelfde plek. Het etiket ziet er dus eerst hetzelfde uit.
+
+- **Selecteren en slepen**: klik een element in het ontwerp en sleep het. Het blauwe hoekje rechtsonder maakt het groter of kleiner. Alles springt per dot (0,125 mm), dus wat je ziet is precies wat er geprint wordt.
+- **Toetsen**: de pijltjes schuiven het geselecteerde element 1 dot, met Shift 1 mm. Delete verwijdert het.
+- **Toevoegen**: met **Toevoegen ▾** onder de lijst kies je een tekst, QR-code, barcode, symbool, afbeelding, lijn of kader. De knoppen ▲ en ▼ bepalen wat boven ligt als elementen elkaar overlappen.
+- **Instellen**: onder de lijst staan de plaats en grootte in mm en, afhankelijk van het element, de inhoud, het lettertype, het symbool of de afbeelding.
+
+Tekst wordt zo groot als je instelt, maar krimpt als hij niet in zijn vak past. Codes, symbolen en afbeeldingen worden zo groot mogelijk in hun vak gezet. Een **lijn** vult zijn hele vak, dus een plat vak is een streep en een vierkant vak een zwart blok. Een **kader** is een rand van 1 dot om het vak. Velden zoals `{Lade}`, `{Datum}` en `{Nr}` werken in alle tekst en codes.
+
+Ga je terug naar een gewone layout, dan krijg je je drie regels terug zoals ze waren. De elementen blijven bewaard voor als je weer *Vrij* kiest. In de vrije layout gelden marges, regelafstand en rotatie niet, want je zet alles zelf neer. Met **Opmaak overnemen → Layout** krijgen andere labels dezelfde elementen. Gebruik velden zoals `{Naam}` en `{Lade}` in de tekst, dan toont elk label zijn eigen gegevens.
 
 ## Afdrukken
 
