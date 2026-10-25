@@ -140,9 +140,18 @@ def test_style_section_folds_and_remembers(window) -> None:  # noqa: ANN001
     assert not section.body.isHidden()
 
 
-def test_specifications_come_before_code_and_style(window) -> None:  # noqa: ANN001
+def test_compact_lines_and_section_summaries(window) -> None:  # noqa: ANN001
     props = window.properties
-    lay = props.widget().layout()
-    order = [lay.indexOf(w) for w in (props.lines[2], props.specs.parentWidget(),
-                                      props.code_group, props.style_section)]
+    line = props.lines[1]
+    assert line.details.isHidden()  # font, size, style, alignment folded away
+    line.more.click()
+    assert not line.details.isHidden()
+    line.more.click()
+    order = [props.widget().layout().indexOf(w) for w in (
+        props.label_section, props.text_section, props.code_group, props.pic_group,
+        props.meta_section, props.style_section)]
     assert order == sorted(order)
+    props.code_group.set_open(False)
+    assert props.code_group.toggle.text().startswith(props.code_group._title + "  ·  ")
+    props.code_group.set_open(True)
+    assert props.code_group.toggle.text() == props.code_group._title

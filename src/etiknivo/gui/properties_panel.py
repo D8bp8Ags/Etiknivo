@@ -12,7 +12,7 @@ from PySide6.QtWidgets import (
     QFileDialog,
     QFormLayout,
     QFrame,
-    QGroupBox,
+    QGridLayout,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -26,6 +26,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from etiknivo.gui import theme
 from etiknivo.gui.element_panel import ElementPanel
 from etiknivo.gui.specs_editor import SpecsEditor
 from etiknivo.gui.widgets import (
@@ -68,21 +69,26 @@ CODE_CHOICES = (
 )
 
 
-class LineEditor(QGroupBox):
-    """Editor for one text slot."""
+class LineEditor(QWidget):
+    """Editor for one text slot: one row with the text, and its font, size,
+    style and alignment folded away behind a button."""
 
     changed = Signal()
+    toggled = Signal(bool)
 
     def __init__(self, slot: int, parent: QWidget | None = None) -> None:
-        super().__init__(tr(SLOT_NAMES[slot]), parent)
+        super().__init__(parent)
         self.slot = slot
-        self.setCheckable(True)
+        self.check = QCheckBox(tr(SLOT_NAMES[slot]))
         self.text = QLineEdit()
         self.text.setPlaceholderText(tr("Tekst of {veld}…"))
         # inserts a {field} that shows a specification's value on the label
         self.fields: Callable[[], list[str]] = list
         self.field_btn = FieldButton(self.text, lambda: self.fields())
         self.field_btn.inserted.connect(self.changed)
+        self.more = QToolButton()
+        self.more.setCheckable(True)
+        self.more.setIcon(theme.icon("sliders-horizontal"))
         self.font = combo()
         self.font.setEditable(True)
         self.font.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
@@ -94,27 +100,81 @@ class LineEditor(QGroupBox):
             self.align.addItem(tr(t), a)
         self.fitted = QLabel()
         self.fitted.setObjectName("hint")
+        self.note = QLabel()
+        self.note.setObjectName("hint")
+        self.note.setWordWrap(True)
+        self.note.hide()
 
-        form = QFormLayout(self)
+        self.details = QWidget()
+        form = QFormLayout(self.details)
+        form.setContentsMargins(24, 2, 0, 8)  # indented under its line
         form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
-        text_row = QHBoxLayout()
-        text_row.setSpacing(4)
-        text_row.addWidget(self.text, 1)
-        text_row.addWidget(self.field_btn)
-        form.addRow(tr("Tekst"), text_row)
         form.addRow(tr("Lettertype"), self.font)
         form.addRow(tr("Grootte"), self.size)
         form.addRow(tr("Stijl"), style_row(self.bold, self.italic))
         form.addRow(tr("Uitlijning"), self.align)
-        form.addRow("", self.fitted)
+        self.details.hide()
 
-        self.toggled.connect(self.changed)
+        row = QHBoxLayout()
+        row.setSpacing(4)
+        row.addWidget(self.text, 1)
+        row.addWidget(self.field_btn)
+        row.addWidget(self.more)
+        grid = QGridLayout(self)
+        grid.setContentsMargins(0, 0, 0, 0)
+        grid.setHorizontalSpacing(8)
+        grid.setVerticalSpacing(2)
+        grid.addWidget(self.check, 0, 0)
+        grid.addLayout(row, 0, 1)
+        grid.addWidget(self.fitted, 1, 1)
+        grid.addWidget(self.note, 2, 1)
+        grid.addWidget(self.details, 3, 0, 1, 2)
+        grid.setColumnStretch(1, 1)
+        self.fitted.hide()
+
+        self.more.toggled.connect(self.details.setVisible)
+        self.check.toggled.connect(self._enable)
+        self.check.toggled.connect(self.toggled)
+        self.check.toggled.connect(self.changed)
         self.text.textEdited.connect(self.changed)
         self.font.currentTextChanged.connect(self.changed)
         self.size.valueChanged.connect(self.changed)
         self.bold.toggled.connect(self.changed)
         self.italic.toggled.connect(self.changed)
         self.align.currentIndexChanged.connect(self.changed)
+        self.changed.connect(self._describe)
+        self._enable(False)
+
+    def title(self) -> str:
+        return self.check.text()
+
+    def isChecked(self) -> bool:  # noqa: N802 - same API as a checkable group box
+        return self.check.isChecked()
+
+    def setChecked(self, on: bool) -> None:  # noqa: N802
+        self.check.setChecked(on)
+        self._enable(on)
+
+    def set_note(self, text: str) -> None:
+        self.note.setText(text)
+        self.note.setVisible(bool(text))
+
+    def set_fitted(self, text: str) -> None:
+        self.fitted.setText(text)
+        self.fitted.setVisible(bool(text))
+
+    def _enable(self, on: bool) -> None:
+        for w in (self.text, self.field_btn, self.more, self.details):
+            w.setEnabled(on)
+        self._describe()
+
+    def _describe(self) -> None:
+        """The folded settings in the button's tooltip."""
+        parts = [self.font.currentText(), f"{self.size.value():g} pt"]
+        parts += [tr("vet")] * self.bold.isChecked() + [tr("cursief")] * self.italic.isChecked()
+        parts.append(self.align.currentText().lower())
+        self.more.setToolTip(tr("Lettertype, grootte, stijl en uitlijning") + "\n"
+                             + " · ".join(p for p in parts if p))
 
     def insert_field(self, name: str) -> None:
         self.field_btn.insert_field(name)
@@ -152,8 +212,8 @@ class PropertiesPanel(QScrollArea):
         lay.setContentsMargins(14, 0, 14, 14)
         lay.setSpacing(2)
 
-        gen = QGroupBox(tr("Label"))
-        f = QFormLayout(gen)
+        gen = self.label_section = CollapsibleSection(tr("Label"), "sec_label")
+        f = QFormLayout(gen.body)
         self.name = QLineEdit()
         self.tray = QLineEdit()
         self.category = combo()
@@ -189,15 +249,65 @@ class PropertiesPanel(QScrollArea):
         self.elements.selected.connect(self.elementSelected)
         lay.addWidget(self.elements)
 
+        self.text_section = CollapsibleSection(tr("Tekst"), "sec_text")
+        text_lay = QVBoxLayout(self.text_section.body)
+        text_lay.setContentsMargins(0, 4, 0, 4)
+        text_lay.setSpacing(6)
         self.lines = [LineEditor(i) for i in range(3)]
         for le in self.lines:
             le.fields = lambda: self.label.field_names() if self.label else []
-        for le in self.lines:
-            lay.addWidget(le)
+            text_lay.addWidget(le)
             le.changed.connect(lambda le=le: self._line_changed(le))
+        lay.addWidget(self.text_section)
 
-        meta = QGroupBox(tr("Specificaties en notities"))
-        f3 = QFormLayout(meta)
+        code = self.code_group = CollapsibleSection(tr("QR-code of barcode"), "sec_code")
+        fc = QFormLayout(code.body)
+        fc.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
+        self.code_kind = combo()
+        for _kind, _side, text in CODE_CHOICES:
+            self.code_kind.addItem(tr(text))
+        self.code_text = QLineEdit()
+        self.code_text.setPlaceholderText(tr("Tekst of {veld}, bv. {Lade} of een link"))
+        self.code_field_btn = FieldButton(
+            self.code_text, lambda: self.label.field_names() if self.label else [])
+        self.code_field_btn.inserted.connect(lambda: self._apply(False))
+        code_row = QHBoxLayout()
+        code_row.setSpacing(4)
+        code_row.addWidget(self.code_text, 1)
+        code_row.addWidget(self.code_field_btn)
+        self.code_hint = QLabel()
+        self.code_hint.setWordWrap(True)
+        self.code_hint.setObjectName("hint")
+        fc.addRow(tr("Soort"), self.code_kind)
+        fc.addRow(tr("Inhoud"), code_row)
+        fc.addRow(self.code_hint)
+        self._code_form, self._code_row = fc, code_row
+        lay.addWidget(code)
+
+        pic = self.pic_group = CollapsibleSection(tr("Pictogram"), "sec_picture")
+        fp = QFormLayout(pic.body)
+        fp.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
+        self.pic_kind = combo()
+        for _k, text in PICTURE_KINDS:
+            self.pic_kind.addItem(tr(text))
+        self.pic_side = combo()
+        for _s, text in SIDES:
+            self.pic_side.addItem(tr(text))
+        self.pic_symbol = symbol_combo()
+        self.pic_image_btn = QPushButton(tr("Afbeelding kiezen…"))
+        self.pic_image_btn.setToolTip(tr("PNG, JPG of SVG, bv. een logo. Wordt zwart-wit "
+                                         "afgedrukt en in het label bewaard."))
+        self.pic_image_btn.clicked.connect(self._choose_image)
+        fp.addRow(tr("Soort"), self.pic_kind)
+        fp.addRow(tr("Plaats"), self.pic_side)
+        fp.addRow(tr("Symbool"), self.pic_symbol)
+        fp.addRow(tr("Afbeelding"), self.pic_image_btn)
+        self._pic_form = fp
+        lay.addWidget(pic)
+
+        meta = self.meta_section = CollapsibleSection(tr("Specificaties en notities"),
+                                                      "sec_meta")
+        f3 = QFormLayout(meta.body)
         f3.setRowWrapPolicy(QFormLayout.RowWrapPolicy.WrapAllRows)
         self.specs = SpecsEditor()
         self.specs.targets = self._field_targets
@@ -221,49 +331,6 @@ class PropertiesPanel(QScrollArea):
         f3.addRow(tr("Notities"), self.notes)
         f3.addRow(self.notes_hint)
         lay.addWidget(meta)
-
-        code = self.code_group = QGroupBox(tr("QR-code of barcode"))
-        fc = QFormLayout(code)
-        fc.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
-        self.code_kind = combo()
-        for _kind, _side, text in CODE_CHOICES:
-            self.code_kind.addItem(tr(text))
-        self.code_text = QLineEdit()
-        self.code_text.setPlaceholderText(tr("Tekst of {veld}, bv. {Lade} of een link"))
-        self.code_field_btn = FieldButton(
-            self.code_text, lambda: self.label.field_names() if self.label else [])
-        self.code_field_btn.inserted.connect(lambda: self._apply(False))
-        code_row = QHBoxLayout()
-        code_row.setSpacing(4)
-        code_row.addWidget(self.code_text, 1)
-        code_row.addWidget(self.code_field_btn)
-        self.code_hint = QLabel()
-        self.code_hint.setWordWrap(True)
-        self.code_hint.setObjectName("hint")
-        fc.addRow(tr("Soort"), self.code_kind)
-        fc.addRow(tr("Inhoud"), code_row)
-        fc.addRow(self.code_hint)
-        lay.addWidget(code)
-
-        pic = self.pic_group = QGroupBox(tr("Pictogram"))
-        fp = QFormLayout(pic)
-        fp.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
-        self.pic_kind = combo()
-        for _k, text in PICTURE_KINDS:
-            self.pic_kind.addItem(tr(text))
-        self.pic_side = combo()
-        for _s, text in SIDES:
-            self.pic_side.addItem(tr(text))
-        self.pic_symbol = symbol_combo()
-        self.pic_image_btn = QPushButton(tr("Afbeelding kiezen…"))
-        self.pic_image_btn.setToolTip(tr("PNG, JPG of SVG, bv. een logo. Wordt zwart-wit "
-                                         "afgedrukt en in het label bewaard."))
-        self.pic_image_btn.clicked.connect(self._choose_image)
-        fp.addRow(tr("Soort"), self.pic_kind)
-        fp.addRow(tr("Plaats"), self.pic_side)
-        fp.addRow(tr("Symbool"), self.pic_symbol)
-        fp.addRow(tr("Afbeelding"), self.pic_image_btn)
-        lay.addWidget(pic)
 
         # Style is set once per category and then copied, so it sits last and
         # folds away; whether it is open is remembered.
@@ -396,6 +463,7 @@ class PropertiesPanel(QScrollArea):
         finally:
             self._loading = False
         self._update_mode()
+        self._update_summaries()
 
     def _field_targets(self) -> list[tuple[str, Callable[[str], None] | None]]:
         """Where the { } button of a specification can put its field."""
@@ -417,7 +485,7 @@ class PropertiesPanel(QScrollArea):
                "terug.") if free else
             tr("De lade-ID komt alleen op het etiket als een regel {Lade} bevat. Met 1, 2 of "
                "3 zet je regels aan of uit; hun tekst en opmaak blijven bewaard."))
-        for w in (*self.lines, self.code_group, self.pic_group):
+        for w in (self.text_section, self.code_group, self.pic_group):
             w.setVisible(not free)
         for w in (self.valign, self.spacing, self.margin_h, self.margin_v, self.rotation,
                   self.autofit, self.separators):
@@ -434,9 +502,9 @@ class PropertiesPanel(QScrollArea):
         for le in self.lines:
             fitted = sizes.get(le.slot)
             if fitted and fitted[0] < fitted[1] - 0.05:
-                le.fitted.setText(tr("Automatisch verkleind tot {pt} pt", pt=f"{fitted[0]:.1f}"))
+                le.set_fitted(tr("Automatisch verkleind tot {pt} pt", pt=f"{fitted[0]:.1f}"))
             else:
-                le.fitted.setText("")
+                le.set_fitted("")
 
     # -- applying -----------------------------------------------------------------------
 
@@ -538,6 +606,10 @@ class PropertiesPanel(QScrollArea):
         self.pic_side.setEnabled(kind != PictureKind.NONE)
         self.pic_symbol.setEnabled(kind == PictureKind.SYMBOL)
         self.pic_image_btn.setEnabled(kind == PictureKind.IMAGE)
+        # only the rows that matter for the chosen kind
+        self._pic_form.setRowVisible(self.pic_side, kind != PictureKind.NONE)
+        self._pic_form.setRowVisible(self.pic_symbol, kind == PictureKind.SYMBOL)
+        self._pic_form.setRowVisible(self.pic_image_btn, kind == PictureKind.IMAGE)
         has = bool(self.label and self.label.picture.image_png)
         self.pic_image_btn.setText(tr("Andere afbeelding…") if has else tr("Afbeelding kiezen…"))
 
@@ -578,11 +650,12 @@ class PropertiesPanel(QScrollArea):
         kind = CODE_CHOICES[max(0, self.code_kind.currentIndex())][0]
         self.code_text.setEnabled(kind != CodeKind.NONE)
         self.code_field_btn.setEnabled(kind != CodeKind.NONE)
+        self._code_form.setRowVisible(self._code_row, kind != CodeKind.NONE)
         bottom = self.lines[SLOT_BOTTOM]
         if kind == CodeKind.CODE128:
-            bottom.setTitle(tr("{slot} (vervangen door barcode)", slot=tr(SLOT_NAMES[SLOT_BOTTOM])))
+            bottom.set_note(tr("Vervangen door de barcode; de tekst blijft bewaard."))
         else:
-            bottom.setTitle(tr(SLOT_NAMES[SLOT_BOTTOM]))
+            bottom.set_note("")
         self.code_hint.setText({
             CodeKind.NONE: "",
             CodeKind.QR: tr("Scan met je telefoon. Korte tekst geeft grotere blokjes die "
@@ -592,6 +665,7 @@ class PropertiesPanel(QScrollArea):
                                  "(cijfers het dubbele); korter geeft dikkere streepjes. "
                                  "Alleen letters, cijfers en leestekens zonder accenten."),
         }[kind])
+        self._code_form.setRowVisible(self.code_hint, bool(self.code_hint.text()))
 
     def _commit_category(self) -> None:
         if self._loading or self.label is None:
@@ -604,7 +678,33 @@ class PropertiesPanel(QScrollArea):
     def _emit(self, structural: bool) -> None:
         if self.label is not None:
             self.label.touch()
+            self._update_summaries()
         self.changed.emit(structural)
+
+    def _update_summaries(self) -> None:
+        """One line per section, shown in its title while it is closed."""
+        lbl = self.label
+        if lbl is None:
+            return
+        self.label_section.set_summary(" · ".join(x for x in (lbl.tray_id, lbl.category) if x))
+        self.text_section.set_summary(" / ".join(ln.text for ln in lbl.lines
+                                                 if ln.enabled and ln.text))
+        code = self.code_kind.currentText()
+        if lbl.code.kind != CodeKind.NONE and lbl.code.text:
+            code += f" · {lbl.code.text}"
+        self.code_group.set_summary(code)
+        pic = self.pic_kind.currentText()
+        if lbl.picture.kind == PictureKind.SYMBOL:
+            pic = self.pic_symbol.currentText().strip()
+        if lbl.picture.kind != PictureKind.NONE:
+            pic += " · " + self.pic_side.currentText().lower()
+        self.pic_group.set_summary(pic)
+        meta = [tr("{n} specificaties", n=len(lbl.specs))] if lbl.specs else []
+        meta += [tr("notities")] if lbl.notes.strip() else []
+        self.meta_section.set_summary(" · ".join(meta))
+
+
+SUMMARY_CHARS = 26
 
 
 class CollapsibleSection(QWidget):
@@ -614,6 +714,7 @@ class CollapsibleSection(QWidget):
     def __init__(self, title: str, key: str, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._key = key
+        self._title, self._summary = title, ""
         self.toggle = QToolButton()
         self.toggle.setObjectName("sectionToggle")
         self.toggle.setText(title)
@@ -637,13 +738,23 @@ class CollapsibleSection(QWidget):
     def is_open(self) -> bool:
         return self.toggle.isChecked()
 
+    def set_summary(self, summary: str) -> None:
+        """What the section holds, shown after the title while it is closed."""
+        # short, so a closed section never makes the panel wider
+        self._summary = summary if len(summary) <= SUMMARY_CHARS else \
+            summary[:SUMMARY_CHARS - 1].rstrip() + "…"
+        self._show(self.toggle.isChecked(), remember=False)
+
     def set_open(self, open_: bool) -> None:
         self.toggle.setChecked(open_)
 
-    def _show(self, open_: bool) -> None:
+    def _show(self, open_: bool, remember: bool = True) -> None:
         self.body.setVisible(open_)
         self.toggle.setArrowType(Qt.ArrowType.DownArrow if open_ else Qt.ArrowType.RightArrow)
-        _ui_state().setValue(self._key, open_)
+        closed = f"{self._title}  ·  {self._summary}" if self._summary else self._title
+        self.toggle.setText(self._title if open_ else closed)
+        if remember:
+            _ui_state().setValue(self._key, open_)
 
 
 def _ui_state() -> QSettings:

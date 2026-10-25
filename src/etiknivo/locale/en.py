@@ -426,7 +426,6 @@ EN: dict[str, str] = {
     "Tekst of {veld}, bv. {Lade} of een link": "Text or {field}, e.g. {Tray} or a link",
     "Soort": "Type",
     "Inhoud": "Content",
-    "{slot} (vervangen door barcode)": "{slot} (replaced by barcode)",
     "Scan met je telefoon. Korte tekst geeft grotere blokjes die makkelijker scannen; een link "
     "past tot ongeveer 40 tekens goed.":
         "Scan it with your phone. Short text gives larger squares that scan more easily; a link "
@@ -710,4 +709,12 @@ EN: dict[str, str] = {
         "Main line and bottom line",
     "Bovenregel, hoofdregel en onderregel":
         "Top line, main line and bottom line",
+    # -- compact inspector --------------------------------------------------------------
+    "Vervangen door de barcode; de tekst blijft bewaard.":
+        "Replaced by the barcode; the text is kept.",
+    "{n} specificaties": "{n} specifications",
+    "notities": "notes",
+    "vet": "bold",
+    "cursief": "italic",
+    "Lettertype, grootte, stijl en uitlijning": "Font, size, style and alignment",
 }

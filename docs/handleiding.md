@@ -68,7 +68,9 @@ De snelknoppen veranderen alleen welke regels aan staan. Tekst, lettertype, groo
 
 ### Tekstregels
 
-Per regel (Bovenregel, Hoofdregel, Onderregel) stel je in: de tekst, het lettertype, de grootte, de stijl (vet en cursief) en de uitlijning. Met het vinkje zet je een regel aan of uit.
+Onder **Tekst** staat elke regel (Bovenregel, Hoofdregel, Onderregel) op één rij: het vinkje zet hem aan of uit, daarnaast typ je de tekst en voeg je met { } een veld in. Het knopje met de schuifjes klapt het lettertype, de grootte, de stijl (vet en cursief) en de uitlijning van die regel uit; met de muis erboven zie je ze ook zonder uitklappen.
+
+Het paneel rechts bestaat uit secties: Label, Tekst, QR-code of barcode, Pictogram, Specificaties en notities, en Opmaak. Met een klik op de titel klap je een sectie in of uit; Etiknivo onthoudt dat. Een ingeklapte sectie toont achter de titel kort wat erin staat, bijvoorbeeld *QR-code links · {Lade}*.
 
 Onder de regels vind je instellingen voor het hele label: verticale uitlijning, regelafstand, marges, *Tekst automatisch passend maken* (verkleint de tekst tot alles past), rotatie, een rand rond het etiket, een dunne lijn tussen de tekstregels en wit-op-zwart.
 
