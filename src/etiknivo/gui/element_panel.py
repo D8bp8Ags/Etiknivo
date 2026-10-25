@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from pathlib import Path
 
-from PySide6.QtCore import QSize, Signal
+from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -26,7 +26,16 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from etiknivo.gui.widgets import ALIGN_TEXT, FieldButton, combo, load_image, spin, style_row, symbol_icon
+from etiknivo.gui.widgets import (
+    ALIGN_TEXT,
+    FieldButton,
+    combo,
+    load_image,
+    select_symbol,
+    spin,
+    style_row,
+    symbol_combo,
+)
 from etiknivo.i18n import tr
 from etiknivo.model import ELEMENT_TITLES, ElementKind, HAlign, Label, LabelElement
 from etiknivo.rendering import pictures, symbols
@@ -150,10 +159,7 @@ class ElementPanel(QWidget):
         self.align = combo()
         for a, t in ALIGN_TEXT.items():
             self.align.addItem(tr(t), a)
-        self.symbol = combo()
-        self.symbol.setIconSize(QSize(28, 28))
-        for key, (name, _p) in symbols.SYMBOLS.items():
-            self.symbol.addItem(symbol_icon(key), tr(name), key)
+        self.symbol = symbol_combo()
         self.image_btn = QPushButton(tr("Afbeelding kiezen…"))
         self.image_btn.clicked.connect(self._choose_image)
         self.fitted = QLabel()
@@ -263,7 +269,7 @@ class ElementPanel(QWidget):
                 self.italic.setChecked(el.italic)
                 self.align.setCurrentIndex(self.align.findData(el.align))
                 if el.kind == ElementKind.SYMBOL:
-                    self.symbol.setCurrentIndex(max(0, self.symbol.findData(el.symbol)))
+                    select_symbol(self.symbol, el.symbol)
                 self.list.currentItem().setText(element_text(el))
         finally:
             self._loading = False

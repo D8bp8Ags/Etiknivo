@@ -123,7 +123,14 @@ Print je 3 exemplaren van een label met `Doos {Nr}/{Aantal}`, dan krijg je *Doos
 
 Onder *QR-code of barcode* staat **Pictogram**. Bij *Soort* kies je:
 
-- **Symbool**: een van de ingebouwde elektronica-symbolen. Er zijn er 18: weerstand, potmeter, condensator, elco, diode, LED, transistor, IC, zekering, schakelaar, connector, batterij, spoel, kristal, aarde, schroef, moer en kabel.
+- **Symbool**: een van de 65 ingebouwde symbolen. De keuzelijst deelt ze in per categorie:
+  - *Elektronica*: weerstand, potmeter, condensator, elco, spoel, diode, LED, transistor, IC, kristal, zekering, schakelaar, aarde, luidspreker en antenne.
+  - *Stroom en kabels*: batterij, batterijcel, spanning, lamp, stopcontact, stekker, USB, connector en kabel.
+  - *Bevestiging*: schroef, bout, moer, ring, spijker, plug, haak en veer.
+  - *Gereedschap*: hamer, schroevendraaier, steeksleutel, zaag, liniaal en boor.
+  - *Huis en keuken*: huis, pot, fles, mok, bestek, vriezer, vlam, water en plant.
+  - *Kantoor en opslag*: doos, map, document, envelop, potlood, schaar, boek, label en sleutel.
+  - *Aanduidingen*: let op, verboden, informatie, vinkje, kruis, deze kant boven, breekbaar, ster en hart.
 - **Eigen afbeelding**: klik **Afbeelding kiezen…** en kies een PNG, JPG of SVG, bijvoorbeeld je logo. Etiknivo maakt hem zwart-wit, haalt witte randen weg en bewaart hem in het label zelf. Het originele bestand heb je daarna niet meer nodig, en de afbeelding gaat mee in exports en back-ups.
 
 Met *Plaats* zet je het pictogram links of rechts van de tekst. De tekst schuift opzij en wordt zo nodig kleiner. Staan een QR-code en een pictogram aan dezelfde kant, dan komt de QR-code aan de buitenkant en het pictogram ernaast.

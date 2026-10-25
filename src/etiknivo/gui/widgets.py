@@ -7,8 +7,8 @@ from collections.abc import Callable
 from pathlib import Path
 
 from PIL import Image, ImageOps
-from PySide6.QtCore import QBuffer, QIODevice, Qt, Signal
-from PySide6.QtGui import QIcon, QImage, QPainter
+from PySide6.QtCore import QBuffer, QIODevice, QSize, Qt, Signal
+from PySide6.QtGui import QFont, QIcon, QImage, QPainter
 from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -57,6 +57,29 @@ def style_row(*boxes: QCheckBox) -> QHBoxLayout:
         row.addWidget(box)
     row.addStretch(1)
     return row
+
+
+def symbol_combo() -> QComboBox:
+    """Picker for a label symbol: the symbols under a heading per category."""
+    c = combo()
+    c.setIconSize(QSize(28, 28))
+    c.setMaxVisibleItems(16)
+    heading = QFont(c.font())
+    heading.setWeight(QFont.Weight.DemiBold)
+    for category, keys in symbols.SYMBOL_CATEGORIES:
+        c.addItem(tr(category).upper())
+        item = c.model().item(c.count() - 1)
+        item.setEnabled(False)
+        item.setFont(heading)
+        for key in keys:
+            c.addItem(symbol_icon(key), "  " + tr(symbols.SYMBOLS[key][0]), key)
+    return c
+
+
+def select_symbol(c: QComboBox, key: str) -> None:
+    """Show *key* in a :func:`symbol_combo`; an unknown key shows the first symbol."""
+    i = c.findData(key)
+    c.setCurrentIndex(i if i >= 0 else c.findData(next(iter(symbols.SYMBOLS))))
 
 
 def symbol_icon(key: str) -> QIcon:

@@ -25,7 +25,16 @@ from PySide6.QtWidgets import (
 
 from etiknivo.gui.element_panel import ElementPanel
 from etiknivo.gui.specs_editor import SpecsEditor
-from etiknivo.gui.widgets import ALIGN_TEXT, FieldButton, combo, load_image, spin, style_row, symbol_icon
+from etiknivo.gui.widgets import (
+    ALIGN_TEXT,
+    FieldButton,
+    combo,
+    load_image,
+    select_symbol,
+    spin,
+    style_row,
+    symbol_combo,
+)
 from etiknivo.i18n import N_, tr
 from etiknivo.model import (
     FIELD_RE,
@@ -39,7 +48,7 @@ from etiknivo.model import (
     PictureKind,
     VAlign,
 )
-from etiknivo.rendering import pictures, symbols
+from etiknivo.rendering import pictures
 
 VALIGN_TEXT = {VAlign.TOP: N_("Boven"), VAlign.CENTER: N_("Midden"), VAlign.BOTTOM: N_("Onder")}
 PICTURE_KINDS = ((PictureKind.NONE, N_("Geen")), (PictureKind.SYMBOL, N_("Symbool")),
@@ -203,10 +212,7 @@ class PropertiesPanel(QScrollArea):
         self.pic_side = combo()
         for _s, text in SIDES:
             self.pic_side.addItem(tr(text))
-        self.pic_symbol = combo()
-        self.pic_symbol.setIconSize(QSize(28, 28))
-        for key, (name, _p) in symbols.SYMBOLS.items():
-            self.pic_symbol.addItem(symbol_icon(key), tr(name), key)
+        self.pic_symbol = symbol_combo()
         self.pic_image_btn = QPushButton(tr("Afbeelding kiezen…"))
         self.pic_image_btn.setToolTip(tr("PNG, JPG of SVG, bv. een logo. Wordt zwart-wit "
                                          "afgedrukt en in het label bewaard."))
@@ -358,7 +364,7 @@ class PropertiesPanel(QScrollArea):
             p = label.picture
             self.pic_kind.setCurrentIndex([k for k, _ in PICTURE_KINDS].index(p.kind))
             self.pic_side.setCurrentIndex(1 if p.side == HAlign.RIGHT else 0)
-            self.pic_symbol.setCurrentIndex(max(0, self.pic_symbol.findData(p.symbol)))
+            select_symbol(self.pic_symbol, p.symbol)
             self._update_picture_widgets()
             self.specs.set_specs(label.specs)
             if self.notes.toPlainText() != label.notes:
