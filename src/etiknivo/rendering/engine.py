@@ -354,23 +354,25 @@ class RenderEngine:
             box = self.element_box(el)
             boxes[el.id] = box
             bx0, by0, bx1, by1 = box
-            if el.kind == ElementKind.TEXT:  # for text the ink counts, not the box
+            # for text, symbols and images the ink counts, not the box
+            if el.kind == ElementKind.TEXT:
                 lb = self._free_text(hires, label, n, el, box, ss, warnings)
                 if lb is not None:
                     line_boxes.append(lb)
                     bx0, by0, bx1, by1 = lb.x0, lb.y0, lb.x1, lb.y1
                 else:
                     bx0, by0, bx1, by1 = px0, py0, px0, py0
+            elif el.kind in (ElementKind.SYMBOL, ElementKind.IMAGE):
+                bx0, by0, bx1, by1 = (self._free_picture(hires, el, box, ss, warnings)
+                                      or (px0, py0, px0, py0))
             if bx0 < px0 - 0.5 or by0 < py0 - 0.5 or bx1 > px1 + 0.5 or by1 > py1 + 0.5:
                 warnings.append(tr("{element} valt deels buiten het printbare gebied",
                                    element=el.title))
-            if el.kind == ElementKind.TEXT:
+            if el.kind in (ElementKind.TEXT, ElementKind.SYMBOL, ElementKind.IMAGE):
                 continue
             if el.kind in (ElementKind.QR, ElementKind.BARCODE):
                 for x0, y0, x1, y1 in self._free_code(label, el, box, warnings):
                     draw.rectangle((x0 * ss, y0 * ss, x1 * ss - 1, y1 * ss - 1), fill=0)
-            elif el.kind in (ElementKind.SYMBOL, ElementKind.IMAGE):
-                self._free_picture(hires, el, box, ss, warnings)
             else:
                 ix0, iy0 = round(bx0), round(by0)
                 ix1, iy1 = max(ix0 + 1, round(bx1)), max(iy0 + 1, round(by1))
@@ -453,18 +455,20 @@ class RenderEngine:
 
     def _free_picture(self, canvas: Image.Image, el: LabelElement,
                       box: tuple[float, float, float, float], ss: int,
-                      warnings: list[str]) -> None:
+                      warnings: list[str]) -> tuple[float, float, float, float] | None:
+        """Draws the symbol or image of *el*; returns its ink box in design
+        dots, or None when there is nothing to draw."""
         if el.kind == ElementKind.SYMBOL:
             if el.symbol not in symbols.SYMBOLS:
                 warnings.append(tr("Kies een symbool"))
-                return
+                return None
             source: str | Image.Image = el.symbol
             aspect = 1.0
         else:
             img = pictures.decode(el.image_png)
             if img is None:
                 warnings.append(tr("Geen afbeelding gekozen"))
-                return
+                return None
             source, aspect = img, img.width / max(1, img.height)
         bx0, by0, bx1, by1 = box
         w, h = bx1 - bx0, (by1 - by0)
@@ -475,7 +479,8 @@ class RenderEngine:
         x0 = round(bx0 + (bx1 - bx0 - w) / 2)
         y0 = round(by0 + (by1 - by0 - h) / 2)
         iw, ih = max(1, round(w)), max(1, round(h))
-        self._draw_picture(canvas, (x0, y0, x0 + iw, y0 + ih), source, ss)
+        ink = self._draw_picture(canvas, (x0, y0, x0 + iw, y0 + ih), source, ss)
+        return tuple(v / ss for v in ink) if ink else None  # type: ignore[return-value]
 
     def to_elements(self, label: Label) -> list[LabelElement]:
         """Loose elements that look like *label* does now: the starting point
@@ -693,7 +698,10 @@ class RenderEngine:
 
     @staticmethod
     def _draw_picture(canvas: Image.Image, box: tuple[int, int, int, int],
-                      source: str | Image.Image, ss: int) -> None:
+                      source: str | Image.Image, ss: int) -> tuple[int, int, int, int] | None:
+        """Draws *source* in *box*; returns the box of its ink on *canvas*
+        (None for a blank picture).  A symbol has white space around it, so
+        its ink is smaller than the box."""
         x0, y0, x1, y1 = (v * ss for v in box)
         w, h = x1 - x0, y1 - y0
         if isinstance(source, str):
@@ -704,6 +712,8 @@ class RenderEngine:
             ox, oy = x0, y0
         region = canvas.crop((ox, oy, ox + img.width, oy + img.height))
         canvas.paste(ImageChops.darker(region, img), (ox, oy))
+        ink = ImageOps.invert(img.convert("L")).point(lambda v: 255 if v >= 128 else 0).getbbox()
+        return (ox + ink[0], oy + ink[1], ox + ink[2], oy + ink[3]) if ink else None
 
     def _prepare_lines(self, label: Label, warnings: list[str]) -> list[_Prepared]:
         return [self._prepare_text(label, slot, line, warnings)
