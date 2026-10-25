@@ -161,11 +161,10 @@ class PropertiesPanel(QScrollArea):
         f.addRow(tr("Lade-ID"), self.tray)
         f.addRow(tr("Categorie"), self.category)
         f.addRow(tr("Layout"), self.layout_combo)
-        hint = QLabel(tr("De lade-ID wordt niet op het etiket afgedrukt. Wisselen van layout "
-                         "bewaart de tekst van alle regels."))
-        hint.setWordWrap(True)
-        hint.setObjectName("hint")
-        f.addRow(hint)
+        self.layout_hint = QLabel()
+        self.layout_hint.setWordWrap(True)
+        self.layout_hint.setObjectName("hint")
+        f.addRow(self.layout_hint)
         lay.addWidget(gen)
 
         self.elements = ElementPanel(lambda: self.area_mm())
@@ -388,6 +387,12 @@ class PropertiesPanel(QScrollArea):
         """The free layout edits elements; the others the three lines."""
         free = self.label is not None and self.label.is_free
         self.elements.setVisible(free)
+        self.layout_hint.setText(
+            tr("De lade-ID komt alleen op het etiket als een element {Lade} bevat. De "
+               "elementen staan los van de regels van de andere layouts: wat je hier "
+               "verandert, komt daar niet terug.") if free else
+            tr("De lade-ID komt alleen op het etiket als een regel {Lade} bevat. Een andere "
+               "layout kiezen bewaart de tekst van alle regels."))
         for w in (*self.lines, self.code_group, self.pic_group):
             w.setVisible(not free)
         for w in (self.valign, self.spacing, self.margin_h, self.margin_v, self.rotation,

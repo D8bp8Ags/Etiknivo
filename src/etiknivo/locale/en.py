@@ -195,9 +195,14 @@ EN: dict[str, str] = {
     "Uitlijning": "Alignment",
     "Label": "Label",
     "Layout": "Layout",
-    "De lade-ID wordt niet op het etiket afgedrukt. Wisselen van layout bewaart de tekst van "
-    "alle regels.": "The tray ID is not printed on the label. Switching layouts keeps the text "
-                    "of all lines.",
+    "De lade-ID komt alleen op het etiket als een element {Lade} bevat. De elementen staan "
+    "los van de regels van de andere layouts: wat je hier verandert, komt daar niet terug.":
+        "The tray ID is only printed if an element contains {Tray}. The elements are separate "
+        "from the lines of the other layouts: what you change here does not carry over.",
+    "De lade-ID komt alleen op het etiket als een regel {Lade} bevat. Een andere layout kiezen "
+    "bewaart de tekst van alle regels.":
+        "The tray ID is only printed if a line contains {Tray}. Choosing another layout keeps "
+        "the text of all lines.",
     "Opmaak": "Style",
     "Tekst automatisch passend maken": "Shrink text to fit",
     "180° (ondersteboven)": "180° (upside down)",
