@@ -5,12 +5,13 @@ from __future__ import annotations
 from collections.abc import Callable
 from pathlib import Path
 
-from PySide6.QtCore import QSize, Qt, Signal
+from PySide6.QtCore import QSettings, QSize, Qt, Signal
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
     QFileDialog,
     QFormLayout,
+    QFrame,
     QGroupBox,
     QHBoxLayout,
     QLabel,
@@ -19,6 +20,8 @@ from PySide6.QtWidgets import (
     QPlainTextEdit,
     QPushButton,
     QScrollArea,
+    QSizePolicy,
+    QToolButton,
     QVBoxLayout,
     QWidget,
 )
@@ -49,6 +52,7 @@ from etiknivo.model import (
     VAlign,
 )
 from etiknivo.rendering import pictures
+from etiknivo.settings import data_dir
 
 VALIGN_TEXT = {VAlign.TOP: N_("Boven"), VAlign.CENTER: N_("Midden"), VAlign.BOTTOM: N_("Onder")}
 PICTURE_KINDS = ((PictureKind.NONE, N_("Geen")), (PictureKind.SYMBOL, N_("Symbool")),
@@ -179,6 +183,32 @@ class PropertiesPanel(QScrollArea):
             lay.addWidget(le)
             le.changed.connect(lambda le=le: self._line_changed(le))
 
+        meta = QGroupBox(tr("Specificaties en notities"))
+        f3 = QFormLayout(meta)
+        f3.setRowWrapPolicy(QFormLayout.RowWrapPolicy.WrapAllRows)
+        self.specs = SpecsEditor()
+        self.specs.targets = self._field_targets
+        spec_hint = QLabel(tr("Een specificatie heeft een naam en een waarde, bv. Spanning en "
+                              "50 V. Zet {Spanning} in een tekstregel (of gebruik de knop { } "
+                              "achter de specificatie) om de waarde op het etiket te tonen. Pas "
+                              "je de waarde aan, dan verandert het etiket mee."))
+        spec_hint.setWordWrap(True)
+        spec_hint.setObjectName("hint")
+        self.notes = QPlainTextEdit()
+        self.notes.setPlaceholderText(tr("Alleen voor jezelf, bv. waar besteld. Komt niet op "
+                                         "het etiket."))
+        self.notes.setFixedHeight(60)
+        self.notes_hint = QLabel(tr("Notities komen niet op het etiket, dus een {veld} wordt "
+                                    "hier niet ingevuld. Zet het in een tekstregel."))
+        self.notes_hint.setWordWrap(True)
+        self.notes_hint.setObjectName("warnHint")
+        self.notes_hint.hide()
+        f3.addRow(tr("Specificaties"), self.specs)
+        f3.addRow(spec_hint)
+        f3.addRow(tr("Notities"), self.notes)
+        f3.addRow(self.notes_hint)
+        lay.addWidget(meta)
+
         code = self.code_group = QGroupBox(tr("QR-code of barcode"))
         fc = QFormLayout(code)
         fc.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
@@ -222,8 +252,10 @@ class PropertiesPanel(QScrollArea):
         fp.addRow(tr("Afbeelding"), self.pic_image_btn)
         lay.addWidget(pic)
 
-        st = QGroupBox(tr("Opmaak"))
-        f2 = QFormLayout(st)
+        # Style is set once per category and then copied, so it sits last and
+        # folds away; whether it is open is remembered.
+        self.style_section = st = CollapsibleSection(tr("Opmaak"), "style_open")
+        f2 = QFormLayout(st.body)
         self.valign = combo()
         for a, t in VALIGN_TEXT.items():
             self.valign.addItem(tr(t), a)
@@ -251,31 +283,6 @@ class PropertiesPanel(QScrollArea):
         self._style_form = f2
         lay.addWidget(st)
 
-        meta = QGroupBox(tr("Specificaties en notities"))
-        f3 = QFormLayout(meta)
-        f3.setRowWrapPolicy(QFormLayout.RowWrapPolicy.WrapAllRows)
-        self.specs = SpecsEditor()
-        self.specs.targets = self._field_targets
-        spec_hint = QLabel(tr("Een specificatie heeft een naam en een waarde, bv. Spanning en "
-                              "50 V. Zet {Spanning} in een tekstregel (of gebruik de knop { } "
-                              "achter de specificatie) om de waarde op het etiket te tonen. Pas "
-                              "je de waarde aan, dan verandert het etiket mee."))
-        spec_hint.setWordWrap(True)
-        spec_hint.setObjectName("hint")
-        self.notes = QPlainTextEdit()
-        self.notes.setPlaceholderText(tr("Alleen voor jezelf, bv. waar besteld. Komt niet op "
-                                         "het etiket."))
-        self.notes.setFixedHeight(60)
-        self.notes_hint = QLabel(tr("Notities komen niet op het etiket, dus een {veld} wordt "
-                                    "hier niet ingevuld. Zet het in een tekstregel."))
-        self.notes_hint.setWordWrap(True)
-        self.notes_hint.setObjectName("warnHint")
-        self.notes_hint.hide()
-        f3.addRow(tr("Specificaties"), self.specs)
-        f3.addRow(spec_hint)
-        f3.addRow(tr("Notities"), self.notes)
-        f3.addRow(self.notes_hint)
-        lay.addWidget(meta)
         lay.addStretch(1)
         self.setWidget(body)
 
@@ -547,3 +554,45 @@ class PropertiesPanel(QScrollArea):
             self.label.touch()
         self.changed.emit(structural)
 
+
+class CollapsibleSection(QWidget):
+    """A section with a title that folds its body away, like a group box
+    that can be closed.  Open or closed is remembered under *key*."""
+
+    def __init__(self, title: str, key: str, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._key = key
+        self.toggle = QToolButton()
+        self.toggle.setObjectName("sectionToggle")
+        self.toggle.setText(title)
+        self.toggle.setCheckable(True)
+        self.toggle.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+        self.toggle.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self.body = QWidget()
+        rule = QFrame()
+        rule.setObjectName("sectionRule")
+        rule.setFixedHeight(1)
+        lay = QVBoxLayout(self)
+        lay.setContentsMargins(0, 16, 0, 0)
+        lay.setSpacing(4)
+        lay.addWidget(rule)
+        lay.addWidget(self.toggle)
+        lay.addWidget(self.body)
+        self.toggle.toggled.connect(self._show)
+        self.toggle.setChecked(bool(_ui_state().value(key, True, type=bool)))
+        self._show(self.toggle.isChecked())
+
+    def is_open(self) -> bool:
+        return self.toggle.isChecked()
+
+    def set_open(self, open_: bool) -> None:
+        self.toggle.setChecked(open_)
+
+    def _show(self, open_: bool) -> None:
+        self.body.setVisible(open_)
+        self.toggle.setArrowType(Qt.ArrowType.DownArrow if open_ else Qt.ArrowType.RightArrow)
+        _ui_state().setValue(self._key, open_)
+
+
+def _ui_state() -> QSettings:
+    return QSettings(str(data_dir() / "window.ini"), QSettings.Format.IniFormat)

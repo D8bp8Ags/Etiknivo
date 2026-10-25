@@ -332,6 +332,12 @@ QGroupBox {{
     border: none; border-top: 1px solid {t.border}; margin-top: 22px; padding-top: 10px;
     font-weight: 600;
 }}
+QFrame#sectionRule {{ background: {t.border}; border: none; }}
+QToolButton#sectionToggle {{
+    border: none; background: transparent; font-weight: 600; color: {t.text};
+    padding: 2px 0; text-align: left;
+}}
+QToolButton#sectionToggle:hover {{ color: {t.accent}; }}
 QGroupBox::title {{
     subcontrol-origin: margin; subcontrol-position: top left; left: 0; top: 6px;
     padding: 0 4px 0 0; color: {t.text};

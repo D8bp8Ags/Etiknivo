@@ -126,3 +126,23 @@ def test_inspector_fits_a_narrow_window(window) -> None:  # noqa: ANN001
     assert props.minimumSizeHint().width() >= body.minimumSizeHint().width()
     assert body.minimumSizeHint().width() < 340
     assert window.minimumSizeHint().width() < 1150
+
+
+def test_style_section_folds_and_remembers(window) -> None:  # noqa: ANN001
+    from etiknivo.gui.properties_panel import CollapsibleSection
+
+    section = window.properties.style_section
+    section.set_open(False)
+    assert section.body.isHidden()
+    again = CollapsibleSection("Opmaak", "style_open")
+    assert not again.is_open()  # remembered
+    section.set_open(True)
+    assert not section.body.isHidden()
+
+
+def test_specifications_come_before_code_and_style(window) -> None:  # noqa: ANN001
+    props = window.properties
+    lay = props.widget().layout()
+    order = [lay.indexOf(w) for w in (props.lines[2], props.specs.parentWidget(),
+                                      props.code_group, props.style_section)]
+    assert order == sorted(order)
