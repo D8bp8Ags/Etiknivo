@@ -1,6 +1,6 @@
 # Handleiding Etiknivo
 
-Etiknivo maakt en print etiketten op de Action Fichero 5836, standaard 30 × 14 mm en ook andere maten. Deze handleiding legt uit hoe je de app gebruikt. Technische details (installatie, protocol, architectuur) staan in de [README](../README.md).
+Etiknivo maakt en print etiketten op de Action Fichero 5836, standaard 30 × 14 mm en ook andere maten. Deze handleiding legt uit hoe je de app gebruikt. Installeren staat in de [README](../README.md); technische details staan in [Ontwikkelen](ontwikkelen.md).
 
 - [Het venster](#het-venster)
 - [De printer verbinden](#de-printer-verbinden)
@@ -263,12 +263,42 @@ Alles staat in het menu **Bestand**.
 | Wat | Waarvoor |
 |---|---|
 | Bibliotheek importeren/exporteren (JSON) | Volledige labels uitwisselen tussen computers. Bij importeren kies je samenvoegen of vervangen. |
-| Labels importeren/exporteren (CSV) | Labels maken of bijwerken in Excel, Numbers of Google Sheets. Het formaat staat in de [README](../README.md#csv-formaat). |
+| Labels importeren/exporteren (CSV) | Labels maken of bijwerken in Excel, Numbers of Google Sheets. Het formaat staat [hieronder](#csv-formaat). |
 | Selectie exporteren als PNG, PDF of SVG | Een afbeelding van het etiket, bijvoorbeeld om te delen of op een andere printer te gebruiken. PDF is op ware grootte. |
 | Back-up maken / herstellen | Eén zip-bestand met bibliotheek en instellingen. |
 | Datamap openen | De map waar Etiknivo alles bewaart. |
 
 Etiknivo bewaart alles lokaal op je eigen computer, zonder account. Bij elke keer opslaan blijft de vorige versie bewaard als `library.json.bak`.
+
+### Waar je gegevens staan
+
+| Wat | Bestand |
+|---|---|
+| Bibliotheek | `library.json` (+ `library.json.bak`) in de datamap |
+| Instellingen en kalibratie | `settings.json` in de datamap |
+| Afdrukgeschiedenis | `print_history.json` in de datamap |
+| Logs | `app.log` en `print.log` in de logmap |
+
+| Systeem | Datamap | Logmap |
+|---|---|---|
+| macOS | `~/Library/Application Support/Etiknivo` | `~/Library/Logs/Etiknivo` |
+| Windows | `%LOCALAPPDATA%\Etiknivo` | `%LOCALAPPDATA%\Etiknivo\Logs` |
+| Linux | `~/.local/share/Etiknivo` | `~/.local/state/Etiknivo/log` |
+
+Via **Bestand → Datamap openen** en **Help → Logmap openen** kom je er snel.
+
+### CSV-formaat
+
+Scheidingsteken `,` of `;` wordt automatisch herkend, UTF-8 of Windows-1252. Alleen `main` is verplicht:
+
+```csv
+tray_id,category,main,spec,notes,layout
+B01,Weerstand,1 kΩ,¼ W,in doos 2,
+B02,Condensator,10 µF,Elektrolytisch · 25 V,,
+,,Alleen een naam,,,single
+```
+
+Nederlandse kolomnamen werken ook (`lade`, `categorie`, `hoofdtekst`, `specificatie`, `notities`). Optionele kolommen: `top` (afwijkende bovenregel), `name`, `layout` (`single`, `main_spec`, `category_main_spec`, `custom`), `specs` (`Spanning=50 V; Tolerantie=10%`).
 
 ## Taal en thema
 
@@ -282,7 +312,7 @@ Etiknivo bewaart alles lokaal op je eigen computer, zonder account. Bij elke kee
 
 ## Problemen oplossen
 
-**De printer wordt niet gevonden.** Controleer of de printer aan staat en niet al met je telefoon verbonden is; een Bluetooth-printer praat meestal maar met één apparaat tegelijk. Kijk in Systeeminstellingen → Privacy en beveiliging → Bluetooth of Etiknivo (of je terminal) toegang heeft. Zet even *Alleen labelprinters tonen* uit om te zien of de printer überhaupt zichtbaar is.
+**De printer wordt niet gevonden.** Controleer of de printer aan staat en niet al met je telefoon verbonden is; een Bluetooth-printer praat meestal maar met één apparaat tegelijk. Kijk in Systeeminstellingen → Privacy en beveiliging → Bluetooth of Etiknivo (of je terminal) toegang heeft. Zet even *Alleen labelprinters tonen* uit om te zien of de printer überhaupt zichtbaar is. Op Windows en Linux: zie [Installeren per systeem](ontwikkelen.md#installeren-per-systeem).
 
 **De verbinding valt weg.** Klik **Verbinden** opnieuw; een onderbroken wachtrij hervat je met **Opnieuw**. Zet je de printer uit en aan, verbind dan opnieuw.
 
