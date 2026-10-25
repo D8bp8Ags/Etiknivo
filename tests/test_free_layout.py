@@ -145,10 +145,14 @@ def test_free_layout_in_the_window(qtbot, window) -> None:  # noqa: ANN001, F811
     assert len(window.current.elements) == 3
 
 
-def test_white_space_around_a_symbol_may_stick_out(engine: RenderEngine) -> None:
-    """Only the ink of a symbol counts for the printable area, not its box."""
-    title = LabelElement(ElementKind.SYMBOL, 0, 0, 1, 1).title
-    star = LabelElement(ElementKind.SYMBOL, -0.4, -0.4, 8, 8, symbol="star")
-    assert not any(title in w for w in engine.render(free_label(star)).warnings)
+def test_a_symbol_fills_its_box(engine: RenderEngine) -> None:
+    """A free symbol leaves out the white space around its drawing, and only
+    its ink counts for the printable area."""
+    star = LabelElement(ElementKind.SYMBOL, 2, 1, 8, 8, symbol="star")
+    r = engine.render(free_label(star))
+    assert r.warnings == []
+    bx0, by0, bx1, by1 = (round(v) for v in engine.element_box(star))
+    ink = r.mono.crop((bx0, by0, bx1, by1)).point(lambda v: 255 - v).getbbox()
+    assert ink is not None and ink[1] <= 1 and ink[3] >= by1 - by0 - 1  # top to bottom
     star.x_mm = -3
-    assert any(title in w for w in engine.render(free_label(star)).warnings)
+    assert any(star.title in w for w in engine.render(free_label(star)).warnings)

@@ -17,9 +17,10 @@ Primitives (coordinates in grid units):
 
 from __future__ import annotations
 
+import functools
 import math
 
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageOps
 
 from etiknivo.i18n import N_
 
@@ -270,6 +271,15 @@ SYMBOL_CATEGORIES: tuple[tuple[str, tuple[str, ...]], ...] = (
 
 def symbol_names() -> list[str]:
     return list(SYMBOLS)
+
+
+@functools.cache
+def ink_box(key: str) -> tuple[float, float, float, float]:
+    """The part of the square that symbol *key* inks, as fractions (0 to 1)
+    of its size: (left, top, right, bottom)."""
+    size = 480
+    box = ImageOps.invert(draw_symbol(key, size)).getbbox() or (0, 0, size, size)
+    return tuple(v / size for v in box)  # type: ignore[return-value]
 
 
 def draw_symbol(key: str, size_px: int) -> Image.Image:

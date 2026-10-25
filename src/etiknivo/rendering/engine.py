@@ -458,29 +458,41 @@ class RenderEngine:
                       warnings: list[str]) -> tuple[float, float, float, float] | None:
         """Draws the symbol or image of *el*; returns its ink box in design
         dots, or None when there is nothing to draw."""
+        bx0, by0, bx1, by1 = box
         if el.kind == ElementKind.SYMBOL:
             if el.symbol not in symbols.SYMBOLS:
                 warnings.append(tr("Kies een symbool"))
                 return None
-            source: str | Image.Image = el.symbol
-            aspect = 1.0
-        else:
-            img = pictures.decode(el.image_png)
-            if img is None:
-                warnings.append(tr("Geen afbeelding gekozen"))
-                return None
-            source, aspect = img, img.width / max(1, img.height)
-        bx0, by0, bx1, by1 = box
-        w, h = bx1 - bx0, (by1 - by0)
-        if w / max(h, 1e-6) > aspect:
-            w = h * aspect
-        else:
-            h = w / aspect
+            return self._free_symbol(canvas, el.symbol, box, ss)
+        img = pictures.decode(el.image_png)
+        if img is None:
+            warnings.append(tr("Geen afbeelding gekozen"))
+            return None
+        w, h = _fit(bx1 - bx0, by1 - by0, img.width / max(1, img.height))
         x0 = round(bx0 + (bx1 - bx0 - w) / 2)
         y0 = round(by0 + (by1 - by0 - h) / 2)
         iw, ih = max(1, round(w)), max(1, round(h))
-        ink = self._draw_picture(canvas, (x0, y0, x0 + iw, y0 + ih), source, ss)
+        ink = self._draw_picture(canvas, (x0, y0, x0 + iw, y0 + ih), img, ss)
         return tuple(v / ss for v in ink) if ink else None  # type: ignore[return-value]
+
+    @staticmethod
+    def _free_symbol(canvas: Image.Image, key: str, box: tuple[float, float, float, float],
+                     ss: int) -> tuple[float, float, float, float] | None:
+        """A free symbol fills its box: the white space around the drawing
+        is left out, so the box is what prints."""
+        fx0, fy0, fx1, fy1 = symbols.ink_box(key)
+        bx0, by0, bx1, by1 = box
+        w, h = _fit(bx1 - bx0, by1 - by0, (fx1 - fx0) / (fy1 - fy0))
+        size = max(1, round(max(w / (fx1 - fx0), h / (fy1 - fy0)) * ss))
+        img = symbols.draw_symbol(key, size)
+        ox = round((bx0 + (bx1 - bx0 - w) / 2) * ss - fx0 * size)
+        oy = round((by0 + (by1 - by0 - h) / 2) * ss - fy0 * size)
+        region = canvas.crop((ox, oy, ox + size, oy + size))
+        canvas.paste(ImageChops.darker(region, img), (ox, oy))
+        ink = ImageOps.invert(img).point(lambda v: 255 if v >= 128 else 0).getbbox()
+        if not ink:
+            return None
+        return ((ox + ink[0]) / ss, (oy + ink[1]) / ss, (ox + ink[2]) / ss, (oy + ink[3]) / ss)
 
     def to_elements(self, label: Label) -> list[LabelElement]:
         """Loose elements that look like *label* does now: the starting point
@@ -521,7 +533,12 @@ class RenderEngine:
         if r.picture_box is not None:
             pic = label.picture
             if pic.kind == PictureKind.SYMBOL:
-                out.append(make(ElementKind.SYMBOL, r.picture_box, symbol=pic.symbol))
+                # a free symbol fills its box, so the box is the symbol's ink
+                bx0, by0, bx1, by1 = r.picture_box
+                fx0, fy0, fx1, fy1 = symbols.ink_box(pic.symbol)
+                ink = (bx0 + fx0 * (bx1 - bx0), by0 + fy0 * (by1 - by0),
+                       bx0 + fx1 * (bx1 - bx0), by0 + fy1 * (by1 - by0))
+                out.append(make(ElementKind.SYMBOL, ink, symbol=pic.symbol))
             else:
                 out.append(make(ElementKind.IMAGE, r.picture_box, image_png=pic.image_png))
         return out
@@ -800,3 +817,8 @@ class RenderEngine:
                                  (1, ITALIC_SHEAR, -ITALIC_SHEAR * hgt, 0, 1, 0),
                                  resample=Image.Resampling.BILINEAR)
         canvas.paste(0, (int(x * ss + l - 1), int(y * ss + t - 1)), sheared)
+
+
+def _fit(w: float, h: float, aspect: float) -> tuple[float, float]:
+    """The largest width and height of ratio *aspect* that fit in *w* × *h*."""
+    return (h * aspect, h) if w / max(h, 1e-6) > aspect else (w, w / aspect)

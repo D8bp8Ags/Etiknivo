@@ -159,7 +159,7 @@ Wil je meer vrijheid dan drie regels onder elkaar, kies dan bij *Layout* **Vrij 
 - **Toevoegen**: met **Toevoegen ▾** onder de lijst kies je een tekst, QR-code, barcode, symbool, afbeelding, lijn of kader. De knoppen ▲ en ▼ bepalen wat boven ligt als elementen elkaar overlappen.
 - **Instellen**: onder de lijst staan de plaats en grootte in mm en, afhankelijk van het element, de inhoud, het lettertype, het symbool of de afbeelding.
 
-Tekst wordt zo groot als je instelt, maar krimpt als hij niet in zijn vak past. Codes, symbolen en afbeeldingen worden zo groot mogelijk in hun vak gezet. Een **lijn** vult zijn hele vak, dus een plat vak is een streep en een vierkant vak een zwart blok. Een **kader** is een rand van 1 dot om het vak. Velden zoals `{Lade}`, `{Datum}` en `{Nr}` werken in alle tekst en codes.
+Tekst wordt zo groot als je instelt, maar krimpt als hij niet in zijn vak past. Codes, symbolen en afbeeldingen worden zo groot mogelijk in hun vak gezet. Een symbool vult zijn vak tot aan de rand, zonder witruimte eromheen. Een **lijn** vult zijn hele vak, dus een plat vak is een streep en een vierkant vak een zwart blok. Een **kader** is een rand van 1 dot om het vak. Velden zoals `{Lade}`, `{Datum}` en `{Nr}` werken in alle tekst en codes.
 
 Ga je terug naar een gewone layout, dan krijg je je drie regels terug zoals ze waren. De elementen blijven bewaard voor als je weer *Vrij* kiest. In de vrije layout gelden marges, regelafstand en rotatie niet, want je zet alles zelf neer. Met **Opmaak overnemen → Layout** krijgen andere labels dezelfde elementen. Gebruik velden zoals `{Naam}` en `{Lade}` in de tekst, dan toont elk label zijn eigen gegevens.
 
