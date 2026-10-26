@@ -8,7 +8,7 @@ from dataclasses import replace
 from pathlib import Path
 
 from PySide6.QtCore import QSize, Qt, QUrl
-from PySide6.QtGui import QColor
+from PySide6.QtGui import QColor, QIcon
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QApplication,
@@ -22,11 +22,15 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QHeaderView,
     QLabel,
+    QLineEdit,
+    QMenu,
     QPushButton,
     QRadioButton,
     QSpinBox,
     QTableWidget,
     QTableWidgetItem,
+    QTreeWidget,
+    QTreeWidgetItem,
     QVBoxLayout,
     QWidget,
 )
@@ -38,7 +42,6 @@ from etiknivo.i18n import N_, language, tr
 from etiknivo.model import FORMAT_PARTS, Label, PictureKind
 from etiknivo.printing.profiles import LABEL_HEIGHT_RANGE, LABEL_LENGTH_RANGE, PrinterProfile
 from etiknivo.rendering.engine import RenderEngine
-from etiknivo.rendering.symbols import suggest_symbol
 from etiknivo.settings import Calibration
 
 
@@ -350,49 +353,101 @@ class CopyFormatDialog(QDialog):
 
 
 class PictogramsDialog(QDialog):
-    """'Pictogrammen kiezen': a fitting symbol per label, suggested from its
-    category and name, to check and change before it is applied."""
+    """'Pictogrammen': one symbol per category, the labels underneath.  A label
+    follows its category unless it has a symbol of its own; only ticked labels
+    change."""
 
-    def __init__(self, labels: list[Label], parent: QWidget | None = None) -> None:
+    FOLLOW = None  # a label without a symbol of its own
+
+    def __init__(self, labels: list[Label], category_symbol: Callable[[str], str],
+                 checked: set[str] | None = None, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         from etiknivo.gui.widgets import select_symbol, symbol_combo
 
-        self.setWindowTitle(tr("Pictogrammen kiezen"))
-        self.resize(620, 560)
-        self._labels = labels
+        self.setWindowTitle(tr("Pictogrammen"))
+        self.resize(680, 640)
+        self._labels = {lbl.id: lbl for lbl in labels}
+        #: label id -> its own symbol ("" = none), or FOLLOW
+        self._own: dict[str, str | None] = {}
+        self._cat_combos: dict[str, QComboBox] = {}
+        self._items: dict[str, QTreeWidgetItem] = {}
+        self._filling = True
+
         lay = QVBoxLayout(self)
-        intro = QLabel(tr("Per label een passend symbool, gekozen op categorie en naam. Pas aan "
-                          "wat niet klopt; 'Geen' haalt het pictogram weg. Eigen afbeeldingen "
-                          "blijven staan."))
+        intro = QLabel(tr("Kies per categorie een pictogram; de labels eronder krijgen het, "
+                          "behalve labels met een eigen pictogram. Alleen aangevinkte labels "
+                          "veranderen. Selecteer meerdere labels (Shift-klik) om ze samen aan "
+                          "te passen."))
         intro.setWordWrap(True)
         lay.addWidget(intro)
-        self.table = QTableWidget(len(labels), 3)
-        self.table.setHorizontalHeaderLabels([tr("Lade-ID"), tr("Label"), tr("Symbool")])
-        self.table.verticalHeader().hide()
-        self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
-        self.table.setSelectionMode(QAbstractItemView.SelectionMode.NoSelection)
-        head = self.table.horizontalHeader()
-        head.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
-        head.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        self.search = QLineEdit()
+        self.search.setPlaceholderText(tr("Zoeken in labels…"))
+        self.search.setClearButtonEnabled(True)
+        lay.addWidget(self.search)
+
+        self.tree = QTreeWidget()
+        self.tree.setColumnCount(3)
+        self.tree.setHeaderLabels([tr("Label"), tr("Lade-ID"), tr("Pictogram")])
+        self.tree.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
+        self.tree.setIconSize(QSize(20, 20))
+        head = self.tree.header()
+        head.setStretchLastSection(False)
+        head.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        head.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
         head.setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
-        head.resizeSection(2, 210)
-        self.table.verticalHeader().setDefaultSectionSize(34)
-        self.combos: list[QComboBox] = []
-        for row, lbl in enumerate(labels):
-            self.table.setItem(row, 0, QTableWidgetItem(lbl.tray_id))
-            title = f"{lbl.category} · {lbl.name}" if lbl.category else lbl.name
-            self.table.setItem(row, 1, QTableWidgetItem(title))
-            if lbl.picture.kind == PictureKind.IMAGE:
-                self.table.setItem(row, 2, QTableWidgetItem(tr("Eigen afbeelding")))
-                self.combos.append(None)  # type: ignore[arg-type]
-                continue
-            c = symbol_combo(none=tr("Geen"))
-            current = lbl.picture.symbol if lbl.picture.kind == PictureKind.SYMBOL else ""
-            select_symbol(c, current or suggest_symbol(lbl.category, lbl.name) or "")
-            c.currentIndexChanged.connect(self._update)
-            self.table.setCellWidget(row, 2, c)
-            self.combos.append(c)
-        lay.addWidget(self.table, 1)
+        head.resizeSection(2, 220)
+        groups: dict[str, list[Label]] = {}
+        for lbl in labels:
+            groups.setdefault(lbl.category, []).append(lbl)
+        bold = self.font()
+        bold.setBold(True)
+        for cat in sorted(groups, key=lambda c: (c == "", c.casefold())):
+            top = QTreeWidgetItem([f"{cat or tr('(zonder categorie)')}  ({len(groups[cat])})"])
+            top.setFont(0, bold)
+            top.setData(0, Qt.ItemDataRole.UserRole, ("cat", cat))
+            top.setFlags(top.flags() | Qt.ItemFlag.ItemIsUserCheckable
+                         | Qt.ItemFlag.ItemIsAutoTristate)
+            self.tree.addTopLevelItem(top)
+            for lbl in sorted(groups[cat], key=lambda x: (x.tray_id == "", x.tray_id, x.name)):
+                item = QTreeWidgetItem([lbl.name, lbl.tray_id, ""])
+                item.setData(0, Qt.ItemDataRole.UserRole, ("label", lbl.id))
+                item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
+                on = (checked is None or lbl.id in checked) \
+                    and lbl.picture.kind != PictureKind.IMAGE
+                item.setCheckState(0, Qt.CheckState.Checked if on else Qt.CheckState.Unchecked)
+                top.addChild(item)
+                self._items[lbl.id] = item
+            combo = symbol_combo(none=tr("Geen"))
+            select_symbol(combo, category_symbol(cat) if cat else "")
+            combo.currentIndexChanged.connect(lambda _i, c=cat: self._category_changed(c))
+            self._cat_combos[cat] = combo
+            self.tree.setItemWidget(top, 2, combo)
+            # a label keeps the symbol it has when that differs from its category's
+            for lbl in groups[cat]:
+                current = self._current(lbl)
+                self._own[lbl.id] = self.FOLLOW if lbl.picture.kind == PictureKind.NONE \
+                    or current == combo.currentData() else current
+            top.setExpanded(True)
+        lay.addWidget(self.tree, 1)
+
+        actions = QHBoxLayout()
+        actions.setSpacing(6)
+        self.set_btn = QPushButton(tr("Eigen pictogram…"))
+        self.set_btn.setToolTip(tr("De geselecteerde labels een eigen pictogram geven"))
+        self.set_btn.setMenu(self._symbol_menu())
+        self.follow_btn = QPushButton(tr("Volgt categorie"))
+        self.follow_btn.setToolTip(tr("De geselecteerde labels krijgen weer het pictogram "
+                                      "van hun categorie"))
+        self.include_btn = QPushButton(tr("Meenemen"))
+        self.exclude_btn = QPushButton(tr("Overslaan"))
+        self.include_btn.setToolTip(tr("De geselecteerde labels aanvinken"))
+        self.exclude_btn.setToolTip(tr("De geselecteerde labels uitvinken: die blijven zoals ze "
+                                       "zijn"))
+        for w in (self.set_btn, self.follow_btn, self.include_btn, self.exclude_btn):
+            actions.addWidget(w)
+        actions.addStretch(1)
+        lay.addLayout(actions)
+
         side_row = QHBoxLayout()
         side_row.addWidget(QLabel(tr("Plaats bij labels zonder pictogram")))
         self.side = QComboBox()
@@ -406,24 +461,129 @@ class PictogramsDialog(QDialog):
         bb.accepted.connect(self.accept)
         bb.rejected.connect(self.reject)
         lay.addWidget(bb)
-        self._update()
+
+        self.follow_btn.clicked.connect(lambda: self._set_own(self.FOLLOW))
+        self.include_btn.clicked.connect(lambda: self._check(True))
+        self.exclude_btn.clicked.connect(lambda: self._check(False))
+        self.tree.itemChanged.connect(lambda *_: self._update())
+        self.tree.itemSelectionChanged.connect(self._update_buttons)
+        self.search.textChanged.connect(self._filter)
+        self._filling = False
+        self._refresh_rows()
+        self._update_buttons()
+
+    # -- results ----------------------------------------------------------------------
+
+    def target(self, label_id: str) -> str:
+        """The symbol *label_id* gets: its own, else its category's ("" = none)."""
+        own = self._own.get(label_id)
+        if own is not None:
+            return own
+        return self._cat_combos[self._labels[label_id].category].currentData() or ""
 
     def changes(self) -> dict[str, str]:
-        """{label id: symbol key, or "" for none} for the labels that change."""
+        """{label id: symbol key, or "" for none} for the ticked labels that change."""
         out: dict[str, str] = {}
-        for lbl, c in zip(self._labels, self.combos):
-            if c is None:
+        for lid, item in self._items.items():
+            if item.checkState(0) != Qt.CheckState.Checked:
                 continue
-            key = c.currentData() or ""
-            current = lbl.picture.symbol if lbl.picture.kind == PictureKind.SYMBOL else ""
-            if key != current:
-                out[lbl.id] = key
+            key = self.target(lid)
+            if key != self._current(self._labels[lid]) or (
+                    not key and self._labels[lid].picture.kind == PictureKind.IMAGE):
+                out[lid] = key
         return out
 
+    def category_choices(self) -> dict[str, str]:
+        """The pictogram per category, to remember for new labels."""
+        return {cat: c.currentData() or "" for cat, c in self._cat_combos.items() if cat}
+
+    # -- helpers ----------------------------------------------------------------------
+
+    @staticmethod
+    def _current(lbl: Label) -> str:
+        return lbl.picture.symbol if lbl.picture.kind == PictureKind.SYMBOL else ""
+
+    def _selected_ids(self) -> list[str]:
+        """Selected labels; a selected category counts as all its labels."""
+        ids: list[str] = []
+        for item in self.tree.selectedItems():
+            kind, value = item.data(0, Qt.ItemDataRole.UserRole)
+            if kind == "label":
+                ids.append(value)
+            else:
+                ids += [item.child(i).data(0, Qt.ItemDataRole.UserRole)[1]
+                        for i in range(item.childCount())]
+        return list(dict.fromkeys(ids))
+
+    def _symbol_menu(self) -> QMenu:
+        from etiknivo.gui.widgets import symbol_icon
+        from etiknivo.rendering.symbols import SYMBOL_CATEGORIES, SYMBOLS
+
+        menu = QMenu(self)
+        menu.addAction(tr("Geen pictogram")).triggered.connect(lambda: self._set_own(""))
+        menu.addSeparator()
+        for category, keys in SYMBOL_CATEGORIES:
+            sub = menu.addMenu(tr(category))
+            for key in keys:
+                act = sub.addAction(symbol_icon(key), tr(SYMBOLS[key][0]))
+                act.triggered.connect(lambda _c=False, k=key: self._set_own(k))
+        return menu
+
+    def _set_own(self, key: str | None) -> None:
+        for lid in self._selected_ids():
+            self._own[lid] = key
+            self._items[lid].setCheckState(0, Qt.CheckState.Checked)
+        self._refresh_rows()
+
+    def _check(self, on: bool) -> None:
+        state = Qt.CheckState.Checked if on else Qt.CheckState.Unchecked
+        for lid in self._selected_ids():
+            self._items[lid].setCheckState(0, state)
+        self._update()
+
+    def _category_changed(self, category: str) -> None:
+        self._refresh_rows()
+
+    def _refresh_rows(self) -> None:
+        from etiknivo.gui.widgets import symbol_icon
+        from etiknivo.rendering.symbols import SYMBOLS
+
+        muted = QColor(theme.tokens().muted)
+        for lid, item in self._items.items():
+            key = self.target(lid)
+            name = tr(SYMBOLS[key][0]) if key in SYMBOLS else tr("Geen")
+            follows = self._own.get(lid) is None
+            item.setText(2, ("↳ " + name) if follows else name)
+            item.setIcon(2, symbol_icon(key) if key in SYMBOLS else QIcon())
+            item.setForeground(2, muted if follows else self.palette().text().color())
+            item.setToolTip(2, tr("Volgt de categorie") if follows else tr("Eigen pictogram"))
+        self._update()
+
+    def _filter(self, text: str) -> None:
+        needle = text.casefold().strip()
+        for i in range(self.tree.topLevelItemCount()):
+            top = self.tree.topLevelItem(i)
+            shown = 0
+            for j in range(top.childCount()):
+                child = top.child(j)
+                hit = not needle or needle in (child.text(0) + " " + child.text(1)
+                                               + " " + top.text(0)).casefold()
+                child.setHidden(not hit)
+                shown += hit
+            top.setHidden(shown == 0)
+
+    def _update_buttons(self) -> None:
+        any_selected = bool(self._selected_ids())
+        for w in (self.set_btn, self.follow_btn, self.include_btn, self.exclude_btn):
+            w.setEnabled(any_selected)
+
     def _update(self) -> None:
+        if self._filling:
+            return
         n = len(self.changes())
         self.ok.setText(tr("Toepassen op {n} label(s)", n=n))
-        self.ok.setEnabled(n > 0)
+        # changing only the category choices is worth saving too
+        self.ok.setEnabled(True)
 
 
 class LabelSizeDialog(QDialog):

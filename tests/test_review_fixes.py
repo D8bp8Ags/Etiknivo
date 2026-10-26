@@ -170,22 +170,35 @@ def test_pictograms_dialog_suggests_and_applies(window, monkeypatch) -> None:  #
                            if lbl.category == "Weerstanden"))
     window.current.picture.kind = PictureKind.NONE
     assert not window.is_dirty()
-    seen: list[PictogramsDialog] = []
+    dupont = [lbl.id for lbl in window.library.labels if lbl.category == "Dupont"]
 
     def accept(dlg: PictogramsDialog) -> int:
-        seen.append(dlg)
-        row = next(i for i, lbl in enumerate(dlg._labels) if lbl.category == "Antennes")
-        dlg.combos[row].setCurrentIndex(dlg.combos[row].findData(""))  # "Geen" for this one
+        dlg._cat_combos["Antennes"].setCurrentIndex(dlg._cat_combos["Antennes"].findData(""))
+        # two Dupont labels get their own symbol, a third is skipped
+        dlg.tree.clearSelection()
+        for lid in dupont[:2]:
+            dlg._items[lid].setSelected(True)
+        dlg._set_own("cable")
+        dlg.tree.clearSelection()
+        dlg._items[dupont[2]].setSelected(True)
+        dlg._check(False)
         return QDialog.DialogCode.Accepted
 
     monkeypatch.setattr(PictogramsDialog, "exec", accept)
     window.choose_pictograms()
-    labels = {lbl.category: lbl for lbl in window.library.labels}
-    assert labels["Weerstanden"].picture.kind == PictureKind.SYMBOL
-    assert labels["Weerstanden"].picture.symbol == "resistor"
-    assert labels["Antennes"].picture.kind == PictureKind.NONE
+    labels = {lbl.id: lbl for lbl in window.library.labels}
+    by_cat = {lbl.category: lbl for lbl in labels.values()}
+    assert by_cat["Weerstanden"].picture.symbol == "resistor"
+    assert by_cat["Weerstanden"].picture.kind == PictureKind.SYMBOL
+    assert by_cat["Antennes"].picture.kind == PictureKind.NONE
+    assert [labels[i].picture.symbol for i in dupont[:2]] == ["cable", "cable"]
+    assert labels[dupont[2]].picture.kind == PictureKind.NONE  # skipped
+    # remembered per category, and used for a new label in that category
+    assert window.library.category_symbols["Antennes"] == ""
+    assert window.library.category_symbols["Dupont"] == "connector"
+    new = make_label("", "Dupont", "nieuw")
+    window._apply_category_style(new)
+    assert new.picture.kind == PictureKind.SYMBOL and new.picture.symbol == "connector"
     # the open label: saved, shown in the editor, and not left as an unsaved draft
-    opened = window.library.get(window.current.id)
-    assert opened.picture.kind == window.current.picture.kind
     assert window.current.picture.symbol == "resistor" and not window.is_dirty()
     assert window.design_view.result.picture_box is not None

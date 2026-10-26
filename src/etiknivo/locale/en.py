@@ -720,12 +720,6 @@ EN: dict[str, str] = {
     "Overzicht": "Overview",
     "Alle labels in één overzicht, ook als PDF of PNG": "All labels in one overview, also as PDF or PNG",
     # -- pictograms per label -----------------------------------------------------------
-    "Pictogrammen kiezen": "Choose pictograms",
-    "Pictogrammen kiezen…": "Choose pictograms…",
-    "Per label een passend symbool, gekozen op categorie en naam. Pas aan wat niet klopt; "
-    "'Geen' haalt het pictogram weg. Eigen afbeeldingen blijven staan.":
-        "A fitting symbol per label, chosen from its category and name. Change what is not "
-        "right; 'None' removes the pictogram. Own images stay.",
     "Plaats bij labels zonder pictogram": "Position on labels without a pictogram",
     "Pictogram aangepast op {n} label(s)": "Pictogram changed on {n} label(s)",
     # -- files the app writes: export names, PDF title, print density ------------------
@@ -768,4 +762,27 @@ EN: dict[str, str] = {
     "Afdrukgeschiedenis kon niet worden opgeslagen: %s": "Print history could not be saved: %s",
     "Ongeldige regel in afdrukgeschiedenis overgeslagen: %r":
         "Invalid line in print history skipped: %r",
+    "Pictogrammen": "Pictograms",
+    "Pictogrammen…": "Pictograms…",
+    "Kies per categorie een pictogram; de labels eronder krijgen het, behalve labels met een "
+    "eigen pictogram. Alleen aangevinkte labels veranderen. Selecteer meerdere labels "
+    "(Shift-klik) om ze samen aan te passen.":
+        "Choose a pictogram per category; the labels below get it, except labels with a "
+        "pictogram of their own. Only ticked labels change. Select several labels "
+        "(Shift-click) to change them together.",
+    "Zoeken in labels…": "Search labels…",
+    "Eigen pictogram…": "Own pictogram…",
+    "De geselecteerde labels een eigen pictogram geven":
+        "Give the selected labels a pictogram of their own",
+    "Volgt categorie": "Follow category",
+    "De geselecteerde labels krijgen weer het pictogram van hun categorie":
+        "The selected labels get their category's pictogram again",
+    "Meenemen": "Include",
+    "Overslaan": "Skip",
+    "De geselecteerde labels aanvinken": "Tick the selected labels",
+    "De geselecteerde labels uitvinken: die blijven zoals ze zijn":
+        "Untick the selected labels: they stay as they are",
+    "Volgt de categorie": "Follows the category",
+    "Eigen pictogram": "Own pictogram",
+    "Geen pictogram": "No pictogram",
 }

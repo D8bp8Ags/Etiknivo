@@ -484,7 +484,7 @@ class MainWindow(QMainWindow):
         act(m, tr("Verwijderen"), self.delete_labels)
         m.addSeparator()
         self.act_copy_format = act(m, tr("Opmaak overnemen…"), self.copy_format)
-        act(m, tr("Pictogrammen kiezen…"), self.choose_pictograms)
+        act(m, tr("Pictogrammen…"), self.choose_pictograms)
 
         m = mb.addMenu(tr("&Afdrukken"))
         self.act_print = act(m, tr("Huidig label…"), self.print_current, QKeySequence.StandardKey.Print)
@@ -960,11 +960,18 @@ class MainWindow(QMainWindow):
         return max(same, key=lambda lbl: lbl.modified, default=None)
 
     def _apply_category_style(self, lbl: Label) -> bool:
+        """A new label looks like the last edited one in its category, with the
+        pictogram chosen for that category (see Pictogrammen)."""
         template = self.category_template(lbl.category, lbl.id)
-        if template is None:
-            return False
-        copy_format(template, lbl, set(FORMAT_PARTS))
-        return True
+        if template is not None:
+            copy_format(template, lbl, set(FORMAT_PARTS))
+        key = self.library.category_symbols.get(lbl.category) if lbl.category else None
+        if key is not None and lbl.picture.kind != PictureKind.IMAGE:
+            if key:
+                lbl.picture.kind, lbl.picture.symbol = PictureKind.SYMBOL, key
+            else:
+                lbl.picture.kind = PictureKind.NONE
+        return template is not None or key is not None
 
     def duplicate_label(self) -> None:
         ids = self.library_panel.selected_ids()
@@ -1027,15 +1034,18 @@ class MainWindow(QMainWindow):
         return changed
 
     def choose_pictograms(self) -> None:
-        """A fitting symbol per label (selection, or all labels), checked first."""
+        """A pictogram per category (remembered for new labels), with labels
+        that follow it or have their own; a selection of several labels starts
+        as the only ticked ones."""
         ids = self.library_panel.selected_ids()
-        labels = [self.library.get(i) for i in ids] if len(ids) > 1 else list(self.library.labels)
-        labels = [lbl for lbl in labels if lbl is not None]
+        labels = list(self.library.labels)
         if self.current is not None:  # the open label as shown, with its draft
             labels = [self.current if lbl.id == self.current.id else lbl for lbl in labels]
-        dlg = PictogramsDialog(labels, self)
+        dlg = PictogramsDialog(labels, self.library.category_symbol,
+                               set(ids) if len(ids) > 1 else None, self)
         if dlg.exec() != PictogramsDialog.DialogCode.Accepted:
             return
+        self.library.category_symbols.update(dlg.category_choices())
         side = HAlign(dlg.side.currentData())
         for lid, key in dlg.changes().items():
             # the saved label and, when it is open, its draft: both get the

@@ -135,7 +135,7 @@ Onder *QR-code of barcode* staat **Pictogram**. Bij *Soort* kies je:
   - *Aanduidingen*: let op, verboden, informatie, vinkje, kruis, deze kant boven, breekbaar, ster en hart.
 - **Eigen afbeelding**: klik **Afbeelding kiezen…** en kies een PNG, JPG of SVG, bijvoorbeeld je logo. Etiknivo maakt hem zwart-wit, haalt witte randen weg en bewaart hem in het label zelf. Het originele bestand heb je daarna niet meer nodig, en de afbeelding gaat mee in exports en back-ups.
 
-Met *Plaats* zet je het pictogram links of rechts van de tekst. De tekst schuift opzij en wordt zo nodig kleiner. Een passend symbool voor al je labels tegelijk kies je met [Pictogrammen kiezen](#pictogrammen-kiezen). Staan een QR-code en een pictogram aan dezelfde kant, dan komt de QR-code aan de buitenkant en het pictogram ernaast.
+Met *Plaats* zet je het pictogram links of rechts van de tekst. De tekst schuift opzij en wordt zo nodig kleiner. Een passend symbool voor al je labels tegelijk kies je met [Label → Pictogrammen…](#pictogrammen-kiezen). Staan een QR-code en een pictogram aan dezelfde kant, dan komt de QR-code aan de buitenkant en het pictogram ernaast.
 
 Afbeeldingen met veel kleine details of zachte kleurverlopen worden op 12 mm vaak onduidelijk. Eenvoudige vormen met dikke lijnen werken het best.
 
@@ -246,7 +246,14 @@ Kies daarna op welke labels het moet: de geselecteerde labels, alle labels in ee
 
 ### Pictogrammen kiezen
 
-Met **Opmaak overnemen** krijgt elk label hetzelfde pictogram. Wil je per lade een passend symbool, kies dan **Label → Pictogrammen kiezen…**. Etiknivo stelt per label een symbool voor op basis van de categorie en de naam: *Weerstanden* krijgt een weerstand, *Antennes* een antenne, *Dupont* en *Audiojacks* een connector, *ESP32* een IC, enzovoort. In de lijst pas je aan wat niet klopt; *Geen* haalt het pictogram weg. Labels met een eigen afbeelding blijven zoals ze zijn. Heb je in de bibliotheek meer dan één label geselecteerd, dan gaat het alleen om die labels, anders om alle labels. ⌘Z zet alles in één keer terug.
+Met **Opmaak overnemen** krijgt elk label hetzelfde pictogram. Wil je per lade een passend symbool, kies dan **Label → Pictogrammen…**. Het venster toont je categorieën met de labels eronder.
+
+- **Per categorie**: naast elke categorie kies je een symbool. Etiknivo stelt er een voor op basis van de naam (*Weerstanden* een weerstand, *Antennes* een antenne, *Dupont* een connector, enzovoort). Je keuze wordt onthouden: een nieuw label in die categorie krijgt dat pictogram ook. *Geen* betekent bewust geen pictogram.
+- **Per label**: een label volgt zijn categorie (grijs, met ↳). Wil je iets anders, selecteer dan een of meer labels en kies **Eigen pictogram…**; **Volgt categorie** zet ze weer terug.
+- **Meenemen of overslaan**: alleen aangevinkte labels worden aangepast. Vink een categorie aan of uit voor al haar labels, of selecteer meerdere labels (Shift-klik) en kies **Meenemen** of **Overslaan**.
+- **Zoeken** bovenin beperkt de lijst; *Plaats* kiest links of rechts van de tekst voor labels die nog geen pictogram hadden.
+
+Labels met een eigen afbeelding blijven zoals ze zijn. Heb je in de bibliotheek meer dan één label geselecteerd, dan zijn alleen die labels aangevinkt. ⌘Z zet alles in één keer terug.
 
 Het pictogram is op elk label even groot, zodat een ladekast er rustig uitziet. Alleen als een regel anders niet meer past, wordt het pictogram op dat label kleiner.
 

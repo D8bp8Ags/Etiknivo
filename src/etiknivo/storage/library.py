@@ -58,6 +58,8 @@ class Library:
     def __init__(self, path: Path) -> None:
         self.path = Path(path)
         self._labels: list[Label] = []
+        #: the pictogram chosen per category ("" = none on purpose)
+        self.category_symbols: dict[str, str] = {}
 
     # -- collection API --------------------------------------------------------
 
@@ -127,6 +129,13 @@ class Library:
     def by_category(self, category: str) -> list[Label]:
         return [lbl for lbl in self._labels if lbl.category == category]
 
+    def category_symbol(self, category: str) -> str:
+        """The symbol for *category*: the one chosen for it, else a suggestion
+        from its name ("" for none)."""
+        if category in self.category_symbols:
+            return self.category_symbols[category]
+        return suggest_symbol(category) or ""
+
     # -- persistence -----------------------------------------------------------
 
     def load(self) -> None:
@@ -138,6 +147,9 @@ class Library:
         except (OSError, ValueError) as exc:
             raise LibraryError(tr("Bibliotheek kon niet worden gelezen: {error}", error=exc)) from exc
         self._labels = labels_from_document(doc)
+        symbols = doc.get("category_symbols") if isinstance(doc, dict) else None
+        self.category_symbols = ({str(k): str(v) for k, v in symbols.items()}
+                                 if isinstance(symbols, dict) else {})
 
     def save(self) -> None:
         if self.path.exists():
@@ -145,7 +157,10 @@ class Library:
                 shutil.copy2(self.path, self.path.with_suffix(self.path.suffix + ".bak"))
             except OSError as exc:  # a failed backup copy must not block saving
                 log.warning(tr("Back-up van bibliotheek mislukt: %s"), exc)
-        text = json.dumps(labels_to_document(self._labels), indent=2, ensure_ascii=False)
+        doc = labels_to_document(self._labels)
+        if self.category_symbols:
+            doc["category_symbols"] = dict(sorted(self.category_symbols.items()))
+        text = json.dumps(doc, indent=2, ensure_ascii=False)
         atomic_write_text(self.path, text)
 
 

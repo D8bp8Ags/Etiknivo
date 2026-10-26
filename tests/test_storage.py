@@ -294,3 +294,16 @@ def test_library_update_replaces_by_id(tmp_path) -> None:  # noqa: ANN001
     new.main.text = "Nieuw"
     assert lib.update(new) and lib.get(a.id).main.text == "Nieuw"
     assert not lib.update(make_label("B", "", "x"))
+
+
+def test_category_symbols_are_saved(tmp_path) -> None:  # noqa: ANN001
+    from etiknivo.storage.library import Library
+
+    lib = Library(tmp_path / "lib.json")
+    lib.category_symbols = {"Weerstanden": "resistor", "Diversen": ""}
+    lib.save()
+    back = Library(tmp_path / "lib.json")
+    back.load()
+    assert back.category_symbols == {"Weerstanden": "resistor", "Diversen": ""}
+    assert back.category_symbol("Diversen") == ""  # none on purpose
+    assert back.category_symbol("Antennes") == "antenna"  # suggested
