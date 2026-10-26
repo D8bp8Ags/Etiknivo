@@ -25,6 +25,11 @@ from pathlib import Path
 from PIL import ImageFont
 
 log = logging.getLogger(__name__)
+# fontTools warns about small flaws in system font files (for example "1 extra
+# bytes in post.stringData array" for some macOS fonts) when it reads their
+# tables.  The fonts work fine and the user cannot fix them, so only real
+# errors from fontTools reach the log.
+logging.getLogger("fontTools").setLevel(logging.ERROR)
 
 FALLBACK_FAMILY = "DejaVu Sans"
 _BUNDLED = {

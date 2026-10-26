@@ -298,3 +298,18 @@ def test_unknown_field_stays_visible_with_warning(engine: RenderEngine) -> None:
     lbl.specs = {"Vermogen": "¼ W"}
     assert lbl.field_names()[0] == "Vermogen"
     assert engine.render(lbl).lines[0].text == "¼ W"
+
+
+def test_font_file_flaws_do_not_reach_the_log(caplog) -> None:  # noqa: ANN001
+    """fontTools' warnings about harmless flaws in system fonts stay out of the log."""
+    import logging
+
+    import etiknivo.rendering.fonts  # noqa: F401 - sets the fontTools log level
+
+    with caplog.at_level(logging.DEBUG):
+        logging.getLogger("fontTools.ttLib.tables._p_o_s_t").warning(
+            "1 extra bytes in post.stringData array")
+        logging.getLogger("fontTools.ttLib").error("a real problem")
+    messages = [r.getMessage() for r in caplog.records]
+    assert "a real problem" in messages
+    assert not any("post.stringData" in m for m in messages)
