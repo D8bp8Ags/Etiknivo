@@ -283,7 +283,7 @@ Alles staat in het menu **Bestand**.
 | Back-up maken / herstellen | Eén zip-bestand met bibliotheek en instellingen. |
 | Datamap openen | De map waar Etiknivo alles bewaart. |
 
-Etiknivo bewaart alles lokaal op je eigen computer, zonder account. Bij elke keer opslaan blijft de vorige versie bewaard als `library.json.bak`.
+Etiknivo bewaart alles lokaal op je eigen computer. Bij elke keer opslaan blijft de vorige versie bewaard als `library.json.bak`.
 
 ### Waar je gegevens staan
 

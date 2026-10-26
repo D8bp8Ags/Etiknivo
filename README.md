@@ -1,35 +1,37 @@
-<img src="src/etiknivo/gui/appicon/etiknivo.png" width="96" alt="Etiknivo-icoon">
+<img src="src/etiknivo/gui/appicon/etiknivo.png" width="96" alt="Etiknivo icon">
 
 # Etiknivo
 
-**Etiketten ontwerpen, beheren en afdrukken vanaf je computer.**
+**Design, organise and print labels from your desktop.**
 
-Etiknivo is een open-source desktopapp voor kleine labelprinters. Je houdt een bibliotheek van etiketten bij, bijvoorbeeld voor een ladekast of werkplaats, ontwerpt ze met tekst, symbolen en codes, en drukt ze rechtstreeks via Bluetooth af. Alles staat lokaal, zonder account of cloud.
+Etiknivo is an open-source desktop app for small label printers. Keep a library of labels, for a parts cabinet or workshop for example, design them with text, symbols and codes, and print them directly over Bluetooth.
 
-![Etiknivo hoofdvenster](docs/img/main-window.png)
+![Etiknivo main window](docs/img/en/main-window.png)
 
-## Functies
+## Features
 
-- **Labelbibliotheek** met categorieën, zoeken, sorteren en meervoudige selectie.
-- **Ontwerpen wat je print**: het voorbeeld is exact de bitmap die naar de printer gaat.
-- **Tekst, symbolen en codes**: meerdere tekstregels, 65 eigen pictogrammen of een eigen afbeelding, QR-codes en Code 128-barcodes.
-- **Vrije layout**: sleep tekst, codes, lijnen en kaders precies op hun plek.
-- **Gekoppelde velden** zoals `{Spanning}`, `{Datum}` en `{Nr}`, die per label of bij het afdrukken worden ingevuld.
-- **Afdrukken in bulk**: een label, een selectie of een hele categorie, via een wachtrij met geschiedenis.
-- **Import en export**: CSV, JSON, PNG, PDF op ware grootte en volledige back-ups.
-- **Licht en donker thema**, Nederlands en Engels, voor macOS, Windows en Linux.
+- **Label library** with categories, search, sorting and multi-select.
+- **What you see is what prints**: the preview is the exact bitmap sent to the printer.
+- **Text, symbols and codes**: several lines of text, 65 built-in pictograms or your own image, QR codes and Code 128 barcodes.
+- **Free layout**: drag text, codes, lines and frames exactly where you want them.
+- **Linked fields** such as `{Voltage}`, `{Date}` and `{No}`, filled in per label or at print time.
+- **Batch printing**: one label, a selection or a whole category, through a print queue with history.
+- **Import and export**: CSV, JSON, PNG, true-size PDF and full backups.
+- **Light and dark themes**, English and Dutch, on macOS, Windows and Linux.
 
-## Ondersteunde printers
+![Printer panel and print queue in dark mode](docs/img/en/printer-and-queue-dark.png)
 
-| Printer | Etiketten | Status |
+## Supported printers
+
+| Printer | Labels | Status |
 |---|---|---|
-| Action Fichero 5836 (AiYin D11s) | 30 × 14 mm en andere rollen van 12 of 14 mm | Getest met echte hardware |
+| Action Fichero 5836 (AiYin D11s) | 30 × 14 mm and other 12 or 14 mm rolls | ✓ Tested |
 
-Zonder printer werkt de app ook, met een ingebouwde simulatieprinter. Nieuwe printers zijn toe te voegen via een profiel en een backend; zie [Een printertype toevoegen](docs/printertypes.md).
+The app also runs without a printer, using a built-in simulated printer. New printers can be added with a profile and a backend; see [Adding a printer type](docs/printertypes.md).
 
-## Installatie
+## Installation
 
-Etiknivo draait met [uv](https://docs.astral.sh/uv/getting-started/installation/), dat zelf de juiste Python-versie en alle afhankelijkheden installeert.
+Etiknivo runs with [uv](https://docs.astral.sh/uv/getting-started/installation/), which installs the right Python version and all dependencies for you.
 
 ```bash
 git clone https://github.com/D8bp8Ags/Etiknivo.git
@@ -37,22 +39,28 @@ cd Etiknivo
 uv run etiknivo
 ```
 
-Gebruik `uv run etiknivo --mock` om zonder printer te starten. Op macOS vraagt het systeem de eerste keer om Bluetooth-toegang voor de app waarin je het commando start.
+Use `uv run etiknivo --mock` to start without a printer. On macOS the system asks for Bluetooth access the first time, for the app you run the command from (Terminal, iTerm, VS Code).
 
-## Aan de slag
+The interface follows your system language; choose another under **View → Language**.
 
-1. Zet de printer aan, open het tabblad **Printer**, klik **Zoeken** en daarna **Verbinden**.
-2. Druk een **Testlabel** af om de verbinding te controleren.
-3. Maak of kies een label in de bibliotheek en klik **Afdrukken**.
+## Getting started
 
-Bij de eerste start staan er 23 voorbeeldlabels voor elektronicacomponenten klaar.
+1. Switch on the printer, open the **Printer** tab, click **Search** and then **Connect**.
+2. Print a **test label** to check the connection.
+3. Create or pick a label in the library and click **Print**.
 
-## Documentatie
+On first start, 23 sample labels for electronic components are ready to use.
 
-- [Handleiding](docs/handleiding.md): alle functies, kalibreren, importeren en problemen oplossen.
-- [Ontwikkelen](docs/ontwikkelen.md): architectuur, tests, vertalingen en de app bouwen.
-- [Printerprotocol](docs/printer-protocol.md): het Bluetooth-protocol van de Fichero 5836.
+![Label overview](docs/img/en/labeloverzicht.png)
 
-## Licentie
+## Documentation
 
-MIT, zie [LICENSE](LICENSE). De meegeleverde DejaVu-lettertypen vallen onder hun eigen vrije licentie ([LICENSE-DejaVu.txt](src/etiknivo/fonts/LICENSE-DejaVu.txt)). Het app-icoon en alle pictogrammen zijn eigen ontwerpen.
+The detailed documentation is in Dutch.
+
+- [User manual](docs/handleiding.md): every feature, calibration, importing and troubleshooting.
+- [Development](docs/ontwikkelen.md): architecture, tests, translations and building the app.
+- [Printer protocol](docs/printer-protocol.md): the Bluetooth protocol of the Fichero 5836.
+
+## License
+
+MIT, see [LICENSE](LICENSE). The bundled DejaVu fonts have their own free license ([LICENSE-DejaVu.txt](src/etiknivo/fonts/LICENSE-DejaVu.txt)). The app icon and all pictograms are original designs.

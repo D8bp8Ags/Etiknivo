@@ -1,6 +1,7 @@
 """Generate documentation images (runs headless with the simulated printer).
 
     QT_QPA_PLATFORM=offscreen uv run python scripts/screenshots.py docs/img
+    QT_QPA_PLATFORM=offscreen uv run python scripts/screenshots.py docs/img/en en
 """
 
 from __future__ import annotations
@@ -16,6 +17,7 @@ os.environ.setdefault("ETIKNIVO_DATA_DIR", tempfile.mkdtemp(prefix="etiknivo-sho
 from PIL import Image  # noqa: E402
 from PySide6.QtWidgets import QApplication, QDialog  # noqa: E402
 
+from etiknivo import i18n  # noqa: E402
 from etiknivo.gui import main_window as mw  # noqa: E402
 from etiknivo.gui.dialogs import PrintPreviewDialog  # noqa: E402
 from etiknivo.printing.mock import MockPrinterBackend  # noqa: E402
@@ -67,14 +69,17 @@ def window_shots(app: QApplication, out: Path, theme: str, suffix: str) -> None:
     win.close()
 
 
-def main(target: str) -> None:
+def main(target: str, lang: str = "nl") -> None:
+    i18n.set_language(lang)
     out = Path(target)
     out.mkdir(parents=True, exist_ok=True)
     label_sheet(out / "raaco-labels.png")
     app = QApplication(sys.argv)
+    i18n.install_qt_translations(app)
     window_shots(app, out, "light", "")
     window_shots(app, out, "dark", "-dark")
 
 
 if __name__ == "__main__":
-    main(sys.argv[1] if len(sys.argv) > 1 else "docs/img")
+    main(sys.argv[1] if len(sys.argv) > 1 else "docs/img",
+         sys.argv[2] if len(sys.argv) > 2 else "nl")

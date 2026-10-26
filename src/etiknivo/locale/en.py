@@ -307,8 +307,8 @@ EN: dict[str, str] = {
         "More white at the top than the bottom? Choose a negative number; more at the bottom: "
         "positive.",
     "Versie {version}": "Version {version}",
-    "Etiketten ontwerpen, beheren en afdrukken.\nOpen source, lokaal, zonder account.":
-        "Design, manage and print labels.\nOpen source, local, no account.",
+    "Etiketten ontwerpen, beheren en afdrukken.\nOpen source.":
+        "Design, manage and print labels.\nOpen source.",
     "Model": "Model",
     "Printkop": "Printhead",
     "Etiket": "Label",

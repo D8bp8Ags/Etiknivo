@@ -653,7 +653,7 @@ class AboutDialog(QDialog):
         version = QLabel(tr("Versie {version}", version=__version__))
         version.setObjectName("muted")
         tagline = QLabel(tr("Etiketten ontwerpen, beheren en afdrukken.\n"
-                            "Open source, lokaal, zonder account."))
+                            "Open source."))
         tagline.setWordWrap(True)
         for w in (logo, name, version, tagline):
             w.setAlignment(Qt.AlignmentFlag.AlignHCenter)
