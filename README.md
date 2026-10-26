@@ -29,7 +29,20 @@ Etiknivo is an open-source desktop app for small label printers. Keep a library 
 
 The app also runs without a printer, using a built-in simulated printer. New printers can be added with a profile and a backend; see [Adding a printer type](docs/printertypes.md).
 
-## Installation
+## Download
+
+Download `Etiknivo-<version>-macOS.zip` from the [latest release](https://github.com/D8bp8Ags/Etiknivo/releases/latest), unzip it and drag **Etiknivo.app** to your Applications folder. The app is built for Macs with Apple Silicon.
+
+The app is not signed with an Apple developer certificate, so macOS blocks it the first time:
+
+- **macOS 15 Sequoia and later:** open the app once and close the warning. Then go to **System Settings → Privacy & Security**, scroll down and click **Open Anyway** next to the message about Etiknivo.
+- **macOS 14 and earlier:** right-click (or Control-click) Etiknivo.app, choose **Open** and confirm.
+
+After that, the app opens normally. The first time you search for a printer, macOS asks for Bluetooth access.
+
+On Windows, Linux or an Intel Mac, run Etiknivo from source as described below.
+
+## Installation from source
 
 Etiknivo runs with [uv](https://docs.astral.sh/uv/getting-started/installation/), which installs the right Python version and all dependencies for you.
 
