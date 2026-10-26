@@ -108,7 +108,7 @@ class PrintPreviewDialog(QDialog):
 
         form = QFormLayout()
         self.density = QComboBox()
-        self.density.addItems(list(engine.profile.densities))
+        self.density.addItems(list(engine.profile.density_names()))
         self.density.setCurrentIndex(density)
         self.total = QLabel()
         form.addRow(tr("Printdichtheid"), self.density)

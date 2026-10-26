@@ -67,7 +67,7 @@ class QueuePanel(QWidget):
 
         self.pause_btn = tool(tr("Stop"), tr("Printen stoppen na het huidige etiket"))
         self.resume_btn = tool(tr("Hervat"), tr("Wachtrij hervatten"))
-        self.retry_btn = tool(tr("Opnieuw"),
+        self.retry_btn = tool(tr("Opnieuw proberen"),
                               tr("Mislukte en geannuleerde opdrachten opnieuw proberen"))
         self.cancel_btn = tool(tr("Annuleer"), tr("Wachtende opdrachten annuleren"))
         self.clear_btn = tool(tr("Wis klaar"), tr("Afgeronde opdrachten uit de lijst halen"))

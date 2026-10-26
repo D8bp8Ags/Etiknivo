@@ -19,6 +19,7 @@ EN: dict[str, str] = {
     "Verwijderen": "Delete",
     "Ongedaan maken": "Undo",
     "Opnieuw": "Redo",
+    "Opnieuw proberen": "Retry",
     "Printer beheren": "Manage printer",
     "Printwachtrij tonen of verbergen": "Show or hide the print queue",
     " Afdrukken": " Print",

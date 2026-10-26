@@ -27,7 +27,7 @@ Etiknivo is an open-source desktop app for small label printers. Keep a library 
 |---|---|---|
 | Action Fichero 5836 (AiYin D11s) | 30 × 14 mm and other 12 or 14 mm rolls | ✓ Tested |
 
-The app also runs without a printer, using a built-in simulated printer. New printers can be added with a profile and a backend; see [Adding a printer type](docs/printertypes.md).
+The app also runs without a printer, using a built-in simulated printer. New printers can be added with a profile and a backend; see [Adding a printer type](docs/en/printer-types.md).
 
 ## Download
 
@@ -64,15 +64,16 @@ The interface follows your system language; choose another under **View → Lang
 
 On first start, 23 sample labels for electronic components are ready to use.
 
-![Label overview](docs/img/en/labeloverzicht.png)
+![Label overview](docs/img/en/label-overview.png)
 
 ## Documentation
 
-The detailed documentation is in Dutch.
+- [User guide](docs/en/user-guide.md): every feature, calibration, importing and troubleshooting.
+- [Development](docs/en/development.md): architecture, tests, translations and building the app.
+- [Printer protocol](docs/en/printer-protocol.md): the Bluetooth protocol of the Fichero 5836.
+- [Adding a printer type](docs/en/printer-types.md): support for another label printer.
 
-- [User manual](docs/handleiding.md): every feature, calibration, importing and troubleshooting.
-- [Development](docs/ontwikkelen.md): architecture, tests, translations and building the app.
-- [Printer protocol](docs/printer-protocol.md): the Bluetooth protocol of the Fichero 5836.
+The documentation is also available in Dutch: [Nederlandse handleiding](docs/nl/handleiding.md). See the [documentation overview](docs/README.md) for all pages in both languages.
 
 ## License
 

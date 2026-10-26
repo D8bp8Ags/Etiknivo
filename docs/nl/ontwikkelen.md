@@ -1,5 +1,7 @@
 # Ontwikkelen
 
+*[English version](../en/development.md)*
+
 Technische informatie voor wie Etiknivo vanuit de broncode draait, aanpast of bouwt. Voor het gebruik van de app, zie de [handleiding](handleiding.md).
 
 ## Installeren per systeem
@@ -108,7 +110,7 @@ git config user.email "<id>+<gebruikersnaam>@users.noreply.github.com"
 - `app.log`, `print.log` en het logvenster tonen de thuismap als `~`, ook in foutmeldingen en tracebacks (`RedactingFormatter`, `redact()`).
 - Bluetooth-adressen staan in het log, de apparatenlijst en het afdrukvenster alleen verkort (`…:9B:3C`, `short_address()`). Het volledige adres staat alleen lokaal in `settings.json`.
 - Paden in het venster Over Etiknivo beginnen met `~` (`short_path()`).
-- Schermafbeeldingen voor de documentatie maak je met `scripts/screenshots.py`: die gebruikt een lege tijdelijke datamap en de simulatieprinter, dus er komt geen eigen printer, pad of label in beeld.
+- Schermafbeeldingen voor de documentatie maak je met `scripts/screenshots.py nl` en `scripts/screenshots.py en` (naar `docs/img/nl` en `docs/img/en`): het script gebruikt een lege tijdelijke datamap en de simulatieprinter, dus er komt geen eigen printer, pad of label in beeld.
 
 ## Vertalingen
 
@@ -120,6 +122,8 @@ Alles wat de gebruiker ziet volgt de gekozen taal, ook wat de app wegschrijft (l
 - Logberichten ook: `log.info(tr("Verbonden met %s"), naam)`. Een test faalt bij een logregel zonder `tr()`.
 - Datums en tijden via `format_date()` / `format_datetime()`: 26-10-2026 in het Nederlands, 2026-10-26 in het Engels.
 - Dataformaten vertaal je niet: JSON-sleutels, CSV-kolomnamen, layoutnamen en namen in de back-up zijn in beide talen gelijk, zodat een bestand uit de ene taal in de andere te lezen is. Teksten die de gebruiker zelf typte (labels, categorieën) worden nooit vertaald; alleen de voorbeeldbibliotheek bij de eerste start bestaat in beide talen (`data/raaco_seed*.csv`).
+
+De documentatie bestaat ook in beide talen: `docs/nl/` en `docs/en/`. Pas je de ene aan, pas dan ook de andere aan.
 
 ## De app bouwen
 

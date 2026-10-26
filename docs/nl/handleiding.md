@@ -1,6 +1,8 @@
 # Handleiding Etiknivo
 
-Etiknivo maakt en print etiketten op de Action Fichero 5836, standaard 30 × 14 mm en ook andere maten. Deze handleiding legt uit hoe je de app gebruikt. Installeren staat in de [README](../README.md); technische details staan in [Ontwikkelen](ontwikkelen.md).
+*[English version](../en/user-guide.md)*
+
+Etiknivo maakt en print etiketten op de Action Fichero 5836, standaard 30 × 14 mm en ook andere maten. Deze handleiding legt uit hoe je de app gebruikt. Installeren staat in de [README](../../README.md); technische details staan in [Ontwikkelen](ontwikkelen.md).
 
 - [Het venster](#het-venster)
 - [De printer verbinden](#de-printer-verbinden)
@@ -22,7 +24,7 @@ Etiknivo maakt en print etiketten op de Action Fichero 5836, standaard 30 × 14 
 
 ## Het venster
 
-![Het hoofdvenster](img/main-window.png)
+![Het hoofdvenster](../img/nl/main-window.png)
 
 Het venster heeft drie delen:
 
@@ -34,7 +36,7 @@ Bovenaan staat de werkbalk met nieuw, dupliceren, hernoemen, verwijderen, ongeda
 
 ## De printer verbinden
 
-![Het tabblad Printer met de wachtrij](img/printer-and-queue.png)
+![Het tabblad Printer met de wachtrij](../img/nl/printer-and-queue.png)
 
 1. Zet de Fichero aan.
 2. Open rechts het tabblad **Printer** en klik **Zoeken**. Met *Alleen labelprinters tonen* aan zie je alleen printers die Etiknivo kent.
@@ -174,14 +176,14 @@ Er zijn vier manieren om af te drukken, allemaal in het menu **Afdrukken** en in
 - **Categorie**: alle labels uit één categorie.
 - **Alle labels**.
 
-![Het afdrukvoorbeeld](img/handleiding/afdrukvoorbeeld.png)
+![Het afdrukvoorbeeld](../img/nl/print-preview.png)
 
 Je ziet eerst een voorbeeld met precies wat er geprint wordt. Per label stel je het aantal exemplaren in, en onderaan de printdichtheid (licht, normaal of donker). Bij *Let op* staat het als tekst niet past of een veld onbekend is.
 
 Na **Afdrukken** gaan de labels naar de **wachtrij** (knop *Wachtrij* rechtsboven, of Weergave → Printwachtrij). De wachtrij drukt ze één voor één af en toont per opdracht de voortgang:
 
 - **Stop** pauzeert na het huidige etiket; **Hervat** gaat verder.
-- Gaat er iets mis (deksel open, papier op, verbinding weg), dan stopt de wachtrij. Los het op en klik **Opnieuw**.
+- Gaat er iets mis (deksel open, papier op, verbinding weg), dan stopt de wachtrij. Los het op en klik **Opnieuw proberen**.
 - **Annuleer** haalt wachtende opdrachten weg; **Wis klaar** ruimt afgeronde op.
 
 Het standaard aantal exemplaren en de standaarddichtheid stel je in op het tabblad *Printer*. Kleine tekst is vaak beter leesbaar op *Licht* of *Normaal* dan op *Donker*.
@@ -210,7 +212,7 @@ Gebruik dit als de afdruk niet mooi in het midden van het etiket staat.
 2. Kijk of de witruimte links en rechts, en boven en onder, gelijk is.
 3. Open **Printer → Kalibratie-instellingen…** en verschuif de afdruk.
 
-![Het kalibratievenster](img/handleiding/kalibratie.png)
+![Het kalibratievenster](../img/nl/calibration.png)
 
 - **Links / rechts**: positief schuift de afdruk naar rechts, negatief naar links. 8 dots is 1 mm; het venster rekent het voor je om.
 - **Omhoog / omlaag**: positief schuift naar beneden, negatief naar boven.
@@ -267,7 +269,7 @@ Bij de eerste start staan er 23 voorbeeldlabels voor Raaco-laden met elektronica
 
 De knop **Overzicht** in de werkbalk (of *Weergave → Labeloverzicht*, ⇧⌘O) toont al je labels tegelijk, zoals ze geprint worden, gegroepeerd per categorie met de naam en lade-ID eronder. Kleine categorieën staan naast elkaar, zodat je veel laden in één oogopslag ziet.
 
-![Het labeloverzicht](img/labeloverzicht.png)
+![Het labeloverzicht](../img/nl/label-overview.png)
 
 - **Klik** op een label om het in het hoofdvenster te openen. Dat werkt ook als een zoekopdracht of categoriefilter het in de bibliotheek verbergt.
 - **Zoeken** bovenin beperkt het overzicht; de schuif ernaast maakt de etiketjes groter of kleiner.
@@ -333,7 +335,7 @@ De kolomnamen zijn in beide talen dezelfde, zodat een export uit de Engelse app 
 
 **De printer wordt niet gevonden.** Controleer of de printer aan staat en niet al met je telefoon verbonden is; een Bluetooth-printer praat meestal maar met één apparaat tegelijk. Kijk in Systeeminstellingen → Privacy en beveiliging → Bluetooth of Etiknivo (of je terminal) toegang heeft. Zet even *Alleen labelprinters tonen* uit om te zien of de printer überhaupt zichtbaar is. Op Windows en Linux: zie [Installeren per systeem](ontwikkelen.md#installeren-per-systeem).
 
-**De verbinding valt weg.** Klik **Verbinden** opnieuw; een onderbroken wachtrij hervat je met **Opnieuw**. Zet je de printer uit en aan, verbind dan opnieuw.
+**De verbinding valt weg.** Klik **Verbinden** opnieuw; een onderbroken wachtrij hervat je met **Opnieuw proberen**. Zet je de printer uit en aan, verbind dan opnieuw.
 
 **De afdruk staat scheef of te ver naar één kant.** Zie [Kalibreren](#kalibreren).
 
@@ -341,7 +343,7 @@ De kolomnamen zijn in beide talen dezelfde, zodat een export uit de Engelse app 
 
 **Er staat "Tekst valt buiten het printbare gebied".** Maak de tekst korter of kleiner, of zet *Tekst automatisch passend maken* aan.
 
-**Iets anders gaat mis.** Open **Help → Log tonen** (⌘L). Met het filter *Problemen* zie je alleen waarschuwingen en fouten. **Kopiëren** zet de zichtbare regels op het klembord, zodat je ze kunt doorsturen. Via **Help → Over Etiknivo** kopieer je ook de systeeminformatie.
+**Iets anders gaat mis.** Open **Help → Log tonen** (⌘L). Met het filter *Waarschuwingen en fouten* zie je alleen waarschuwingen en fouten. **Kopiëren** zet de zichtbare regels op het klembord, zodat je ze kunt doorsturen. Via **Help → Over Etiknivo** kopieer je ook de systeeminformatie.
 
 ## Sneltoetsen
 

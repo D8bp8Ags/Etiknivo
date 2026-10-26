@@ -1,5 +1,7 @@
 # Een printertype toevoegen
 
+*[English version](../en/printer-types.md)*
+
 Etiknivo scheidt *wat* er geprint wordt (het profiel) van *hoe* het naar de
 printer gaat (de backend). Rendering, voorbeelden, kalibratie, de wachtrij, de
 simulatieprinter en de interface lezen alles uit het profiel. Een nieuw model

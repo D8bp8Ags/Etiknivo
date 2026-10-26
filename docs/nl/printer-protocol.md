@@ -1,5 +1,7 @@
 # AiYin D11s-printerprotocol (Action Fichero 5836)
 
+*[English version](../en/printer-protocol.md)*
+
 Werkdocument bij `src/etiknivo/printing/d11s_protocol.py` en `ble_link.py`. Alle waarden zijn hexadecimaal.
 
 ## Hardware
@@ -62,6 +64,6 @@ De begin- en eindcommando's verschillen per printerfamilie. Andere printers op h
 
 Er is geen commando voor marge of verschuiving: de printer zoekt het begin van het etiket met de gap-sensor en drukt het raster vanaf daar af. Op een Fichero 5836 begint de print daarbij ongeveer 1 mm te vroeg, en de positie varieert met zo'n millimeter. Etiknivo laat daarom aan beide uiteinden 2 mm leeg (veilig gebied 26 × 12 mm) en verschuift het beeld vast 8 dots (1 mm) langs de rol (`feed_offset_px` in het printerprofiel). De kalibratie van de gebruiker komt daar bovenop.
 
-## Nog te bevestigen op hardware
+## Getest op hardware
 
-De opdrachtvolgorde en de pauzes in `d11s_backend.Timing` zijn alleen tegen een gesimuleerde verbinding getest. Bij de eerste echte afdrukken moet blijken of de pauzes korter kunnen en of de oriëntatie klopt; die laatste is instelbaar via de kalibratie.
+De opdrachtvolgorde, de oriëntatie en de centrering zijn bevestigd op een echte Fichero 5836. De pauzes in `d11s_backend.Timing` zijn ruim gekozen en kunnen misschien korter.

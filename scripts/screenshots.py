@@ -1,7 +1,10 @@
 """Generate documentation images (runs headless with the simulated printer).
 
-    QT_QPA_PLATFORM=offscreen uv run python scripts/screenshots.py docs/img
-    QT_QPA_PLATFORM=offscreen uv run python scripts/screenshots.py docs/img/en en
+    QT_QPA_PLATFORM=offscreen uv run python scripts/screenshots.py nl
+    QT_QPA_PLATFORM=offscreen uv run python scripts/screenshots.py en
+
+Writes to docs/img/<language>/; the Dutch manual uses docs/img/nl, the English
+manual and the README use docs/img/en.
 """
 
 from __future__ import annotations
@@ -19,7 +22,7 @@ from PySide6.QtWidgets import QApplication, QDialog  # noqa: E402
 
 from etiknivo import i18n  # noqa: E402
 from etiknivo.gui import main_window as mw  # noqa: E402
-from etiknivo.gui.dialogs import PrintPreviewDialog  # noqa: E402
+from etiknivo.gui.dialogs import CalibrationDialog, PrintPreviewDialog  # noqa: E402
 from etiknivo.printing.mock import MockPrinterBackend  # noqa: E402
 from etiknivo.rendering.engine import RenderEngine  # noqa: E402
 from etiknivo.rendering.overview import overview_pages  # noqa: E402
@@ -60,18 +63,31 @@ def window_shots(app: QApplication, out: Path, theme: str, suffix: str) -> None:
     win.right_tabs.setCurrentWidget(win.printer_panel)
     pump(5)
     win.grab().save(str(out / f"printer-and-queue{suffix}.png"))
+    if theme == "light":
+        lib_labels = [lib.get(i) for i in ids[:3]]
+        preview = PrintPreviewDialog(win.engine, lib_labels, 1, 1,
+                                     win.bridge.state.backend_name, True, win)
+        preview.show()
+        pump(10)
+        preview.grab().save(str(out / "print-preview.png"))
+        preview.close()
+        cal = CalibrationDialog(win.engine.calibration, win, win.profile.dots_per_mm)
+        cal.show()
+        pump(10)
+        cal.grab().save(str(out / "calibration.png"))
+        cal.close()
     win.show_overview()
     overview = win._overview_window
     overview.resize(960, 680)
     pump(10)
-    overview.grab().save(str(out / f"labeloverzicht{suffix}.png"))
+    overview.grab().save(str(out / f"label-overview{suffix}.png"))
     overview.close()
     win.close()
 
 
-def main(target: str, lang: str = "nl") -> None:
+def main(lang: str = "nl") -> None:
     i18n.set_language(lang)
-    out = Path(target)
+    out = Path(__file__).resolve().parent.parent / "docs" / "img" / lang
     out.mkdir(parents=True, exist_ok=True)
     label_sheet(out / "raaco-labels.png")
     app = QApplication(sys.argv)
@@ -81,5 +97,4 @@ def main(target: str, lang: str = "nl") -> None:
 
 
 if __name__ == "__main__":
-    main(sys.argv[1] if len(sys.argv) > 1 else "docs/img",
-         sys.argv[2] if len(sys.argv) > 2 else "nl")
+    main(sys.argv[1] if len(sys.argv) > 1 else "nl")
