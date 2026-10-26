@@ -282,3 +282,26 @@ def test_notes_grow_and_open_links(window, qtbot, monkeypatch) -> None:  # noqa:
                                           Qt.MouseButton.LeftButton, Qt.MouseButton.LeftButton,
                                           mods))
     assert opened == ["https://www.tinytronics.nl/nl/audio/speakers/x"]  # only with Cmd
+
+
+def test_bulk_edit_category_shows_every_category(qtbot) -> None:  # noqa: ANN001
+    from PySide6.QtWidgets import QComboBox
+
+    from etiknivo.gui.bulk_edit import CATEGORY_COLUMN, BulkEditDialog
+    from etiknivo.storage.library import seed_labels
+
+    labels = seed_labels()
+    cats = sorted({lbl.category for lbl in labels}, key=str.casefold)
+    dlg = BulkEditDialog(labels, cats)
+    qtbot.addWidget(dlg)
+    dlg.show()
+    item = dlg.table.item(0, CATEGORY_COLUMN)
+    dlg.table.setCurrentItem(item)
+    dlg.table.editItem(item)
+    editor = dlg.table.findChild(QComboBox)
+    assert editor is not None and editor.isEditable()
+    assert [editor.itemText(i) for i in range(editor.count())] == cats  # all, not filtered
+    assert editor.currentText() == labels[0].category
+    editor.setCurrentText("Nieuwe categorie")
+    dlg.table.commitData(editor)
+    assert dlg.changes()[labels[0].id].category == "Nieuwe categorie"

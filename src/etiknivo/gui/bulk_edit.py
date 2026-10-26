@@ -4,10 +4,11 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from PySide6.QtCore import QItemSelectionModel, Qt
+from PySide6.QtCore import QEvent, QItemSelectionModel, Qt, QTimer
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QAbstractItemView,
+    QComboBox,
     QCompleter,
     QDialog,
     QDialogButtonBox,
@@ -53,18 +54,37 @@ CATEGORY_COLUMN = 2
 
 
 class _CategoryDelegate(QStyledItemDelegate):
-    """Edits the category with the existing categories as suggestions."""
+    """Edits the category in a list of every category, open at once after a
+    double-click; typing a new name still works."""
 
-    def __init__(self, categories: list[str], parent: QWidget) -> None:
+    def __init__(self, categories: Callable[[], list[str]], parent: QWidget) -> None:
         super().__init__(parent)
         self._categories = categories
+        self._open_list = False
+
+    def editorEvent(self, event, model, option, index):  # type: ignore[no-untyped-def]  # noqa: N802
+        if event.type() == QEvent.Type.MouseButtonDblClick:
+            self._open_list = True
+        return super().editorEvent(event, model, option, index)
 
     def createEditor(self, parent, option, index):  # type: ignore[no-untyped-def]  # noqa: N802
-        editor = QLineEdit(parent)
-        completer = QCompleter(self._categories, editor)
-        completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
-        editor.setCompleter(completer)
+        editor = QComboBox(parent)
+        editor.setEditable(True)
+        editor.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
+        editor.setMaxVisibleItems(20)
+        editor.addItems(self._categories())
+        editor.completer().setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
+        editor.completer().setCompletionMode(QCompleter.CompletionMode.PopupCompletion)
+        if self._open_list:  # a double-click shows the choice; typing just types
+            self._open_list = False
+            QTimer.singleShot(0, editor.showPopup)
         return editor
+
+    def setEditorData(self, editor, index):  # type: ignore[no-untyped-def]  # noqa: N802
+        editor.setCurrentText(index.data() or "")
+
+    def setModelData(self, editor, model, index):  # type: ignore[no-untyped-def]  # noqa: N802
+        model.setData(index, editor.currentText().strip())
 
 
 class BulkEditDialog(QDialog):
@@ -99,8 +119,9 @@ class BulkEditDialog(QDialog):
                                    | QAbstractItemView.EditTrigger.EditKeyPressed
                                    | QAbstractItemView.EditTrigger.AnyKeyPressed)
         self.table.verticalHeader().setVisible(False)
+        self._categories = categories
         self.table.setItemDelegateForColumn(CATEGORY_COLUMN,
-                                            _CategoryDelegate(categories, self.table))
+                                            _CategoryDelegate(self._category_list, self.table))
         head = self.table.horizontalHeader()
         head.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
         head.setStretchLastSection(True)
@@ -146,6 +167,11 @@ class BulkEditDialog(QDialog):
         self.table.item(row, column).setText(text)
 
     # -- helpers ----------------------------------------------------------------------
+
+    def _category_list(self) -> list[str]:
+        """The library's categories plus any typed in the table so far."""
+        typed = {lbl.category for lbl in self._labels if lbl.category}
+        return sorted(set(self._categories) | typed, key=str.casefold)
 
     def _changed(self, item: QTableWidgetItem) -> None:
         if self._spreading:
