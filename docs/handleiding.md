@@ -167,11 +167,11 @@ Ga je terug naar *Regels*, dan krijg je je drie regels terug zoals ze waren. De 
 
 ## Afdrukken
 
-Er zijn vier manieren om af te drukken, allemaal in het menu **Afdrukken**:
+Er zijn vier manieren om af te drukken, allemaal in het menu **Afdrukken** en in het pijltje naast de blauwe knop:
 
 - **Huidig label** (⌘P), ook via de blauwe knop rechtsboven.
-- **Geselecteerde labels** (⇧⌘P). Selecteer meerdere labels met ⌘-klik of ⇧-klik.
-- **Alle labels uit categorie**.
+- **Selectie** (⇧⌘P): de labels die je in de bibliotheek hebt geselecteerd. Selecteer meerdere labels met ⌘-klik of ⇧-klik.
+- **Categorie**: alle labels uit één categorie.
 - **Alle labels**.
 
 ![Het afdrukvoorbeeld](img/handleiding/afdrukvoorbeeld.png)
@@ -206,9 +206,9 @@ De printkop drukt maximaal 12 mm hoog. Is een etiket hoger, dan blijft er boven 
 
 Gebruik dit als de afdruk niet mooi in het midden van het etiket staat.
 
-1. Kies op het tabblad *Printer* **Kalibratietest afdrukken**. Het etiket toont een kader rond het veilige gebied, middellijnen en een millimeterliniaal.
+1. Kies op het tabblad *Printer* of in het menu **Printer** **Kalibratietest afdrukken**. Het etiket toont een kader rond het veilige gebied, middellijnen en een millimeterliniaal.
 2. Kijk of de witruimte links en rechts, en boven en onder, gelijk is.
-3. Open **Kalibratie-instellingen…** en verschuif de afdruk.
+3. Open **Printer → Kalibratie-instellingen…** en verschuif de afdruk.
 
 ![Het kalibratievenster](img/handleiding/kalibratie.png)
 
@@ -273,13 +273,13 @@ Het overzicht toont de opgeslagen versie van elk label en werkt zichzelf bij als
 
 ## Importeren, exporteren en back-up
 
-Alles staat in het menu **Bestand**.
+Alles staat in het menu **Bestand**; importeren en exporteren hebben elk een eigen submenu.
 
 | Wat | Waarvoor |
 |---|---|
-| Bibliotheek importeren/exporteren (JSON) | Volledige labels uitwisselen tussen computers. Bij importeren kies je samenvoegen of vervangen. |
-| Labels importeren/exporteren (CSV) | Labels maken of bijwerken in Excel, Numbers of Google Sheets. Het formaat staat [hieronder](#csv-formaat). |
-| Selectie exporteren als PNG, PDF of SVG | Een afbeelding van het etiket, bijvoorbeeld om te delen of op een andere printer te gebruiken. PDF is op ware grootte. |
+| Importeren/Exporteren → Bibliotheek (JSON) | Volledige labels uitwisselen tussen computers. Bij importeren kies je samenvoegen of vervangen. |
+| Importeren/Exporteren → Labels (CSV) | Labels maken of bijwerken in Excel, Numbers of Google Sheets. Het formaat staat [hieronder](#csv-formaat). |
+| Exporteren → Selectie als PNG of PDF, Huidig label als SVG | Een afbeelding van het etiket, bijvoorbeeld om te delen of op een andere printer te gebruiken. PDF is op ware grootte. |
 | Back-up maken / herstellen | Eén zip-bestand met bibliotheek en instellingen. |
 | Datamap openen | De map waar Etiknivo alles bewaart. |
 
@@ -351,7 +351,7 @@ Op Windows en Linux gebruik je Ctrl in plaats van ⌘.
 | F2 | Hernoemen |
 | ⌘Z / ⇧⌘Z | Ongedaan maken / opnieuw |
 | ⌘P | Huidig label afdrukken |
-| ⇧⌘P | Geselecteerde labels afdrukken |
+| ⇧⌘P | Selectie afdrukken |
 | ⇧⌘O | Labeloverzicht |
 | ⌘L | Log tonen |
 | ⌘Q | Afsluiten |

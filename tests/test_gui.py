@@ -314,3 +314,34 @@ def test_log_window_shows_live_log_with_filters(qtbot, window) -> None:  # noqa:
     lw.search.setText("mis 42")
     assert lw.visible_text().count("\n") == 0 and "Iets is mis 42" in lw.visible_text()
     lw.close()
+
+
+def test_menus_have_no_duplicates_and_mac_roles(window) -> None:  # noqa: ANN001
+    from PySide6.QtGui import QAction
+
+    def items(menu):  # noqa: ANN001, ANN202
+        for a in menu.actions():
+            if a.menu():
+                yield from items(a.menu())
+            elif not a.isSeparator():
+                yield a
+
+    def paths(menu, prefix=""):  # noqa: ANN001, ANN202
+        for a in menu.actions():
+            if a.menu():
+                yield from paths(a.menu(), prefix + a.text() + "/")
+            elif not a.isSeparator() and not a.actionGroup():
+                yield prefix + a.text()
+
+    menus = {a.text().replace("&", ""): list(items(a.menu()))
+             for a in window.menuBar().actions()}
+    texts = [p for a in window.menuBar().actions() for p in paths(a.menu())]
+    leaves = [t.rsplit("/", 1)[-1] for t in texts if "/" not in t]
+    assert len(leaves) == len(set(leaves)), "elk menu-item maar één keer"
+    assert "Importeren/Bibliotheek (JSON)…" in texts and "Exporteren/Bibliotheek (JSON)…" in texts
+    assert "Testlabel afdrukken" in [a.text() for a in menus["Printer"]]
+    assert "Testlabel afdrukken" not in [a.text() for a in menus["Afdrukken"]]
+    roles = {a.text(): a.menuRole() for acts in menus.values() for a in acts}
+    assert roles["Afsluiten"] == QAction.MenuRole.QuitRole
+    assert roles["Over Etiknivo"] == QAction.MenuRole.AboutRole
+    assert roles["Kalibratie-instellingen…"] == QAction.MenuRole.NoRole
