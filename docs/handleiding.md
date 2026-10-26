@@ -101,7 +101,7 @@ Specificaties staan in een tabel met een **naam** en een **waarde**. Klik op **+
 | Tolerantie | 10% |
 | Behuizing | 0805 |
 
-Typ in een tekstregel `{Spanning}` en op het etiket verschijnt `50 V`. Sneller: klik op **{ }** achter de specificatie en kies in welke regel hij moet. De knop **{ }** naast een tekstveld werkt ook: die toont alle velden die je kunt gebruiken. Pas je later de waarde aan, dan verandert het etiket vanzelf mee. Hoofdletters maken niet uit.
+Typ in een tekstregel `{Spanning}` en op het etiket verschijnt `50 V`. Sneller: klik op **{ }** achter de specificatie en kies in welke regel hij moet. De knop **{ }** naast een tekstveld werkt ook: die toont bovenaan de specificaties van dit label en daaronder de velden die elk label heeft, elk met een korte uitleg. Pas je later de waarde aan, dan verandert het etiket vanzelf mee. Hoofdletters maken niet uit.
 
 De accolades horen alleen in de tekstregel, niet in de tabel en niet in de notities. Typ je ze toch in de naam van een specificatie, dan negeert Etiknivo ze. Staat er een `{veld}` in een waarde of in de notities, dan krijg je een oranje melding, want daar wordt niets ingevuld.
 

@@ -202,3 +202,19 @@ def test_pictograms_dialog_suggests_and_applies(window, monkeypatch) -> None:  #
     # the open label: saved, shown in the editor, and not left as an unsaved draft
     assert window.current.picture.symbol == "resistor" and not window.is_dirty()
     assert window.design_view.result.picture_box is not None
+
+
+def test_field_menu_explains_each_field(qtbot) -> None:  # noqa: ANN001
+    from PySide6.QtWidgets import QLineEdit
+
+    from etiknivo.gui.widgets import FieldButton
+
+    edit = QLineEdit()
+    btn = FieldButton(edit, lambda: ["Spanning", "Naam", "Nr"])
+    qtbot.addWidget(btn)
+    btn._fill()
+    texts = [a.text() for a in btn._menu.actions()]
+    assert "{Spanning}" in texts
+    assert any(t.startswith("{Nr}") and "volgnummer" in t for t in texts)
+    next(a for a in btn._menu.actions() if a.text().startswith("{Nr}")).trigger()
+    assert edit.text() == "{Nr}"

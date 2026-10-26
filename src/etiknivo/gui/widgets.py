@@ -140,10 +140,24 @@ class FieldButton(QToolButton):
         self.setMenu(self._menu)
 
     def _fill(self) -> None:
+        from etiknivo.model import field_help
+
         self._menu.clear()
-        for name in self.fields():
-            self._menu.addAction(f"{{{name}}}", lambda n=name: self.insert_field(n))
-        if not self._menu.actions():
+        help_ = field_help()
+        names = self.fields()
+        own = [n for n in names if n not in help_]
+        builtin = [n for n in names if n in help_]
+        if own:
+            self._menu.addSection(tr("Specificaties van dit label"))
+            for name in own:
+                self._menu.addAction(f"{{{name}}}", lambda n=name: self.insert_field(n))
+        if builtin:
+            self._menu.addSection(tr("Voor elk label"))
+            for name in builtin:
+                act = self._menu.addAction(f"{{{name}}}   –  {help_[name]}",
+                                           lambda n=name: self.insert_field(n))
+                act.setToolTip(help_[name])
+        if not names:
             self._menu.addAction(tr("Nog geen velden")).setEnabled(False)
 
     def insert_field(self, name: str) -> None:

@@ -760,6 +760,14 @@ EN: dict[str, str] = {
         "Invalid line in print history skipped: %r",
     "Pictogrammen": "Pictograms",
     "Pictogrammen…": "Pictograms…",
+    "naam van het label": "name of the label",
+    "lade-ID, bv. A14": "tray ID, e.g. A14",
+    "categorie van het label": "category of the label",
+    "datum van afdrukken": "date of printing",
+    "volgnummer bij meerdere exemplaren: 1, 2, 3…": "copy number when printing several: 1, 2, 3…",
+    "totaal aantal exemplaren in de afdruk": "total number of copies in the print job",
+    "Specificaties van dit label": "Specifications of this label",
+    "Voor elk label": "For every label",
     "Kies per categorie een pictogram; de labels eronder krijgen het, behalve labels met een "
     "eigen pictogram. Alleen aangevinkte labels veranderen. Selecteer meerdere labels "
     "(Shift-klik) om ze samen aan te passen.":

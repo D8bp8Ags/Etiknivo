@@ -48,6 +48,21 @@ PRINT_FIELDS = {
     "number": (N_("Nr"), ("nr", "no")),
     "count": (N_("Aantal"), ("aantal", "count")),
 }
+#: What each built-in field shows, for the { } menu.
+FIELD_HELP = {
+    "name": N_("naam van het label"),
+    "tray_id": N_("lade-ID, bv. A14"),
+    "category": N_("categorie van het label"),
+    "date": N_("datum van afdrukken"),
+    "number": N_("volgnummer bij meerdere exemplaren: 1, 2, 3…"),
+    "count": N_("totaal aantal exemplaren in de afdruk"),
+}
+
+
+def field_help() -> dict[str, str]:
+    """{shown field name: what it shows}, for the built-in fields."""
+    return {tr(shown): tr(FIELD_HELP[key])
+            for key, (shown, _) in (*BUILTIN_FIELDS.items(), *PRINT_FIELDS.items())}
 
 
 def spec_name(key: str) -> str:
