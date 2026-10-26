@@ -3,12 +3,16 @@
     uv run python scripts/privacy_check.py                  # all tracked files
     uv run python scripts/privacy_check.py --commits A..B   # plus author/committer of those commits
     uv run python scripts/privacy_check.py --commit SHA     # idem for single commits (repeatable)
+    uv run python scripts/privacy_check.py --build dist/Etiknivo.app   # a built app or zip
 
 Checks every file that git tracks (staged content included) for home folders
 with a user name (``/Users/naam``, ``/home/naam``, ``C:\\Users\\naam``), e-mail
 addresses, Bluetooth MAC addresses, tokens and private keys, and images for
 embedded metadata (EXIF, XMP, PNG text).  With ``--commits`` it also checks
-that every commit uses a GitHub no-reply e-mail address.
+that every commit uses a GitHub no-reply e-mail address.  With ``--build`` it
+looks inside a built app (or a zip of one), including the Python modules that
+PyInstaller packs into the executable, for this computer's home folder, user
+name and host name.
 
 A line that is fine on purpose gets ``privacy: ok`` in a comment.  The
 pytest test ``tests/test_privacy.py`` runs the same check; the git hook in
@@ -18,9 +22,14 @@ pytest test ``tests/test_privacy.py`` runs the same check; the git hook in
 from __future__ import annotations
 
 import argparse
+import getpass
+import os
 import re
+import socket
 import subprocess
 import sys
+import tempfile
+import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -158,13 +167,99 @@ def check_commits(*revs: str, walk: bool = True) -> list[Finding]:
     return found
 
 
+def _local_markers() -> list[bytes]:
+    """What identifies this computer: home folder, user name (as a path part) and host name."""
+    home = str(Path.home())
+    marks = {home, home.replace("\\", "/")}
+    user = getpass.getuser()
+    if len(user) >= 3:
+        marks |= {f"/{user}/", f"\\{user}\\"}
+    host = socket.gethostname().split(".")[0]
+    if len(host) >= 3 and host.lower() not in {"localhost", "runner"}:
+        marks.add(host)
+    return sorted({m.encode() for m in marks if m and m not in ("/", "/root")})
+
+
+def _pyinstaller_modules(path: Path):
+    """(name, bytes) of everything PyInstaller packed into an executable; nothing
+    when the file is not one, or PyInstaller is not installed (uv sync --group build)."""
+    try:
+        from PyInstaller.archive.readers import CArchiveReader, ZlibArchiveReader
+        archive = CArchiveReader(str(path))
+    except Exception:  # noqa: BLE001 - not a PyInstaller executable
+        return
+    for name in archive.toc:
+        data = archive.extract(name)
+        if not data:
+            continue
+        yield name, data
+        if name.endswith(".pyz"):
+            with tempfile.NamedTemporaryFile(suffix=".pyz", delete=False) as tmp:
+                tmp.write(data)
+            try:
+                pyz = ZlibArchiveReader(tmp.name)
+                for mod in pyz.toc:
+                    code = pyz.extract(mod, raw=True)
+                    if code:
+                        yield f"{name}/{mod}", code
+            finally:
+                os.unlink(tmp.name)
+
+
+def check_build(target: str) -> list[Finding]:
+    """Look for this computer's home folder, user name and host name in a built app."""
+    marks = _local_markers()
+    found: list[Finding] = []
+
+    def scan(where: str, data: bytes) -> None:
+        for m in marks:
+            if m in data:
+                found.append(Finding(where, "gegevens van deze computer", m.decode(errors="replace")))
+
+    def scan_file(where: str, data: bytes) -> None:
+        scan(where, data)
+        if data[:4] in (b"\xcf\xfa\xed\xfe", b"\xca\xfe\xba\xbe", b"MZ\x90\x00", b"\x7fELF"):
+            with tempfile.NamedTemporaryFile(delete=False) as tmp:
+                tmp.write(data)
+            try:
+                for name, inner in _pyinstaller_modules(Path(tmp.name)):
+                    scan(f"{where} > {name}", inner)
+            finally:
+                os.unlink(tmp.name)
+
+    root = Path(target)
+    if root.is_file() and zipfile.is_zipfile(root):
+        with zipfile.ZipFile(root) as z:
+            for info in z.infolist():
+                scan(f"{root.name}:{info.filename}", info.filename.encode())
+                if not info.is_dir():
+                    scan_file(f"{root.name}:{info.filename}", z.read(info))
+    else:
+        for p in sorted(root.rglob("*") if root.is_dir() else [root]):
+            if p.is_file() and not p.is_symlink():
+                scan_file(p.relative_to(root.parent).as_posix(), p.read_bytes())
+    return found
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--commits", metavar="RANGE",
                     help="controleer ook auteur/committer, bijv. origin/main..HEAD")
     ap.add_argument("--commit", action="append", default=[], metavar="SHA",
                     help="controleer auteur/committer van deze ene commit (mag vaker)")
+    ap.add_argument("--build", metavar="PAD",
+                    help="controleer alleen een gebouwde app of zip, bijv. dist/Etiknivo.app")
     args = ap.parse_args(argv)
+    if args.build:
+        found = check_build(args.build)
+        for f in found:
+            print(f, file=sys.stderr)
+        if found:
+            print(f"\nPrivacycontrole: {len(found)} plek(ken) met gegevens van deze computer in "
+                  f"{args.build}. Deel deze build niet.", file=sys.stderr)
+            return 1
+        print(f"Privacycontrole: niets gevonden in {args.build}.")
+        return 0
     found = check_files()
     if args.commits:
         found += check_commits(args.commits)

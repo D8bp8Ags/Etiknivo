@@ -34,6 +34,22 @@ a = Analysis(  # noqa: F821
     hiddenimports=collect_submodules(ble[0]) + ble[1:],
     excludes=["tkinter"],
 )
+
+# A Python installed by uv records its install folder, inside the home folder,
+# in _sysconfigdata*.py.  Ship a copy with the home folder replaced so the app
+# does not carry the builder's user name.
+HOME = str(Path.home())
+pure = []
+for name, src, kind in a.pure:
+    if name.startswith("_sysconfigdata") and src and src.endswith(".py"):
+        text = Path(src).read_text(encoding="utf-8")
+        if HOME in text:
+            clean = Path(workpath) / f"{name}.py"  # noqa: F821 - provided by PyInstaller
+            clean.write_text(text.replace(HOME, "~"), encoding="utf-8")
+            src = str(clean)
+    pure.append((name, src, kind))
+a.pure = pure
+
 pyz = PYZ(a.pure)  # noqa: F821
 exe = EXE(  # noqa: F821
     pyz,

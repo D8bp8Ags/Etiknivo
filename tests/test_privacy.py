@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib.util
 import logging
 import sys
+import zipfile
 import zlib
 from pathlib import Path
 
@@ -83,6 +84,23 @@ def test_screenshots_have_no_metadata(check):
 
 
 # -- what the app itself shows and logs -------------------------------------
+
+
+def test_build_check_finds_this_computer(check, tmp_path, monkeypatch):
+    monkeypatch.setattr(check, "_local_markers", lambda: [b"/Users/naam", b"naams-MBP"])
+    app = tmp_path / "Etiknivo.app"
+    (app / "Contents").mkdir(parents=True)
+    (app / "Contents" / "clean.py").write_bytes(b"PREFIX = '~/.local/share/uv/python'")
+    assert check.check_build(str(app)) == []
+    (app / "Contents" / "dirty.py").write_bytes(b"PREFIX = '/Users/naam/.local/share/uv/python'")
+    found = check.check_build(str(app))
+    assert [f.where for f in found] == ["Etiknivo.app/Contents/dirty.py"]
+
+    zipped = tmp_path / "Etiknivo.zip"
+    with zipfile.ZipFile(zipped, "w") as z:
+        z.write(app / "Contents" / "dirty.py", "Etiknivo.app/Contents/dirty.py")
+        z.writestr("Etiknivo.app/Contents/host.txt", "built on naams-MBP")
+    assert len(check.check_build(str(zipped))) == 2
 
 
 def test_redact_hides_the_home_folder():

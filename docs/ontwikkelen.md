@@ -80,6 +80,14 @@ uv run python scripts/privacy_check.py --commits origin/main..  # plus auteur/co
 
 Een regel die bewust zo is (bijvoorbeeld een testgeval), krijgt `privacy: ok` in een commentaar.
 
+**Gebouwde app.** Een build kan gegevens van de computer bevatten waarop hij gebouwd is. Een Python die uv installeert, schrijft bijvoorbeeld zijn installatiemap (in je thuismap, dus met je gebruikersnaam) in `_sysconfigdata*.py`, en PyInstaller pakt die module mee. `packaging/etiknivo.spec` vervangt de thuismap daarin door `~`. Controleer een build altijd voordat je hem deelt:
+
+```bash
+uv run python scripts/privacy_check.py --build dist/Etiknivo.app   # of de zip
+```
+
+Die zoekt naar je eigen thuismap, gebruikersnaam en computernaam, ook in de Python-modules in het programma. Paden naar de buildservers van anderen, die in meegeleverde bibliotheken staan, tellen niet mee.
+
 **Git-hooks.** Er is geen GitHub Actions; de controle draait lokaal. Zet de hooks één keer aan per clone:
 
 ```bash
@@ -144,10 +152,11 @@ PyInstaller bouwt voor de processor van de Mac waarop je bouwt: op Apple Silicon
    rm -rf build dist
    uv sync --group build
    uv run pyinstaller packaging/etiknivo.spec --noconfirm
-   ditto -c -k --keepParent dist/Etiknivo.app dist/Etiknivo-0.2.0-macOS.zip
+   ditto -c -k --norsrc --noextattr --noqtn --keepParent dist/Etiknivo.app dist/Etiknivo-0.2.0-macOS.zip
+   uv run python scripts/privacy_check.py --build dist/Etiknivo-0.2.0-macOS.zip
    ```
 
-   Gebruik `ditto` en niet `zip`: dat behoudt de symbolische links en de ad-hoc-handtekening in de bundel. Start de app uit `dist` één keer en print een testlabel voordat je hem deelt.
+   Gebruik `ditto` en niet `zip`: dat behoudt de symbolische links en de ad-hoc-handtekening in de bundel. De extra opties laten de macOS-kenmerken van je eigen schijf (zoals `com.apple.provenance`) weg. De privacycontrole kijkt in de zip, ook in de Python-modules die PyInstaller in het programma verpakt, of je thuismap, gebruikersnaam of computernaam erin staat. Start de app uit `dist` één keer en print een testlabel voordat je hem deelt.
 5. Maak op GitHub een release: **Releases → Draft a new release**, typ bij *Choose a tag* `v0.2.0` (de tag wordt dan bij het publiceren gemaakt op `main`), plak de sectie uit `CHANGELOG.md` als tekst en sleep het zip-bestand erin.
 
 De updatecontrole in de app leest de nieuwste release via de GitHub-API en vergelijkt het tagnummer met `__version__`; houd de tag dus in de vorm `vX.Y.Z`.
