@@ -35,6 +35,7 @@ from PySide6.QtWidgets import (
 
 from etiknivo import APP_NAME, __version__, updates
 from etiknivo.gui import theme
+from etiknivo.gui.bulk_edit import BulkEditDialog
 from etiknivo.gui.dialogs import (
     AboutDialog,
     CalibrationDialog,
@@ -488,6 +489,7 @@ class MainWindow(QMainWindow):
         act(m, tr("Hernoemen…"), self.rename_label, "F2")
         act(m, tr("Verwijderen"), self.delete_labels)
         m.addSeparator()
+        act(m, tr("Labels bewerken…"), self.edit_labels, "Ctrl+E")
         self.act_copy_format = act(m, tr("Opmaak overnemen…"), self.copy_format)
         act(m, tr("Pictogrammen…"), self.choose_pictograms)
 
@@ -570,6 +572,7 @@ class MainWindow(QMainWindow):
         lp.newRequested.connect(self.new_label)
         lp.duplicateRequested.connect(self.duplicate_label)
         lp.copyFormatRequested.connect(self.copy_format)
+        lp.editLabelsRequested.connect(self.edit_labels)
         lp.renameRequested.connect(self.rename_label)
         lp.deleteRequested.connect(self.delete_labels)
         lp.printSelectedRequested.connect(self.print_selected)
@@ -1033,6 +1036,38 @@ class MainWindow(QMainWindow):
         self._after_library_change(None)
         self.statusBar().showMessage(tr("Opmaak overgenomen op {n} label(s)", n=changed), 5000)
         return changed
+
+    def edit_labels(self) -> None:
+        """Every label as a row of a table: change names, trays, categories and
+        lines of many labels at once."""
+        ids = self.library_panel.selected_ids()
+        labels = list(self.library.labels)
+        if self.current is not None:  # the open label as shown, with its draft
+            labels = [self.current if lbl.id == self.current.id else lbl for lbl in labels]
+        dlg = BulkEditDialog(labels, self.library.categories(),
+                             set(ids) if len(ids) > 1 else None, self)
+        if dlg.exec() != BulkEditDialog.DialogCode.Accepted:
+            return
+        changes = dlg.changes()
+        for lid, edited in changes.items():
+            # the saved label and, when it is open, its draft (see choose_pictograms)
+            targets = [self.library.get(lid)]
+            if self.current is not None and lid == self.current.id:
+                targets.append(self.current)
+            for lbl in targets:
+                if lbl is None:
+                    continue
+                lbl.name, lbl.tray_id, lbl.category = edited.name, edited.tray_id, edited.category
+                for line, new in zip(lbl.lines, edited.lines):
+                    line.text = new.text
+                lbl.touch()
+        if self.current is not None:
+            self.properties.set_label(self.current)
+            self.update_preview()
+            self._update_dirty()
+        self.library_panel.invalidate_thumbnails()
+        self._after_library_change(None)
+        self.statusBar().showMessage(tr("{n} label(s) bewerkt", n=len(changes)), 5000)
 
     def choose_pictograms(self) -> None:
         """A pictogram per category (remembered for new labels), with labels

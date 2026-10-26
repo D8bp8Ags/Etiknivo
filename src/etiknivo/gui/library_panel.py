@@ -127,6 +127,7 @@ class LibraryPanel(QWidget):
     newRequested = Signal()
     duplicateRequested = Signal()
     copyFormatRequested = Signal()
+    editLabelsRequested = Signal()
     renameRequested = Signal()
     deleteRequested = Signal()
     printSelectedRequested = Signal()
@@ -466,6 +467,7 @@ class LibraryPanel(QWidget):
         m.addAction(tr("Nieuw label"), self.newRequested.emit)
         if self.selected_ids():
             m.addAction(tr("Dupliceren"), self.duplicateRequested.emit)
+            m.addAction(tr("Labels bewerken…"), self.editLabelsRequested.emit)
             m.addAction(tr("Opmaak overnemen…"), self.copyFormatRequested.emit)
             m.addAction(tr("Hernoemen…"), self.renameRequested.emit)
             m.addAction(tr("Verwijderen"), self.deleteRequested.emit)

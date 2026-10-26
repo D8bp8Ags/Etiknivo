@@ -7,6 +7,7 @@ from __future__ import annotations
 import json
 
 import pytest
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QDialog, QFileDialog, QMessageBox
 
 from etiknivo.gui import main_window as mw
@@ -202,6 +203,35 @@ def test_pictograms_dialog_suggests_and_applies(window, monkeypatch) -> None:  #
     # the open label: saved, shown in the editor, and not left as an unsaved draft
     assert window.current.picture.symbol == "resistor" and not window.is_dirty()
     assert window.design_view.result.picture_box is not None
+
+
+def test_bulk_edit_spreads_over_the_selection(window, monkeypatch) -> None:  # noqa: ANN001
+    from etiknivo.gui.bulk_edit import CATEGORY_COLUMN, BulkEditDialog
+
+    first = window.library.labels[0]
+    window.open_label(first.id)
+    dupont = [lbl.id for lbl in window.library.labels if lbl.category == "Dupont"]
+
+    def accept(dlg: BulkEditDialog) -> int:
+        rows = [r for r in range(dlg.table.rowCount())
+                if dlg.table.item(r, 0).data(Qt.ItemDataRole.UserRole) in dupont]
+        dlg.table.clearSelection()
+        for r in rows:
+            dlg.table.item(r, CATEGORY_COLUMN).setSelected(True)
+        dlg.set_cell(rows[0], CATEGORY_COLUMN, "Kabels")
+        assert all(dlg.table.item(r, CATEGORY_COLUMN).text() == "Kabels" for r in rows)
+        dlg.table.clearSelection()
+        dlg.set_cell(0, 1, "Z99")  # the open label, on its own
+        assert len(dlg.changes()) == len(dupont) + 1
+        return QDialog.DialogCode.Accepted
+
+    monkeypatch.setattr(BulkEditDialog, "exec", accept)
+    window.edit_labels()
+    assert {window.library.get(i).category for i in dupont} == {"Kabels"}
+    assert window.library.get(first.id).tray_id == "Z99"
+    assert window.current.tray_id == "Z99" and not window.is_dirty()
+    window.undo()
+    assert {window.library.get(i).category for i in dupont} == {"Dupont"}
 
 
 def test_field_menu_explains_each_field(qtbot) -> None:  # noqa: ANN001
