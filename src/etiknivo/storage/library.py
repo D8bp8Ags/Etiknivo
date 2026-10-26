@@ -150,6 +150,11 @@ class Library:
         symbols = doc.get("category_symbols") if isinstance(doc, dict) else None
         self.category_symbols = ({str(k): str(v) for k, v in symbols.items()}
                                  if isinstance(symbols, dict) else {})
+        version = doc.get("category_symbols_version", 1) if isinstance(doc, dict) else 1
+        if version < CATEGORY_SYMBOLS_VERSION:
+            # before version 2 every category without a suggestion was saved
+            # as "none", which would hide the symbols added since
+            self.category_symbols = {k: v for k, v in self.category_symbols.items() if v}
 
     def save(self) -> None:
         if self.path.exists():
@@ -160,9 +165,13 @@ class Library:
         doc = labels_to_document(self._labels)
         if self.category_symbols:
             doc["category_symbols"] = dict(sorted(self.category_symbols.items()))
+            doc["category_symbols_version"] = CATEGORY_SYMBOLS_VERSION
         text = json.dumps(doc, indent=2, ensure_ascii=False)
         atomic_write_text(self.path, text)
 
+
+#: 2: "none" for a category is only saved when the user picked it
+CATEGORY_SYMBOLS_VERSION = 2
 
 #: The sample library per interface language.
 SEED_FILES = {"nl": "raaco_seed.csv", "en": "raaco_seed_en.csv"}

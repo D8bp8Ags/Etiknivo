@@ -371,6 +371,8 @@ class PictogramsDialog(QDialog):
         #: category -> its symbol ("" = none); its row shows it, a click changes it
         self._cat_symbols: dict[str, str] = {}
         self._cat_items: dict[str, QTreeWidgetItem] = {}
+        #: categories whose symbol the user picked here (so "none" was meant)
+        self._picked: set[str] = set()
         self._items: dict[str, QTreeWidgetItem] = {}
         self._filling = True
 
@@ -496,12 +498,16 @@ class PictogramsDialog(QDialog):
         return out
 
     def category_choices(self) -> dict[str, str]:
-        """The pictogram per category, to remember for new labels."""
-        return {cat: key for cat, key in self._cat_symbols.items() if cat}
+        """The pictogram per category, to remember for new labels.  "None" is
+        only remembered when picked here, so a category without a suggestion
+        gets one once Etiknivo has a fitting symbol for it."""
+        return {cat: key for cat, key in self._cat_symbols.items()
+                if cat and (key or cat in self._picked)}
 
     def set_category_symbol(self, category: str, key: str) -> None:
         """Give *category* the symbol *key* ("" = none); its labels follow."""
         self._cat_symbols[category] = key
+        self._picked.add(category)
         self._refresh_rows()
 
     # -- helpers ----------------------------------------------------------------------

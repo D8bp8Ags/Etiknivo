@@ -307,3 +307,20 @@ def test_category_symbols_are_saved(tmp_path) -> None:  # noqa: ANN001
     assert back.category_symbols == {"Weerstanden": "resistor", "Diversen": ""}
     assert back.category_symbol("Diversen") == ""  # none on purpose
     assert back.category_symbol("Antennes") == "antenna"  # suggested
+
+
+def test_old_automatic_none_for_a_category_gives_way_to_the_suggestion(tmp_path) -> None:  # noqa: ANN001
+    """Libraries saved before version 2 stored "none" for every category
+    without a suggestion; those categories now get their new symbol."""
+    import json
+
+    from etiknivo.storage.library import Library
+
+    path = tmp_path / "lib.json"
+    path.write_text(json.dumps({"app": "etiknivo", "schema": 1, "labels": [],
+                                "category_symbols": {"Ontwikkelboards": "",
+                                                     "Audio": "speaker"}}), "utf-8")
+    lib = Library(path)
+    lib.load()
+    assert lib.category_symbol("Ontwikkelboards") == "dev_board"
+    assert lib.category_symbols == {"Audio": "speaker"}
