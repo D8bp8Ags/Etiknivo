@@ -121,6 +121,20 @@ SYMBOLS: dict[str, tuple[str, tuple[tuple, ...]]] = {
         ("arc", 13, 12, 4.5, 305, 415), ("arc", 13, 12, 8.5, 305, 415))),
     "antenna": (N_("Antenne"), (
         ("line", 12, 22, 12, 10), ("poly", 4.5, 3, 19.5, 3, 12, 10))),
+    "push_button": (N_("Drukknop"), (
+        ("line", 1, 17, 6, 17), ("dot", 7, 17, 1.4), ("dot", 17, 17, 1.4),
+        ("line", 18, 17, 23, 17), ("line", 5, 12.5, 19, 12.5), ("line", 12, 12.5, 12, 5),
+        ("line", 8, 5, 16, 5))),
+    "knob": (N_("Draaiknop"), (
+        ("circle", 12, 13, 7), ("line", 12, 13, 16.2, 8.8),
+        ("dot", 3, 19, 1.3), ("dot", 2.5, 9.5, 1.3), ("dot", 9, 2.5, 1.3),
+        ("dot", 17.5, 3, 1.3), ("dot", 21.5, 9.5, 1.3), ("dot", 21, 19, 1.3))),
+    "dev_board": (N_("Ontwikkelbord"), (
+        ("rect", 4.5, 3.5, 22, 20.5), ("box", 0.8, 9.5, 4.5, 14.5), ("box", 10.5, 9.5, 16, 14.5),
+        *(("dot", x, y, 1.0) for y in (6.6, 17.4) for x in (8.5, 12, 15.5, 19)))),
+    "breadboard": (N_("Breadboard"), (
+        ("rect", 2, 3.5, 22, 20.5), ("line", 2, 12, 22, 12),
+        *(("dot", x, y, 0.95) for y in (6.8, 9.6, 14.4, 17.2) for x in (6, 10, 14, 18)))),
     # -- power and cables -------------------------------------------------------------
     "cell": (N_("Batterijcel"), (
         ("rect", 3, 8, 18.5, 16), ("box", 18.5, 10, 21.5, 14), ("line", 6.5, 12, 9.5, 12),
@@ -135,6 +149,9 @@ SYMBOLS: dict[str, tuple[str, tuple[tuple, ...]]] = {
     "power_plug": (N_("Stekker"), (
         ("rect", 6, 9, 18, 17.5), ("line", 9.5, 3, 9.5, 9), ("line", 14.5, 3, 14.5, 9),
         ("line", 12, 17.5, 12, 22.5))),
+    "heat_shrink": (N_("Krimpkous"), (
+        ("line", 1, 12, 6, 12), ("rect", 6, 9, 18, 15), ("line", 18, 12, 23, 12),
+        ("fill", 12, 6.5, 9, 2.5, 15, 2.5), ("fill", 12, 17.5, 9, 21.5, 15, 21.5))),
     "usb": (N_("USB"), (
         ("line", 12, 5, 12, 19.5), ("fill", 12, 1.5, 9.3, 6, 14.7, 6), ("dot", 12, 20.5, 2.2),
         ("line", 12, 16, 6.5, 12, 6.5, 9), ("dot", 6.5, 8, 1.9),
@@ -255,9 +272,10 @@ SYMBOLS: dict[str, tuple[str, tuple[tuple, ...]]] = {
 SYMBOL_CATEGORIES: tuple[tuple[str, tuple[str, ...]], ...] = (
     (N_("Elektronica"), ("resistor", "potentiometer", "capacitor", "electrolytic", "inductor",
                          "diode", "led", "transistor", "ic", "crystal", "fuse", "switch",
-                         "ground", "speaker", "antenna")),
+                         "ground", "speaker", "antenna", "push_button", "knob", "dev_board",
+                         "breadboard")),
     (N_("Stroom en kabels"), ("battery", "cell", "lightning", "bulb", "socket", "power_plug",
-                              "usb", "connector", "cable")),
+                              "usb", "connector", "cable", "heat_shrink")),
     (N_("Bevestiging"), ("screw", "bolt", "nut", "washer", "nail", "wall_plug", "hook",
                          "spring")),
     (N_("Gereedschap"), ("hammer", "screwdriver", "wrench", "saw", "ruler", "drill")),
@@ -345,22 +363,29 @@ def draw_symbol(key: str, size_px: int) -> Image.Image:
 SUGGESTIONS: tuple[tuple[str, str], ...] = (
     ("audiojack", "connector"), ("jack", "connector"), ("dupont", "connector"),
     ("lasklem", "connector"), ("wago", "connector"), ("connector", "connector"),
-    ("breadboard", "connector"), ("krimpkous", "cable"), ("isolatie", "cable"),
-    ("heat shrink", "cable"), ("insulation", "cable"),
+    ("breadboard", "breadboard"), ("prototyp", "breadboard"),
+    ("krimpkous", "heat_shrink"), ("isolatie", "heat_shrink"), ("heat shrink", "heat_shrink"),
+    ("insulation", "heat_shrink"),
     ("header", "connector"), ("klem", "connector"),
     ("schuifpot", "potentiometer"), ("potmeter", "potentiometer"),
-    ("potentiometer", "potentiometer"), ("encoder", "potentiometer"),
-    ("weerstand", "resistor"), ("resistor", "resistor"),
+    ("potentiometer", "potentiometer"), ("encoder", "knob"), ("draaiknop", "knob"),
+    ("bediening", "knob"), ("controls", "knob"),
+    ("weerstand", "resistor"), ("resistor", "resistor"), ("passie", "resistor"),
+    ("passive", "resistor"),
     ("elco", "electrolytic"), ("condensator", "capacitor"), ("capacitor", "capacitor"),
     ("led", "led"), ("diode", "diode"), ("transistor", "transistor"), ("mosfet", "transistor"),
-    ("ic", "ic"), ("esp32", "ic"), ("esp8266", "ic"), ("arduino", "ic"), ("logica", "ic"),
-    ("microcontroller", "ic"), ("chip", "ic"),
+    ("halfgeleider", "transistor"), ("semiconductor", "transistor"),
+    ("ontwikkelbo", "dev_board"), ("dev board", "dev_board"), ("devboard", "dev_board"),
+    ("development board", "dev_board"), ("esp32", "dev_board"), ("esp8266", "dev_board"),
+    ("arduino", "dev_board"),
+    ("ic", "ic"), ("logica", "ic"), ("microcontroller", "ic"), ("chip", "ic"),
     ("zekering", "fuse"), ("fuse", "fuse"),
-    ("drukknop", "switch"), ("schakelaar", "switch"), ("knop", "switch"), ("switch", "switch"),
-    ("button", "switch"),
+    ("drukknop", "push_button"), ("push button", "push_button"),
+    ("pushbutton", "push_button"),
+    ("schakelaar", "switch"), ("knop", "switch"), ("switch", "switch"), ("button", "switch"),
     ("spoel", "inductor"), ("inductor", "inductor"), ("kristal", "crystal"),
     ("crystal", "crystal"), ("oscillator", "crystal"),
-    ("antenne", "antenna"), ("antenna", "antenna"),
+    ("antenne", "antenna"), ("antenna", "antenna"), ("rf", "antenna"),
     ("buzzer", "speaker"), ("speaker", "speaker"), ("luidspreker", "speaker"),
     ("audio", "speaker"),
     ("usb", "usb"), ("batterij", "battery"), ("battery", "battery"), ("accu", "battery"),

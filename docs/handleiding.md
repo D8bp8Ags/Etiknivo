@@ -125,9 +125,9 @@ Print je 3 exemplaren van een label met `Doos {Nr}/{Aantal}`, dan krijg je *Doos
 
 Onder *QR-code of barcode* staat **Pictogram**. Bij *Soort* kies je:
 
-- **Symbool**: een van de 65 ingebouwde symbolen. De keuzelijst deelt ze in per categorie:
-  - *Elektronica*: weerstand, potmeter, condensator, elco, spoel, diode, LED, transistor, IC, kristal, zekering, schakelaar, aarde, luidspreker en antenne.
-  - *Stroom en kabels*: batterij, batterijcel, spanning, lamp, stopcontact, stekker, USB, connector en kabel.
+- **Symbool**: een van de 70 ingebouwde symbolen. De keuzelijst deelt ze in per categorie:
+  - *Elektronica*: weerstand, potmeter, condensator, elco, spoel, diode, LED, transistor, IC, kristal, zekering, schakelaar, aarde, luidspreker, antenne, drukknop, draaiknop, ontwikkelbord en breadboard.
+  - *Stroom en kabels*: batterij, batterijcel, spanning, lamp, stopcontact, stekker, USB, connector, kabel en krimpkous.
   - *Bevestiging*: schroef, bout, moer, ring, spijker, plug, haak en veer.
   - *Gereedschap*: hamer, schroevendraaier, steeksleutel, zaag, liniaal en boor.
   - *Huis en keuken*: huis, pot, fles, mok, bestek, vriezer, vlam, water en plant.

@@ -625,6 +625,11 @@ EN: dict[str, str] = {
     # -- symbols and their categories ------------------------------------------------
     "Luidspreker": "Speaker",
     "Antenne": "Antenna",
+    "Drukknop": "Push button",
+    "Draaiknop": "Knob",
+    "Ontwikkelbord": "Development board",
+    "Breadboard": "Breadboard",
+    "Krimpkous": "Heat shrink",
     "Batterijcel": "Battery cell",
     "Spanning": "Voltage",
     "Lamp": "Lamp",

@@ -12,7 +12,7 @@ Etiknivo is an open-source desktop app for small label printers. Keep a library 
 
 - **Label library** with categories, search, sorting and multi-select.
 - **What you see is what prints**: the preview is the exact bitmap sent to the printer.
-- **Text, symbols and codes**: several lines of text, 65 built-in pictograms or your own image, QR codes and Code 128 barcodes.
+- **Text, symbols and codes**: several lines of text, 70 built-in pictograms or your own image, QR codes and Code 128 barcodes.
 - **Free layout**: drag text, codes, lines and frames exactly where you want them.
 - **Linked fields** such as `{Voltage}`, `{Date}` and `{No}`, filled in per label or at print time.
 - **Batch printing**: one label, a selection or a whole category, through a print queue with history.
