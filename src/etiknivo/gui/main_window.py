@@ -61,6 +61,7 @@ from etiknivo.printing.manager import PrinterState
 from etiknivo.printing.profiles import PrinterProfile
 from etiknivo.printing.queue import JobStatus, PrintJob, QueueSnapshot
 from etiknivo.printing.registry import create_backend, get_model
+from etiknivo.privacy import short_address
 from etiknivo.rendering.engine import RenderEngine
 from etiknivo.rendering.export import ExportView, export_pdf, export_pngs, export_svg, safe_filename
 from etiknivo.rendering.fonts import default_registry
@@ -1144,7 +1145,7 @@ class MainWindow(QMainWindow):
         if not labels or not self._guard():
             return
         st = self.bridge.state
-        printer_text = (f"{st.backend_name}" + (f" ({st.address})" if st.address else "")
+        printer_text = (f"{st.backend_name}" + (f" ({short_address(st.address)})" if st.address else "")
                         if self._connected() else tr("niet verbonden"))
         dlg = PrintPreviewDialog(self.engine, labels,
                                  copies or self.printer_panel.copies.value(),

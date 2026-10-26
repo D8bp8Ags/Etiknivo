@@ -37,6 +37,7 @@ from etiknivo.printing.backend import (
 )
 from etiknivo.printing.ble_link import ADVERTISED_SERVICES, BleLink, LinkError, LinkTimeout
 from etiknivo.printing.profiles import FICHERO_5836, PrinterProfile
+from etiknivo.privacy import short_address
 from etiknivo.rendering.engine import raster_to_bytes
 
 log = logging.getLogger(__name__)
@@ -112,7 +113,7 @@ class D11sBackend(PrinterBackend):
         return devices
 
     def _dropped(self, _client: Any) -> None:
-        log.warning(tr("Bluetooth-verbinding met %s verbroken"), self._address)
+        log.warning(tr("Bluetooth-verbinding met %s verbroken"), short_address(self._address))
         self._link = None
         if self.on_disconnect:
             self.on_disconnect()
@@ -133,7 +134,7 @@ class D11sBackend(PrinterBackend):
         except BaseException:
             await link.close()
             raise
-        log.info(tr("Verbonden met %s (%s)"), address, model)
+        log.info(tr("Verbonden met %s (%s)"), short_address(address), model)
         return link
 
     async def connect(self, address: str | None = None) -> None:

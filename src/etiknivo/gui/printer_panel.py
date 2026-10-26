@@ -27,6 +27,7 @@ from etiknivo.printing import registry
 from etiknivo.printing.backend import ConnectionState
 from etiknivo.printing.manager import PrinterState
 from etiknivo.printing.profiles import PrinterProfile
+from etiknivo.privacy import short_address
 
 STATE_TEXT = {
     ConnectionState.DISCONNECTED: (N_("Niet verbonden"), "muted"),
@@ -235,7 +236,7 @@ class PrinterPanel(QWidget):
         for d in devices:
             if self.only_printers.isChecked() and not d.supported:
                 continue
-            it = QListWidgetItem(f"{d.name}  ·  {d.address}  ·  {d.rssi} dBm")
+            it = QListWidgetItem(f"{d.name}  ·  {short_address(d.address)}  ·  {d.rssi} dBm")
             if d.supported:
                 it.setIcon(theme.icon("printer", size=16))
             it.setData(Qt.ItemDataRole.UserRole, d.address)

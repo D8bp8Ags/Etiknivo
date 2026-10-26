@@ -32,6 +32,7 @@ src/etiknivo/
 ├── model.py               labeldatamodel (Label, TextLine, LabelStyle, layouts)
 ├── settings.py            instellingen, kalibratie, datamappen
 ├── logging_setup.py       app.log en print.log
+├── privacy.py             thuismap en Bluetooth-adres afschermen in log en interface
 ├── storage/               bibliotheek (JSON), import/export (JSON, CSV, back-up)
 ├── rendering/             renderengine, lettertypen, codes, export (PNG/PDF/SVG), test- en kalibratiepatronen
 ├── printing/
@@ -65,6 +66,41 @@ uv run pytest
 ```
 
 De tests draaien zonder printer en zonder scherm (Qt `offscreen`). Ze dekken de rendering (rasterafmetingen, oriëntatie, kalibratie, speciale tekens, overflow, alle voorbeeldlabels), JSON/CSV/back-up, de printwachtrij inclusief foutsituaties, het D11s-protocol byte voor byte via een nagebootste BLE-verbinding, het teruglezen van QR- en barcodes met zxing-cpp en GUI-scenario's met de simulatieprinter.
+
+## Privacy
+
+Etiknivo is open source, dus alles in de repository is openbaar, ook de geschiedenis. Er mag niets in staan dat naar een persoon of apparaat te herleiden is: thuismappen met een gebruikersnaam (`/Users/naam`, `C:\Users\naam`), e-mailadressen, het Bluetooth-adres of serienummer van een printer, tokens of sleutels, of metadata (EXIF, XMP, PNG-tekst) in afbeeldingen.
+
+**Automatische controle.** `tests/test_privacy.py` draait `scripts/privacy_check.py` over alle bestanden die git volgt, dus `uv run pytest` faalt zodra er zoiets in staat. Los draaien kan ook:
+
+```bash
+uv run python scripts/privacy_check.py                         # alle bestanden
+uv run python scripts/privacy_check.py --commits origin/main..  # plus auteur/committer van je nieuwe commits
+```
+
+Een regel die bewust zo is (bijvoorbeeld een testgeval), krijgt `privacy: ok` in een commentaar.
+
+**Git-hooks.** Er is geen GitHub Actions; de controle draait lokaal. Zet de hooks één keer aan per clone:
+
+```bash
+git config core.hooksPath scripts/hooks
+```
+
+- `pre-commit` draait de privacycontrole op wat je gaat committen (minder dan een seconde).
+- `pre-push` controleert de bestanden en of elke nieuwe commit een GitHub no-reply-adres gebruikt (`…@users.noreply.github.com`), zodat je echte e-mailadres niet in de geschiedenis belandt. Bij een push naar `main` draait daarna ook de hele testsuite. Eenmalig overslaan kan met `git push --no-verify`.
+
+Stel je git-identiteit in op het no-reply-adres dat GitHub onder *Settings → Emails* toont:
+
+```bash
+git config user.email "<id>+<gebruikersnaam>@users.noreply.github.com"
+```
+
+**In de app.** Wat Etiknivo laat zien of wegschrijft is ook bedoeld om te delen (schermafbeeldingen, het log bij een foutmelding), dus `src/etiknivo/privacy.py` haalt daar persoonlijke gegevens uit:
+
+- `app.log`, `print.log` en het logvenster tonen de thuismap als `~`, ook in foutmeldingen en tracebacks (`RedactingFormatter`, `redact()`).
+- Bluetooth-adressen staan in het log, de apparatenlijst en het afdrukvenster alleen verkort (`…:9B:3C`, `short_address()`). Het volledige adres staat alleen lokaal in `settings.json`.
+- Paden in het venster Over Etiknivo beginnen met `~` (`short_path()`).
+- Schermafbeeldingen voor de documentatie maak je met `scripts/screenshots.py`: die gebruikt een lege tijdelijke datamap en de simulatieprinter, dus er komt geen eigen printer, pad of label in beeld.
 
 ## Vertalingen
 

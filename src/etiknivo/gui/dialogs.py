@@ -41,6 +41,7 @@ from etiknivo.gui.qt_util import pil_to_pixmap
 from etiknivo.i18n import N_, language, tr
 from etiknivo.model import FORMAT_PARTS, Label, PictureKind
 from etiknivo.printing.profiles import LABEL_HEIGHT_RANGE, LABEL_LENGTH_RANGE, PrinterProfile
+from etiknivo.privacy import short_path
 from etiknivo.rendering.engine import RenderEngine
 from etiknivo.settings import Calibration
 
@@ -636,14 +637,6 @@ class LabelSizeDialog(QDialog):
 
     def size_mm(self) -> tuple[float, float]:
         return round(self.length.value(), 1), round(self.height_mm.value(), 1)
-
-
-def short_path(path: Path) -> str:
-    """*path* with the home folder as ``~``, so screenshots don't show the user name."""
-    try:
-        return "~/" + path.relative_to(Path.home()).as_posix()
-    except ValueError:
-        return str(path)
 
 
 class AboutDialog(QDialog):

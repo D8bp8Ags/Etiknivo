@@ -1,5 +1,6 @@
 """Application and print logging: local files plus an in-memory copy for the
-log window in the app."""
+log window in the app.  Everything goes through :func:`etiknivo.privacy.redact`,
+so a shared log shows ``~`` instead of the home folder."""
 
 from __future__ import annotations
 
@@ -12,6 +13,7 @@ from datetime import datetime
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
+from etiknivo.privacy import RedactingFormatter, redact
 from etiknivo.settings import log_dir
 
 PRINT_LOGGER = "etiknivo.printlog"
@@ -50,6 +52,7 @@ class MemoryLog(logging.Handler):
                 msg += "\n" + logging.Formatter().formatException(record.exc_info)
         except Exception:  # noqa: BLE001 - a broken log call must not crash the app
             msg = str(record.msg)
+        msg = redact(msg)
         entry = LogEntry(datetime.fromtimestamp(record.created), record.levelno, record.name, msg)
         with self._guard:
             self.entries.append(entry)
@@ -85,7 +88,7 @@ def setup_logging(level: int = logging.INFO) -> Path:
     """Configure ``app.log`` (everything) and ``print.log`` (print results only).
     Returns the log directory."""
     directory = log_dir()
-    fmt = logging.Formatter("%(asctime)s %(levelname)-7s %(name)s: %(message)s")
+    fmt = RedactingFormatter("%(asctime)s %(levelname)-7s %(name)s: %(message)s")
     root = logging.getLogger()
     root.setLevel(level)
     if not any(getattr(h, "_etiknivo", False) for h in root.handlers):
@@ -103,7 +106,7 @@ def setup_logging(level: int = logging.INFO) -> Path:
         plog = logging.getLogger(PRINT_LOGGER)
         ph = RotatingFileHandler(directory / "print.log", maxBytes=1_000_000, backupCount=5,
                                  encoding="utf-8")
-        ph.setFormatter(logging.Formatter("%(asctime)s  %(message)s"))
+        ph.setFormatter(RedactingFormatter("%(asctime)s  %(message)s"))
         plog.addHandler(ph)
         plog.setLevel(logging.INFO)
     memory_log()

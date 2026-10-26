@@ -1,0 +1,39 @@
+#!/bin/sh
+# Voor elke push: privacycontrole op de bestanden en op auteur/committer van de
+# nieuwe commits.  Gaat de push naar main, dan draait ook de hele testsuite.
+# Aanzetten: git config core.hooksPath scripts/hooks  (zie docs/ontwikkelen.md)
+# Eenmalig overslaan: git push --no-verify
+cd "$(git rev-parse --show-toplevel)" || exit 1
+
+if command -v uv >/dev/null 2>&1; then
+    py() { uv run --no-project --quiet python "$@"; }
+else
+    py() { python3 "$@"; }
+fi
+
+to_main=0
+args=""
+while read -r local_ref local_sha remote_ref remote_sha; do
+    case "$local_sha" in *[!0]*) ;; *) continue ;; esac   # een branch verwijderen
+    [ "$remote_ref" = "refs/heads/main" ] && to_main=1
+    case "$remote_sha" in
+        *[!0]*) new=$(git rev-list "$remote_sha..$local_sha") ;;
+        *) new=$(git rev-list "$local_sha" --not --remotes) ;;   # nieuwe branch
+    esac
+    for sha in $new; do args="$args --commit $sha"; done
+done
+
+# shellcheck disable=SC2086
+if ! py scripts/privacy_check.py $args; then
+    echo "Push gestopt door de privacycontrole." >&2
+    exit 1
+fi
+
+if [ "$to_main" -eq 1 ]; then
+    if command -v uv >/dev/null 2>&1; then
+        echo "Push naar main: alle tests draaien..."
+        uv run pytest -q || { echo "Push gestopt: tests falen." >&2; exit 1; }
+    else
+        echo "uv niet gevonden; tests overgeslagen." >&2
+    fi
+fi
