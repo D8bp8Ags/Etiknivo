@@ -7,7 +7,7 @@ from collections.abc import Callable
 from dataclasses import replace
 from pathlib import Path
 
-from PySide6.QtCore import QSize, Qt, QUrl
+from PySide6.QtCore import QPoint, QSize, Qt, QUrl
 from PySide6.QtGui import QColor, QIcon
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -362,14 +362,14 @@ class PictogramsDialog(QDialog):
     def __init__(self, labels: list[Label], category_symbol: Callable[[str], str],
                  checked: set[str] | None = None, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        from etiknivo.gui.widgets import select_symbol, symbol_combo
-
         self.setWindowTitle(tr("Pictogrammen"))
         self.resize(680, 640)
         self._labels = {lbl.id: lbl for lbl in labels}
         #: label id -> its own symbol ("" = none), or FOLLOW
         self._own: dict[str, str | None] = {}
-        self._cat_combos: dict[str, QComboBox] = {}
+        #: category -> its symbol ("" = none); its row shows it, a click changes it
+        self._cat_symbols: dict[str, str] = {}
+        self._cat_items: dict[str, QTreeWidgetItem] = {}
         self._items: dict[str, QTreeWidgetItem] = {}
         self._filling = True
 
@@ -390,6 +390,7 @@ class PictogramsDialog(QDialog):
         self.tree.setHeaderLabels([tr("Label"), tr("Lade-ID"), tr("Pictogram")])
         self.tree.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         self.tree.setIconSize(QSize(20, 20))
+        self.tree.setUniformRowHeights(True)
         head = self.tree.header()
         head.setStretchLastSection(False)
         head.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
@@ -407,7 +408,11 @@ class PictogramsDialog(QDialog):
             top.setData(0, Qt.ItemDataRole.UserRole, ("cat", cat))
             top.setFlags(top.flags() | Qt.ItemFlag.ItemIsUserCheckable
                          | Qt.ItemFlag.ItemIsAutoTristate)
+            top.setFont(2, bold)
+            top.setToolTip(2, tr("Klik om het pictogram van deze categorie te kiezen"))
             self.tree.addTopLevelItem(top)
+            self._cat_items[cat] = top
+            self._cat_symbols[cat] = category_symbol(cat) if cat else ""
             for lbl in sorted(groups[cat], key=lambda x: (x.tray_id == "", x.tray_id, x.name)):
                 item = QTreeWidgetItem([lbl.name, lbl.tray_id, ""])
                 item.setData(0, Qt.ItemDataRole.UserRole, ("label", lbl.id))
@@ -417,16 +422,11 @@ class PictogramsDialog(QDialog):
                 item.setCheckState(0, Qt.CheckState.Checked if on else Qt.CheckState.Unchecked)
                 top.addChild(item)
                 self._items[lbl.id] = item
-            combo = symbol_combo(none=tr("Geen"))
-            select_symbol(combo, category_symbol(cat) if cat else "")
-            combo.currentIndexChanged.connect(lambda _i, c=cat: self._category_changed(c))
-            self._cat_combos[cat] = combo
-            self.tree.setItemWidget(top, 2, combo)
             # a label keeps the symbol it has when that differs from its category's
             for lbl in groups[cat]:
                 current = self._current(lbl)
                 self._own[lbl.id] = self.FOLLOW if lbl.picture.kind == PictureKind.NONE \
-                    or current == combo.currentData() else current
+                    or current == self._cat_symbols[cat] else current
             top.setExpanded(True)
         lay.addWidget(self.tree, 1)
 
@@ -434,7 +434,7 @@ class PictogramsDialog(QDialog):
         actions.setSpacing(6)
         self.set_btn = QPushButton(tr("Eigen pictogram…"))
         self.set_btn.setToolTip(tr("De geselecteerde labels een eigen pictogram geven"))
-        self.set_btn.setMenu(self._symbol_menu())
+        self.set_btn.setMenu(self._symbol_menu(self._set_own))
         self.follow_btn = QPushButton(tr("Volgt categorie"))
         self.follow_btn.setToolTip(tr("De geselecteerde labels krijgen weer het pictogram "
                                       "van hun categorie"))
@@ -466,6 +466,7 @@ class PictogramsDialog(QDialog):
         self.include_btn.clicked.connect(lambda: self._check(True))
         self.exclude_btn.clicked.connect(lambda: self._check(False))
         self.tree.itemChanged.connect(lambda *_: self._update())
+        self.tree.itemClicked.connect(self._clicked)
         self.tree.itemSelectionChanged.connect(self._update_buttons)
         self.search.textChanged.connect(self._filter)
         self._filling = False
@@ -479,7 +480,7 @@ class PictogramsDialog(QDialog):
         own = self._own.get(label_id)
         if own is not None:
             return own
-        return self._cat_combos[self._labels[label_id].category].currentData() or ""
+        return self._cat_symbols[self._labels[label_id].category]
 
     def changes(self) -> dict[str, str]:
         """{label id: symbol key, or "" for none} for the ticked labels that change."""
@@ -495,7 +496,12 @@ class PictogramsDialog(QDialog):
 
     def category_choices(self) -> dict[str, str]:
         """The pictogram per category, to remember for new labels."""
-        return {cat: c.currentData() or "" for cat, c in self._cat_combos.items() if cat}
+        return {cat: key for cat, key in self._cat_symbols.items() if cat}
+
+    def set_category_symbol(self, category: str, key: str) -> None:
+        """Give *category* the symbol *key* ("" = none); its labels follow."""
+        self._cat_symbols[category] = key
+        self._refresh_rows()
 
     # -- helpers ----------------------------------------------------------------------
 
@@ -515,19 +521,28 @@ class PictogramsDialog(QDialog):
                         for i in range(item.childCount())]
         return list(dict.fromkeys(ids))
 
-    def _symbol_menu(self) -> QMenu:
+    def _symbol_menu(self, choose: Callable[[str], None]) -> QMenu:
         from etiknivo.gui.widgets import symbol_icon
         from etiknivo.rendering.symbols import SYMBOL_CATEGORIES, SYMBOLS
 
         menu = QMenu(self)
-        menu.addAction(tr("Geen pictogram")).triggered.connect(lambda: self._set_own(""))
+        menu.addAction(tr("Geen pictogram")).triggered.connect(lambda: choose(""))
         menu.addSeparator()
         for category, keys in SYMBOL_CATEGORIES:
             sub = menu.addMenu(tr(category))
             for key in keys:
                 act = sub.addAction(symbol_icon(key), tr(SYMBOLS[key][0]))
-                act.triggered.connect(lambda _c=False, k=key: self._set_own(k))
+                act.triggered.connect(lambda _c=False, k=key: choose(k))
         return menu
+
+    def _clicked(self, item: QTreeWidgetItem, column: int) -> None:
+        kind, cat = item.data(0, Qt.ItemDataRole.UserRole)
+        if kind != "cat" or column != 2:
+            return
+        rect = self.tree.visualItemRect(item)
+        x = self.tree.header().sectionViewportPosition(2)
+        menu = self._symbol_menu(lambda key: self.set_category_symbol(cat, key))
+        menu.exec(self.tree.viewport().mapToGlobal(QPoint(x, rect.bottom())))
 
     def _set_own(self, key: str | None) -> None:
         for lid in self._selected_ids():
@@ -541,14 +556,15 @@ class PictogramsDialog(QDialog):
             self._items[lid].setCheckState(0, state)
         self._update()
 
-    def _category_changed(self, category: str) -> None:
-        self._refresh_rows()
-
     def _refresh_rows(self) -> None:
         from etiknivo.gui.widgets import symbol_icon
         from etiknivo.rendering.symbols import SYMBOLS
 
         muted = QColor(theme.tokens().muted)
+        for cat, top in self._cat_items.items():
+            key = self._cat_symbols[cat]
+            top.setText(2, (tr(SYMBOLS[key][0]) if key in SYMBOLS else tr("Geen")) + "  ▾")
+            top.setIcon(2, symbol_icon(key) if key in SYMBOLS else QIcon())
         for lid, item in self._items.items():
             key = self.target(lid)
             name = tr(SYMBOLS[key][0]) if key in SYMBOLS else tr("Geen")

@@ -248,7 +248,7 @@ Kies daarna op welke labels het moet: de geselecteerde labels, alle labels in ee
 
 Met **Opmaak overnemen** krijgt elk label hetzelfde pictogram. Wil je per lade een passend symbool, kies dan **Label → Pictogrammen…**. Het venster toont je categorieën met de labels eronder.
 
-- **Per categorie**: naast elke categorie kies je een symbool. Etiknivo stelt er een voor op basis van de naam (*Weerstanden* een weerstand, *Antennes* een antenne, *Dupont* een connector, enzovoort). Je keuze wordt onthouden: een nieuw label in die categorie krijgt dat pictogram ook. *Geen* betekent bewust geen pictogram.
+- **Per categorie**: klik op het pictogram naast een categorie (met ▾) en kies een symbool. Etiknivo stelt er een voor op basis van de naam (*Weerstanden* een weerstand, *Antennes* een antenne, *Dupont* een connector, enzovoort). Je keuze wordt onthouden: een nieuw label in die categorie krijgt dat pictogram ook. *Geen* betekent bewust geen pictogram.
 - **Per label**: een label volgt zijn categorie (grijs, met ↳). Wil je iets anders, selecteer dan een of meer labels en kies **Eigen pictogram…**; **Volgt categorie** zet ze weer terug.
 - **Meenemen of overslaan**: alleen aangevinkte labels worden aangepast. Vink een categorie aan of uit voor al haar labels, of selecteer meerdere labels (Shift-klik) en kies **Meenemen** of **Overslaan**.
 - **Zoeken** bovenin beperkt de lijst; *Plaats* kiest links of rechts van de tekst voor labels die nog geen pictogram hadden.

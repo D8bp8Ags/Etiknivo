@@ -780,6 +780,7 @@ EN: dict[str, str] = {
     "De geselecteerde labels uitvinken: die blijven zoals ze zijn":
         "Untick the selected labels: they stay as they are",
     "Volgt de categorie": "Follows the category",
+    "Klik om het pictogram van deze categorie te kiezen": "Click to choose this category's pictogram",
     "Eigen pictogram": "Own pictogram",
     "Geen pictogram": "No pictogram",
 }

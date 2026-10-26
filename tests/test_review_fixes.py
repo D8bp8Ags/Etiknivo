@@ -173,7 +173,7 @@ def test_pictograms_dialog_suggests_and_applies(window, monkeypatch) -> None:  #
     dupont = [lbl.id for lbl in window.library.labels if lbl.category == "Dupont"]
 
     def accept(dlg: PictogramsDialog) -> int:
-        dlg._cat_combos["Antennes"].setCurrentIndex(dlg._cat_combos["Antennes"].findData(""))
+        dlg.set_category_symbol("Antennes", "")
         # two Dupont labels get their own symbol, a third is skipped
         dlg.tree.clearSelection()
         for lid in dupont[:2]:
