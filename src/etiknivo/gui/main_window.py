@@ -163,6 +163,7 @@ class MainWindow(QMainWindow):
         splitter.setStretchFactor(2, 0)
         splitter.setSizes([340, 700, 360])
         self.setCentralWidget(splitter)
+        self.splitter = splitter
 
         dock = QDockWidget(tr("Printwachtrij"), self)
         dock.setObjectName("queue")
@@ -641,6 +642,16 @@ class MainWindow(QMainWindow):
         state = qs.value("windowState")
         if state is not None:
             self.restoreState(state)
+        panels = qs.value("panels")
+        if panels is not None:
+            self.splitter.restoreState(panels)
+        # remembered as soon as a panel is dragged, not only on a clean quit
+        self._panels_timer = QTimer(self, singleShot=True, interval=400)
+        self._panels_timer.timeout.connect(self._save_panels)
+        self.splitter.splitterMoved.connect(lambda *_: self._panels_timer.start())
+
+    def _save_panels(self) -> None:
+        self._qsettings().setValue("panels", self.splitter.saveState())
 
     # -- editing -------------------------------------------------------------------------
 
@@ -1677,6 +1688,7 @@ class MainWindow(QMainWindow):
         qs = self._qsettings()
         qs.setValue("geometry", self.saveGeometry())
         qs.setValue("windowState", self.saveState())
+        qs.setValue("panels", self.splitter.saveState())
         self.bridge.shutdown()
         QApplication.instance().removeEventFilter(self)
         event.accept()

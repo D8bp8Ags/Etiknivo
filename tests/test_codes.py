@@ -159,3 +159,21 @@ def test_about_hides_home_folder(tmp_path) -> None:  # noqa: ANN001
 
     assert short_path(Path.home() / "Library" / "Logs") == "~/Library/Logs"
     assert short_path(Path("/opt/x")) == str(Path("/opt/x"))
+
+
+def test_qr_size_choice_scans_and_leaves_room() -> None:
+    from etiknivo.model import CodeSize
+
+    eng = RenderEngine()
+    widths = {}
+    for size in CodeSize:
+        lbl = _label(CodeKind.QR)
+        lbl.code.size = size
+        r = eng.render(lbl)
+        assert not r.warnings and _decoded(eng, lbl) == ["A14"]
+        widths[size] = r.code.box[2] - r.code.box[0]
+    assert widths[CodeSize.SMALL] < widths[CodeSize.MEDIUM] < widths[CodeSize.LARGE]
+    assert Label.from_dict({"code": {"kind": "qr"}}).code.size == CodeSize.MEDIUM
+    lbl = _label(CodeKind.QR)
+    lbl.code.size = CodeSize.SMALL
+    assert Label.from_dict(lbl.to_dict()).code.size == CodeSize.SMALL

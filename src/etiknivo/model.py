@@ -177,6 +177,14 @@ class CodeKind(StrEnum):
     CODE128 = "code128"
 
 
+class CodeSize(StrEnum):
+    """How big a QR code beside the text may get (its module size)."""
+
+    SMALL = "small"
+    MEDIUM = "medium"
+    LARGE = "large"
+
+
 @dataclass
 class LabelCode:
     """An optional QR code beside the text, or a Code 128 barcode in place of
@@ -185,6 +193,7 @@ class LabelCode:
     kind: CodeKind = CodeKind.NONE
     text: str = "{Lade}"
     side: HAlign = HAlign.LEFT  # QR code: LEFT or RIGHT of the text
+    size: CodeSize = CodeSize.MEDIUM  # QR code only
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> LabelCode:
@@ -195,6 +204,10 @@ class LabelCode:
             c.kind = CodeKind.NONE
         c.text = str(data.get("text", c.text))
         c.side = HAlign.RIGHT if data.get("side") == HAlign.RIGHT else HAlign.LEFT
+        try:
+            c.size = CodeSize(data.get("size", CodeSize.MEDIUM))
+        except ValueError:
+            c.size = CodeSize.MEDIUM
         return c
 
 

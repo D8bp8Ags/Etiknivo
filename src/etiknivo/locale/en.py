@@ -421,6 +421,13 @@ EN: dict[str, str] = {
     "QR-code rechts": "QR code on the right",
     "Barcode (Code 128) onderaan": "Barcode (Code 128) at the bottom",
     "QR-code of barcode": "QR code or barcode",
+    "Klein": "Small",
+    "Middel": "Medium",
+    "Groot": "Large",
+    "Hoe groot de QR-code naast de tekst mag worden. Kleiner laat meer ruimte voor tekst; groter "
+    "scant makkelijker.":
+        "How big the QR code beside the text may get. Smaller leaves more room for text; larger "
+        "scans more easily.",
     "Tekst of {veld}, bv. {Lade} of een link": "Text or {field}, e.g. {Tray} or a link",
     "Soort": "Type",
     "Inhoud": "Content",

@@ -23,6 +23,7 @@ from PySide6.QtWidgets import (
 )
 
 from etiknivo.gui import theme
+from etiknivo.gui.qt_util import remember_size
 from etiknivo.i18n import N_, tr
 from etiknivo.model import SLOT_BOTTOM, SLOT_MAIN, SLOT_TOP, Label
 
@@ -133,6 +134,7 @@ class BulkEditDialog(QDialog):
         self.table.resizeColumnsToContents()
         for col in range(len(COLUMNS)):
             self.table.setColumnWidth(col, min(220, self.table.columnWidth(col) + 12))
+        remember_size(self, "edit_labels", head)
         if selected:  # start with the labels selected in the library
             model, flags = self.table.selectionModel(), (
                 QItemSelectionModel.SelectionFlag.Select

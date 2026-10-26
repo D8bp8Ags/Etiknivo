@@ -37,7 +37,7 @@ from PySide6.QtWidgets import (
 
 from etiknivo import APP_NAME, __version__
 from etiknivo.gui import theme
-from etiknivo.gui.qt_util import pil_to_pixmap
+from etiknivo.gui.qt_util import pil_to_pixmap, remember_size
 from etiknivo.i18n import N_, language, tr
 from etiknivo.model import FORMAT_PARTS, Label, PictureKind
 from etiknivo.printing.profiles import LABEL_HEIGHT_RANGE, LABEL_LENGTH_RANGE, PrinterProfile
@@ -72,6 +72,7 @@ class PrintPreviewDialog(QDialog):
         self.table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
         self.table.setColumnWidth(0, 190)
         self.table.setColumnWidth(1, 200)
+        remember_size(self, "print_preview", self.table.horizontalHeader())
         self.spins: list[QSpinBox] = []
         self.overflow = 0
         for row, lbl in enumerate(labels):
@@ -398,8 +399,9 @@ class PictogramsDialog(QDialog):
         head.setStretchLastSection(False)
         head.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
         head.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
-        head.setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
+        head.setSectionResizeMode(2, QHeaderView.ResizeMode.Interactive)
         head.resizeSection(2, 220)
+        remember_size(self, "pictograms", head)
         groups: dict[str, list[Label]] = {}
         for lbl in labels:
             groups.setdefault(lbl.category, []).append(lbl)

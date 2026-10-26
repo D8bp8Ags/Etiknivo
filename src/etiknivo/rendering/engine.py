@@ -33,6 +33,7 @@ from PIL import Image, ImageChops, ImageDraw, ImageOps
 from etiknivo.i18n import tr
 from etiknivo.model import (
     CodeKind,
+    CodeSize,
     ElementKind,
     HAlign,
     Label,
@@ -57,6 +58,8 @@ log = logging.getLogger(__name__)
 MIN_FONT_PT = 4.0  # below this text is no longer legible at 203 dpi
 QR_MAX_MODULE_PX = 4  # 0.5 mm per module is plenty for a phone camera
 QR_MIN_MODULE_PX = 2  # smaller modules (0.125 mm) do not scan reliably
+#: largest module per QR size choice: 0.25, 0.375 and 0.5 mm
+QR_SIZE_MODULE_PX = {CodeSize.SMALL: 2, CodeSize.MEDIUM: 3, CodeSize.LARGE: QR_MAX_MODULE_PX}
 QR_GAP_MM = 1.5  # between QR code and text: room for the quiet zone
 BAR_MAX_MODULE_PX = 3
 BAR_HEIGHT_MM = 3.5
@@ -653,7 +656,7 @@ class RenderEngine:
             if matrix is None:
                 return None
             n = len(matrix)
-            module = min(QR_MAX_MODULE_PX, int((cy1 - cy0) // n))
+            module = min(QR_SIZE_MODULE_PX[spec.size], int((cy1 - cy0) // n))
             if module < QR_MIN_MODULE_PX:
                 warnings.append(tr("QR-code wordt te klein om te scannen; kort de tekst in"))
                 module = max(1, module)

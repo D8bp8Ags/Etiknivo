@@ -23,6 +23,7 @@ from PySide6.QtWidgets import (
 )
 
 from etiknivo.gui import theme
+from etiknivo.gui.qt_util import remember_size
 from etiknivo.i18n import format_datetime, tr
 from etiknivo.storage.print_history import PrintHistory, PrintRecord
 
@@ -67,6 +68,7 @@ class HistoryWindow(QDialog):
         header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
         header.setStretchLastSection(False)
         self.tree.setColumnWidth(0, 150)
+        remember_size(self, "print_history", header)
 
         hint = QLabel(tr("Opnieuw afdrukken gebruikt het label zoals het nu is."))
         hint.setObjectName("hint")

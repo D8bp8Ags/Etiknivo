@@ -345,3 +345,41 @@ def test_menus_have_no_duplicates_and_mac_roles(window) -> None:  # noqa: ANN001
     assert roles["Afsluiten"] == QAction.MenuRole.QuitRole
     assert roles["Over Etiknivo"] == QAction.MenuRole.AboutRole
     assert roles["Kalibratie-instellingen…"] == QAction.MenuRole.NoRole
+
+
+def test_panel_widths_and_window_sizes_are_remembered(qtbot, window) -> None:  # noqa: ANN001
+    from etiknivo.gui.bulk_edit import BulkEditDialog
+
+    window.splitter.setSizes([260, 700, 440])
+    wanted = window.splitter.sizes()
+    window._save_panels()  # what dragging a panel edge does after a short pause
+    lib, _ = open_library(data_dir() / "library.json")
+    again = mw.MainWindow(lib, Settings(use_mock_printer=True), MockPrinterBackend(),
+                          poll_interval=3600)
+    qtbot.addWidget(again)
+    again.resize(window.size())
+    again.show()
+    qtbot.wait(50)
+    assert again.splitter.sizes()[0] == wanted[0] and again.splitter.sizes()[2] == wanted[2]
+
+    dlg = BulkEditDialog(lib.labels, lib.categories())
+    qtbot.addWidget(dlg)
+    dlg.show()
+    dlg.resize(701, 455)
+    dlg.table.setColumnWidth(0, 321)
+    dlg.reject()
+    dlg2 = BulkEditDialog(lib.labels, lib.categories())
+    qtbot.addWidget(dlg2)
+    assert dlg2.width() == 701 and dlg2.table.columnWidth(0) == 321
+
+
+def test_qr_size_buttons(window) -> None:  # noqa: ANN001
+    from etiknivo.model import CodeKind, CodeSize
+
+    p = window.properties
+    p.code_kind.setCurrentIndex(p._code_index(CodeKind.QR, p.label.code.side))
+    assert p._code_size_box.isVisibleTo(p)
+    p.code_sizes[0].click()
+    assert window.current.code.size == CodeSize.SMALL
+    p.code_kind.setCurrentIndex(0)
+    assert not p._code_size_box.isVisibleTo(p)

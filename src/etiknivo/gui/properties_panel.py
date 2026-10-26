@@ -47,6 +47,7 @@ from etiknivo.model import (
     LINE_COUNT_PRESETS,
     SLOT_NAMES,
     CodeKind,
+    CodeSize,
     HAlign,
     Label,
     LayoutPreset,
@@ -61,6 +62,8 @@ PICTURE_KINDS = ((PictureKind.NONE, N_("Geen")), (PictureKind.SYMBOL, N_("Symboo
                  (PictureKind.IMAGE, N_("Eigen afbeelding")))
 SIDES = ((HAlign.LEFT, N_("Links")), (HAlign.RIGHT, N_("Rechts")))
 #: Choices for the code: (kind, QR side, text)
+CODE_SIZES = ((CodeSize.SMALL, N_("Klein")), (CodeSize.MEDIUM, N_("Middel")),
+              (CodeSize.LARGE, N_("Groot")))
 CODE_CHOICES = (
     (CodeKind.NONE, HAlign.LEFT, N_("Geen")),
     (CodeKind.QR, HAlign.LEFT, N_("QR-code links")),
@@ -278,7 +281,12 @@ class PropertiesPanel(QScrollArea):
         self.code_hint = QLabel()
         self.code_hint.setWordWrap(True)
         self.code_hint.setObjectName("hint")
+        size_box, self.code_sizes = segmented([tr(t) for _s, t in CODE_SIZES])
+        size_box.setToolTip(tr("Hoe groot de QR-code naast de tekst mag worden. Kleiner laat "
+                               "meer ruimte voor tekst; groter scant makkelijker."))
+        self._code_size_box = size_box
         fc.addRow(tr("Soort"), self.code_kind)
+        fc.addRow(tr("Grootte"), size_box)
         fc.addRow(tr("Inhoud"), code_row)
         fc.addRow(self.code_hint)
         self._code_form, self._code_row = fc, code_row
@@ -390,6 +398,8 @@ class PropertiesPanel(QScrollArea):
         for w in (self.autofit, self.border, self.separators, self.invert):
             w.toggled.connect(lambda: self._apply(False))
         self.code_kind.currentIndexChanged.connect(lambda: self._apply(False))
+        for b in self.code_sizes:
+            b.clicked.connect(lambda _c=False: self._apply(False))
         for w in (self.pic_kind, self.pic_side, self.pic_symbol):
             w.currentIndexChanged.connect(lambda: self._apply(False))
         self.code_text.textEdited.connect(lambda: self._apply(False))
@@ -455,6 +465,7 @@ class PropertiesPanel(QScrollArea):
             self.invert.setChecked(s.invert)
             c = label.code
             self.code_kind.setCurrentIndex(self._code_index(c.kind, c.side))
+            self.code_sizes[[sz for sz, _t in CODE_SIZES].index(c.size)].setChecked(True)
             if self.code_text.text() != c.text:
                 self.code_text.setText(c.text)
             self._update_code_hint()
@@ -599,6 +610,8 @@ class PropertiesPanel(QScrollArea):
         s.invert = self.invert.isChecked()
         kind, side, _ = CODE_CHOICES[max(0, self.code_kind.currentIndex())]
         lbl.code.kind, lbl.code.side = kind, side
+        lbl.code.size = next(sz for (sz, _t), b in zip(CODE_SIZES, self.code_sizes)
+                             if b.isChecked())
         lbl.code.text = self.code_text.text()
         self._update_code_hint()
         lbl.picture.kind = PICTURE_KINDS[max(0, self.pic_kind.currentIndex())][0]
@@ -666,7 +679,8 @@ class PropertiesPanel(QScrollArea):
             short = link.split("://", 1)[-1].removeprefix("www.").rstrip("/")
             short = short if len(short) <= 38 else short[:37] + "…"
             shown.append(f'<a href="{html.escape(link)}">{html.escape(short)}</a>')
-        self.notes_links.setText(tr("Openen:") + " " + " · ".join(shown))
+        # one link per line, each opened with one click
+        self.notes_links.setText(tr("Openen:") + "<br>" + "<br>".join("↗ " + x for x in shown))
         self.notes_links.setToolTip("\n".join(links))
 
     def _update_code_hint(self) -> None:
@@ -674,6 +688,7 @@ class PropertiesPanel(QScrollArea):
         self.code_text.setEnabled(kind != CodeKind.NONE)
         self.code_field_btn.setEnabled(kind != CodeKind.NONE)
         self._code_form.setRowVisible(self._code_row, kind != CodeKind.NONE)
+        self._code_form.setRowVisible(self._code_size_box, kind == CodeKind.QR)
         self.code_hint.setText({
             CodeKind.NONE: "",
             CodeKind.QR: tr("Scan met je telefoon. Korte tekst geeft grotere blokjes die "

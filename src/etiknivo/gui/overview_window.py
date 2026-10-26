@@ -26,7 +26,7 @@ from PySide6.QtWidgets import (
 )
 
 from etiknivo.gui import theme
-from etiknivo.gui.qt_util import pil_to_pixmap
+from etiknivo.gui.qt_util import pil_to_pixmap, remember_size
 from etiknivo.i18n import tr
 from etiknivo.model import Label
 from etiknivo.rendering import overview
@@ -211,6 +211,7 @@ class OverviewWindow(QDialog):
         self.setWindowTitle(tr("Labeloverzicht"))
         self.setWindowFlag(Qt.WindowType.WindowContextHelpButtonHint, False)
         self.resize(900, 640)
+        remember_size(self, "overview")
         self.engine = engine
         self._labels = labels
 
