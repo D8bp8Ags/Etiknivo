@@ -1038,19 +1038,25 @@ class MainWindow(QMainWindow):
             return
         side = HAlign(dlg.side.currentData())
         for lid, key in dlg.changes().items():
-            lbl = self.current if self.current is not None and lid == self.current.id \
-                else self.library.get(lid)
-            if lbl is None:
-                continue
-            if not key:
-                lbl.picture.kind = PictureKind.NONE
-            else:
-                if lbl.picture.kind == PictureKind.NONE:
-                    lbl.picture.side = side
-                lbl.picture.kind, lbl.picture.symbol = PictureKind.SYMBOL, key
-            lbl.touch()
+            # the saved label and, when it is open, its draft: both get the
+            # pictogram, so the editor, the list and the overview all show it
+            targets = [self.library.get(lid)]
+            if self.current is not None and lid == self.current.id:
+                targets.append(self.current)
+            for lbl in targets:
+                if lbl is None:
+                    continue
+                if not key:
+                    lbl.picture.kind = PictureKind.NONE
+                else:
+                    if lbl.picture.kind == PictureKind.NONE:
+                        lbl.picture.side = side
+                    lbl.picture.kind, lbl.picture.symbol = PictureKind.SYMBOL, key
+                lbl.touch()
         if self.current is not None:
             self.properties.set_label(self.current)
+            self.update_preview()
+            self._update_dirty()
         self.library_panel.invalidate_thumbnails()
         self._after_library_change(None)
         self.statusBar().showMessage(

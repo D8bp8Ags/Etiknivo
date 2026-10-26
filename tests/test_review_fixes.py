@@ -166,7 +166,10 @@ def test_pictograms_dialog_suggests_and_applies(window, monkeypatch) -> None:  #
     assert suggest_symbol("Ringkern", "") is None  # a short word must be whole
     for lbl in window.library.labels:
         lbl.picture.kind = PictureKind.NONE
+    window.open_label(next(lbl.id for lbl in window.library.labels
+                           if lbl.category == "Weerstanden"))
     window.current.picture.kind = PictureKind.NONE
+    assert not window.is_dirty()
     seen: list[PictogramsDialog] = []
 
     def accept(dlg: PictogramsDialog) -> int:
@@ -181,3 +184,8 @@ def test_pictograms_dialog_suggests_and_applies(window, monkeypatch) -> None:  #
     assert labels["Weerstanden"].picture.kind == PictureKind.SYMBOL
     assert labels["Weerstanden"].picture.symbol == "resistor"
     assert labels["Antennes"].picture.kind == PictureKind.NONE
+    # the open label: saved, shown in the editor, and not left as an unsaved draft
+    opened = window.library.get(window.current.id)
+    assert opened.picture.kind == window.current.picture.kind
+    assert window.current.picture.symbol == "resistor" and not window.is_dirty()
+    assert window.design_view.result.picture_box is not None
