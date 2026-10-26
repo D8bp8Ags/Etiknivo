@@ -70,6 +70,13 @@ De tests draaien zonder printer en zonder scherm (Qt `offscreen`). Ze dekken de 
 
 De interface is in het Nederlands geschreven; de Engelse teksten staan in `src/etiknivo/locale/en.py`. Met `uv run python scripts/i18n_strings.py --missing` zie je teksten zonder vertaling, en een test bewaakt dat er geen ontbreken.
 
+Alles wat de gebruiker ziet volgt de gekozen taal, ook wat de app wegschrijft (labeloverzicht als PDF/PNG, PDF-export, standaard bestandsnamen, het log). De regels staan bovenaan `src/etiknivo/i18n.py`:
+
+- Elke zichtbare tekst gaat door `tr()` op het moment dat hij getoond of geschreven wordt; constanten op moduleniveau markeer je met `N_()` en vertaal je waar ze gebruikt worden.
+- Logberichten ook: `log.info(tr("Verbonden met %s"), naam)`. Een test faalt bij een logregel zonder `tr()`.
+- Datums en tijden via `format_date()` / `format_datetime()`: 26-10-2026 in het Nederlands, 2026-10-26 in het Engels.
+- Dataformaten vertaal je niet: JSON-sleutels, CSV-kolomnamen, layoutnamen en namen in de back-up zijn in beide talen gelijk, zodat een bestand uit de ene taal in de andere te lezen is. Teksten die de gebruiker zelf typte (labels, categorieën) worden nooit vertaald; alleen de voorbeeldbibliotheek bij de eerste start bestaat in beide talen (`data/raaco_seed*.csv`).
+
 ## De app bouwen
 
 Hetzelfde spec-bestand werkt op macOS, Windows en Linux. PyInstaller bouwt alleen voor het systeem waarop het draait.

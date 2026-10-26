@@ -306,7 +306,7 @@ B02,Condensator,10 µF,Elektrolytisch · 25 V,,
 ,,Alleen een naam,,,single
 ```
 
-Nederlandse kolomnamen werken ook (`lade`, `categorie`, `hoofdtekst`, `specificatie`, `notities`). Optionele kolommen: `top` (afwijkende bovenregel), `name`, `layout` (`single`, `main_spec`, `category_main_spec`, `custom`), `specs` (`Spanning=50 V; Tolerantie=10%`).
+De kolomnamen zijn in beide talen dezelfde, zodat een export uit de Engelse app ook in de Nederlandse in te lezen is en andersom. Nederlandse kolomnamen werken ook (`lade`, `categorie`, `hoofdtekst`, `specificatie`, `notities`). Optionele kolommen: `top` (afwijkende bovenregel), `name`, `layout` (`single`, `main_spec`, `category_main_spec`, `custom`), `specs` (`Spanning=50 V; Tolerantie=10%`).
 
 ## Taal en thema
 

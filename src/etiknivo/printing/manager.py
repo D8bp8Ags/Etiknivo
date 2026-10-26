@@ -78,7 +78,7 @@ class PrinterManager:
             try:
                 self._on_state(self.state)
             except Exception:  # noqa: BLE001
-                log.exception("State-listener faalde")
+                log.exception(tr("State-listener faalde"))
 
     def _lost(self) -> None:
         self._emit(connection=ConnectionState.DISCONNECTED,
@@ -121,7 +121,7 @@ class PrinterManager:
                 self._emit(connection=ConnectionState.ERROR, message=str(exc), info=None)
                 raise
             except Exception as exc:  # noqa: BLE001 - keep reconnect possible
-                log.exception("Verbinden mislukt")
+                log.exception(tr("Verbinden mislukt"))
                 self._emit(connection=ConnectionState.ERROR,
                            message=tr("Verbinden mislukt: {error}", error=exc))
                 raise PrinterError(str(exc)) from exc
@@ -181,7 +181,7 @@ class PrinterManager:
                 status = await b.get_status()
                 battery = await b.get_battery()
             except PrinterError as exc:
-                log.info("Statuspoll mislukt: %s", exc)
+                log.info(tr("Statuspoll mislukt: %s"), exc)
                 if not b.connected:
                     self._lost()
                 continue

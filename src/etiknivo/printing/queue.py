@@ -167,7 +167,7 @@ class PrintQueue:
                         and j.status in (JobStatus.PENDING, JobStatus.PRINTING, JobStatus.DONE)
                         and now - j.submitted < self.dedupe_window), None)
             if dup is not None:
-                log.info("Dubbele printopdracht genegeerd: %s", job.title)
+                log.info(tr("Dubbele printopdracht genegeerd: %s"), job.title)
                 continue
             job.submitted = now
             self.jobs.append(job)
@@ -241,7 +241,7 @@ class PrintQueue:
             try:
                 self._on_change(self.snapshot())
             except Exception:  # noqa: BLE001 - a broken listener must not kill the queue
-                log.exception("Wachtrij-listener faalde")
+                log.exception(tr("Wachtrij-listener faalde"))
 
     async def _run(self) -> None:
         while True:
@@ -278,24 +278,24 @@ class PrintQueue:
                                            progress=progress, cancel=self._cancel)
         except PrintCancelled as exc:
             job.status, job.error = JobStatus.CANCELLED, str(exc)
-            print_log.info("GESTOPT  %s  (%d/%d)", job.title, job.copies_done, job.copies)
+            print_log.info(tr("GESTOPT  %s  (%d/%d)"), job.title, job.copies_done, job.copies)
         except (PrinterError, ValueError, OSError) as exc:
             job.status, job.error = JobStatus.FAILED, str(exc) or type(exc).__name__
             self.paused = True  # stop the queue on error
-            print_log.error("FOUT    %s  (%d/%d): %s", job.title, job.copies_done, job.copies,
+            print_log.error(tr("FOUT    %s  (%d/%d): %s"), job.title, job.copies_done, job.copies,
                             job.error)
         except asyncio.CancelledError:
             job.status, job.error = JobStatus.CANCELLED, tr("Afgebroken")
             raise
         except Exception as exc:  # noqa: BLE001 - unexpected, but keep the app alive
-            log.exception("Onverwachte fout tijdens printen")
+            log.exception(tr("Onverwachte fout tijdens printen"))
             job.status, job.error = JobStatus.FAILED, tr("Onverwachte fout: {error}", error=exc)
             self.paused = True
-            print_log.error("FOUT    %s: %s", job.title, job.error)
+            print_log.error(tr("FOUT    %s: %s"), job.title, job.error)
         else:
             job.status = JobStatus.DONE
-            sim = " [SIMULATIE]" if backend is not None and backend.simulated else ""
-            print_log.info("OK      %s  ×%d  dichtheid=%d%s", job.title, job.copies, job.density,
+            sim = f" [{tr('SIMULATIE')}]" if backend is not None and backend.simulated else ""
+            print_log.info(tr("OK      %s  ×%d  dichtheid=%d%s"), job.title, job.copies, job.density,
                            sim)
         finally:
             self._current = None

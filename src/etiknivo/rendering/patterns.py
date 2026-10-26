@@ -6,6 +6,7 @@ from datetime import datetime
 
 from PIL import Image, ImageDraw
 
+from etiknivo.i18n import format_datetime, tr
 from etiknivo.model import Label, LayoutPreset, make_label
 from etiknivo.rendering.engine import RenderEngine
 from etiknivo.rendering.fonts import FontRegistry, pil_font
@@ -13,10 +14,10 @@ from etiknivo.rendering.fonts import FontRegistry, pil_font
 
 def test_label(density_name: str = "") -> Label:
     """A normal label that exercises bold text and special characters."""
-    lbl = make_label("", f"Etiknivo test · {datetime.now():%d-%m-%Y %H:%M}", "10 kΩ · 4,7 µF",
+    lbl = make_label("", "Etiknivo test · " + format_datetime(datetime.now()), "10 kΩ · 4,7 µF",
                      "25 °C · ¼ W · 3×5" + (f" – {density_name}" if density_name else ""),
                      layout=LayoutPreset.CATEGORY_MAIN_SPEC)
-    lbl.name = "Testlabel"
+    lbl.name = tr("Testlabel")
     return lbl
 
 

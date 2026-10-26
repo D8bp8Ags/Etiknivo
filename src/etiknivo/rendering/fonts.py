@@ -24,6 +24,8 @@ from pathlib import Path
 
 from PIL import ImageFont
 
+from etiknivo.i18n import tr
+
 log = logging.getLogger(__name__)
 # fontTools warns about small flaws in system font files (for example "1 extra
 # bytes in post.stringData array" for some macOS fonts) when it reads their
@@ -100,7 +102,7 @@ def _scan_file(path: Path) -> list[dict]:
         fonts = (TTCollection(str(path), lazy=True).fonts if path.suffix.lower() == ".ttc"
                  else [TTFont(str(path), lazy=True)])
     except Exception as exc:  # noqa: BLE001 - corrupt/unsupported font files are skipped
-        log.debug("Lettertype overgeslagen %s: %s", path, exc)
+        log.debug(tr("Lettertype overgeslagen %s: %s"), path, exc)
         return entries
     for idx, f in enumerate(fonts):
         try:
@@ -113,7 +115,7 @@ def _scan_file(path: Path) -> list[dict]:
             entries.append({"family": family, "style": sub, "bold": bold, "italic": italic,
                             "path": str(path), "index": idx})
         except Exception as exc:  # noqa: BLE001
-            log.debug("Lettertype overgeslagen %s#%d: %s", path, idx, exc)
+            log.debug(tr("Lettertype overgeslagen %s#%d: %s"), path, idx, exc)
     return entries
 
 
@@ -174,7 +176,7 @@ class FontRegistry:
                 self._cache_file.parent.mkdir(parents=True, exist_ok=True)
                 self._cache_file.write_text(json.dumps(new_cache), "utf-8")
             except OSError as exc:
-                log.debug("Lettertypecache niet opgeslagen: %s", exc)
+                log.debug(tr("Lettertypecache niet opgeslagen: %s"), exc)
         return entries
 
     # -- queries -------------------------------------------------------------------

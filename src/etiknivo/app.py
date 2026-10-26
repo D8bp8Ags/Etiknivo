@@ -45,7 +45,8 @@ def main(argv: list[str] | None = None) -> int:
 
     app.setWindowIcon(theme.app_icon())
     settings = load_settings()
-    log.info("Taal: %s", i18n.set_language(settings.language))
+    lang = i18n.set_language(settings.language)
+    log.info(i18n.tr("Taal: %s"), lang)
     i18n.install_qt_translations(app)
 
     try:
@@ -56,7 +57,7 @@ def main(argv: list[str] | None = None) -> int:
             error=exc, folder=data_dir()))
         return 1
     if seeded:
-        log.info("Eerste start: %d voorbeeldlabels aangemaakt", len(library))
+        log.info(i18n.tr("Eerste start: %d voorbeeldlabels aangemaakt"), len(library))
 
     if args.mock:
         settings.use_mock_printer = True

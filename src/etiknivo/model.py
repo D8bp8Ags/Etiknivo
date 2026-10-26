@@ -20,7 +20,7 @@ from datetime import UTC, date, datetime
 from enum import StrEnum
 from typing import Any
 
-from etiknivo.i18n import N_, language, tr
+from etiknivo.i18n import N_, format_date, tr
 
 SCHEMA_VERSION = 1
 
@@ -58,8 +58,7 @@ def spec_name(key: str) -> str:
 
 def today_text(day: date | None = None) -> str:
     """Today's date as shown by ``{Datum}``: 24-10-2026, or ISO in English."""
-    day = day or date.today()
-    return day.strftime("%d-%m-%Y") if language() == "nl" else day.isoformat()
+    return format_date(day or date.today())
 
 
 class HAlign(StrEnum):
@@ -306,7 +305,7 @@ class Label:
     """A single label in the library."""
 
     id: str = field(default_factory=lambda: uuid.uuid4().hex)
-    name: str = "Nieuw label"
+    name: str = field(default_factory=lambda: tr("Nieuw label"))
     tray_id: str = ""
     category: str = ""
     layout: LayoutPreset = LayoutPreset.CATEGORY_MAIN_SPEC
@@ -584,5 +583,5 @@ def make_label(
         else:
             layout = LayoutPreset.SINGLE
     lbl.apply_layout(layout)
-    lbl.name = name or (f"{main} – {spec}" if spec else main) or "Nieuw label"
+    lbl.name = name or (f"{main} – {spec}" if spec else main) or tr("Nieuw label")
     return lbl

@@ -17,7 +17,7 @@ from pathlib import Path
 from PIL import Image, ImageDraw
 
 from etiknivo import APP_NAME
-from etiknivo.i18n import tr
+from etiknivo.i18n import format_date, tr
 from etiknivo.model import Label
 from etiknivo.rendering.engine import RenderEngine
 from etiknivo.rendering.fonts import FontRegistry, pil_font
@@ -188,7 +188,7 @@ def overview_pages(engine: RenderEngine, labels: Iterable[Label], *, paginate: b
             if kind == "title":
                 sheet.text(layout.left_mm, y, tr("Labeloverzicht"), 5.0, INK, bold=True)
                 sheet.text(width_mm - layout.left_mm, y + 1.2,
-                           tr("{n} labels · {date}", n=len(labels), date=day.strftime("%d-%m-%Y")),
+                           tr("{n} labels · {date}", n=len(labels), date=format_date(day)),
                            3.0, MUTED, anchor="ra")
             elif kind == "heading":
                 sheet.text(x, y + 2.0, payload, 3.4, INK, bold=True, max_mm=span_mm)

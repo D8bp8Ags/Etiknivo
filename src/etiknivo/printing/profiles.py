@@ -10,6 +10,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 
+from etiknivo.i18n import N_, tr
+
 #: Label sizes Etiknivo accepts (mm): length along the feed, height across the head.
 LABEL_LENGTH_RANGE = (15.0, 100.0)
 LABEL_HEIGHT_RANGE = (6.0, 20.0)
@@ -34,9 +36,9 @@ class PrinterProfile:
     feed_offset_px: int = 0
     #: Bluetooth names that identify this model when scanning.
     name_prefixes: tuple[str, ...] = ()
-    #: Print density levels as shown to the user; the index is passed to the
-    #: backend (``print_raster(density=i)``).
-    densities: tuple[str, ...] = ("Licht", "Normaal", "Donker")
+    #: Print density levels (untranslated, see :meth:`density_names`); the
+    #: index is passed to the backend (``print_raster(density=i)``).
+    densities: tuple[str, ...] = (N_("Licht"), N_("Normaal"), N_("Donker"))
     default_density: int = 1
     #: Label rolls offered in the printer settings: (length, height) in mm.  The
     #: first is the default; any other size within the ranges above can be typed in.
@@ -50,6 +52,10 @@ class PrinterProfile:
         lo, hi = LABEL_HEIGHT_RANGE
         height = min(hi, max(lo, float(height_mm)))
         return replace(self, label_width_mm=length, label_height_mm=height)
+
+    def density_names(self) -> tuple[str, ...]:
+        """The density levels as shown to the user, in the active language."""
+        return tuple(tr(name) for name in self.densities)
 
     @property
     def label_size(self) -> tuple[float, float]:

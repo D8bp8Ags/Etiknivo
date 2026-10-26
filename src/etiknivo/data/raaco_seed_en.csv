@@ -1,0 +1,24 @@
+tray_id,category,main,spec
+A01,Slide potentiometers,10 kΩ,Mono · 75 / 88 mm
+A02,Slide potentiometers,10 kΩ,Stereo · 60 / 75 mm
+A03,Rotary encoders,EC11 / module,With knobs
+A04,Push buttons,16 mm,LED / without LED
+A05,Audio jacks SMD,3.5 mm,Various types
+A06,Audio jacks,3.5 mm,Other types
+A07,Splicing connectors,WAGO,3- and 5-way
+A08,Dupont,Connectors,Contacts + housings
+A09,Resistor,150 Ω,¼ W
+A10,Resistors,Assortment,10 Ω – 1 MΩ
+A11,Capacitor,100 nF,Ceramic · 50 V
+A12,IC · Logic,74HC14,DIP-14 · Schmitt
+A13,LED,3 mm,Various colours
+A14,Antennas,2.4 GHz,Wi-Fi · u.FL
+A15,Audio,Buzzers / speaker,Passive / module
+A16,ESP32-S3,LilyGO T-QT Pro,0.85″ IPS
+A17,ESP32-S3,LilyGO T-Display,TFT / AMOLED
+A18,ESP32-S3,Heltec Tracker,LoRa / GNSS
+A19,Insulation,Heat shrink,Various sizes
+M01,Dupont F-F,10 cm,Red / black / mix
+M02,Dupont,20 cm,F-F / M-F
+M03,Dupont,10 cm,M-F / M-M
+L01,Prototyping,Breadboards,Ribbon cable

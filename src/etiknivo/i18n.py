@@ -7,12 +7,29 @@ are filled in with ``str.format`` names, so a translation can move them::
     tr("{n} label(s) verwijderen?", n=3)
 
 The language is chosen once at start-up (``Settings.language``); switching in
-the menu takes effect after a restart.  A test checks that every ``tr()`` text
-has an English translation.
+the menu takes effect after a restart.
+
+Rules, so everything a user sees follows the chosen language, also in files
+the app writes (overview PDF/PNG, PDF export, log, default file names):
+
+* every user-visible text goes through :func:`tr` at the moment it is shown
+  or written, never at import time; module constants are marked with
+  :func:`N_` and translated where they are used;
+* log messages too: ``log.info(tr("Verbonden met %s"), name)``;
+* dates and times through :func:`format_date` / :func:`format_datetime`, so
+  the notation is the same everywhere;
+* data formats are not translated: JSON keys, CSV column names, layout
+  names and backup member names stay the same in both languages, so a file
+  made in one language can be read in the other.  The texts users typed
+  themselves (label texts, categories) are never translated.
+
+Tests check that every ``tr()`` text has an English translation with the same
+placeholders and that every log call is translated.
 """
 
 from __future__ import annotations
 
+from datetime import date, datetime
 from typing import Any
 
 #: Menu entries; the language names stay in their own language.
@@ -57,6 +74,18 @@ def language() -> str:
 def tr(text: str, /, **values: Any) -> str:
     out = _catalog.get(text, text)
     return out.format(**values) if values else out
+
+
+#: Date notation per language: 26-10-2026 in Dutch, ISO 2026-10-26 in English.
+DATE_FORMATS = {"nl": "%d-%m-%Y", "en": "%Y-%m-%d"}
+
+
+def format_date(day: date) -> str:
+    return day.strftime(DATE_FORMATS[_language])
+
+
+def format_datetime(moment: datetime) -> str:
+    return f"{format_date(moment)} {moment:%H:%M}"
 
 
 def N_(text: str) -> str:  # noqa: N802 - gettext convention

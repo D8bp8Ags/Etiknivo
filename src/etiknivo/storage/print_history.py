@@ -15,6 +15,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from etiknivo.i18n import tr
 from etiknivo.storage.atomic import atomic_write_text
 
 log = logging.getLogger(__name__)
@@ -68,16 +69,16 @@ class PrintHistory:
                 try:
                     self.records.append(PrintRecord.from_dict(item))
                 except (TypeError, ValueError):
-                    log.warning("Ongeldige regel in afdrukgeschiedenis overgeslagen: %r", item)
+                    log.warning(tr("Ongeldige regel in afdrukgeschiedenis overgeslagen: %r"), item)
         except (OSError, ValueError, AttributeError):
-            log.exception("Afdrukgeschiedenis kon niet worden gelezen: %s", self.path)
+            log.exception(tr("Afdrukgeschiedenis kon niet worden gelezen: %s"), self.path)
 
     def save(self) -> None:
         doc = {"version": 1, "records": [asdict(r) for r in self.records]}
         try:
             atomic_write_text(self.path, json.dumps(doc, ensure_ascii=False, indent=1))
         except OSError:
-            log.exception("Afdrukgeschiedenis kon niet worden opgeslagen: %s", self.path)
+            log.exception(tr("Afdrukgeschiedenis kon niet worden opgeslagen: %s"), self.path)
 
     def add(self, record: PrintRecord) -> None:
         self.records.append(record)

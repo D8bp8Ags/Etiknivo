@@ -23,10 +23,8 @@ from PySide6.QtWidgets import (
 )
 
 from etiknivo.gui import theme
-from etiknivo.i18n import tr
+from etiknivo.i18n import format_datetime, tr
 from etiknivo.storage.print_history import PrintHistory, PrintRecord
-
-TIME_FORMAT = "%Y-%m-%d  %H:%M"
 
 
 class HistoryWindow(QDialog):
@@ -112,7 +110,7 @@ class HistoryWindow(QDialog):
             density = self.densities[r.density] if 0 <= r.density < len(self.densities) \
                 else str(r.density)
             item = QTreeWidgetItem([
-                r.when.strftime(TIME_FORMAT),
+                format_datetime(r.when),
                 r.title + (" " + tr("(verwijderd)") if gone else ""),
                 str(r.copies), density,
                 tr("Simulatie") if r.simulated else tr("Printer")])

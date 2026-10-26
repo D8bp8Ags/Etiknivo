@@ -74,7 +74,7 @@ class BleLink:
         if isinstance(max_len, int) and max_len >= 20:
             self._chunk = min(max_len, 512)
         await self.client.start_notify(self._notify_uuid, self._on_notify)
-        log.info("BLE-profiel %s, blokgrootte %d", self._write_uuid, self._chunk)
+        log.info(tr("BLE-profiel %s, blokgrootte %d"), self._write_uuid, self._chunk)
 
     def _characteristics(self) -> dict[str, Any]:
         services = getattr(self.client, "services", None) or []
@@ -132,4 +132,4 @@ class BleLink:
         try:
             await self.client.disconnect()
         except Exception as exc:  # noqa: BLE001 - already gone is fine
-            log.debug("Disconnect: %s", exc)
+            log.debug(tr("Disconnect: %s"), exc)

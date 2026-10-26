@@ -112,7 +112,7 @@ class D11sBackend(PrinterBackend):
         return devices
 
     def _dropped(self, _client: Any) -> None:
-        log.warning("Bluetooth-verbinding met %s verbroken", self._address)
+        log.warning(tr("Bluetooth-verbinding met %s verbroken"), self._address)
         self._link = None
         if self.on_disconnect:
             self.on_disconnect()
@@ -133,7 +133,7 @@ class D11sBackend(PrinterBackend):
         except BaseException:
             await link.close()
             raise
-        log.info("Verbonden met %s (%s)", address, model)
+        log.info(tr("Verbonden met %s (%s)"), address, model)
         return link
 
     async def connect(self, address: str | None = None) -> None:
@@ -152,7 +152,7 @@ class D11sBackend(PrinterBackend):
             except (BleakError, OSError, TimeoutError, LinkError, LinkTimeout,
                     PrinterConnectionError) as exc:
                 problem = exc
-                log.warning("Verbindingspoging %d/%d mislukt: %s", attempt + 1, self._attempts, exc)
+                log.warning(tr("Verbindingspoging %d/%d mislukt: %s"), attempt + 1, self._attempts, exc)
                 if attempt + 1 < self._attempts:
                     await asyncio.sleep(self._t.reconnect_base * (2 ** attempt))
         raise PrinterConnectionError(tr("Verbinden mislukt na {n} pogingen: {error}",
@@ -221,7 +221,7 @@ class D11sBackend(PrinterBackend):
         t = self._t
         async with self._job_lock:
             if not proto.is_ack(await self._call(link.request(density_cmd))):
-                log.warning("Printer bevestigde de dichtheid niet")
+                log.warning(tr("Printer bevestigde de dichtheid niet"))
             await asyncio.sleep(t.after_settings)
             for done in range(copies):
                 if cancel is not None and cancel.is_set():
@@ -244,7 +244,7 @@ class D11sBackend(PrinterBackend):
                     after = await self._status(link)
                     if not after.ok:
                         raise PrinterNotReadyError(after)
-                    log.warning("Onverwacht antwoord op einde opdracht: %s (%s)", reply.hex(" "),
+                    log.warning(tr("Onverwacht antwoord op einde opdracht: %s (%s)"), reply.hex(" "),
                                 after.describe())
                 if progress:
                     progress(done + 1, copies)

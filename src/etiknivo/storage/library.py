@@ -17,7 +17,7 @@ from importlib import resources
 from pathlib import Path
 from typing import Any
 
-from etiknivo.i18n import tr
+from etiknivo.i18n import language, tr
 from etiknivo.model import SCHEMA_VERSION, Label, PictureKind
 from etiknivo.rendering.symbols import suggest_symbol
 from etiknivo.storage.atomic import atomic_write_text
@@ -144,16 +144,23 @@ class Library:
             try:
                 shutil.copy2(self.path, self.path.with_suffix(self.path.suffix + ".bak"))
             except OSError as exc:  # a failed backup copy must not block saving
-                log.warning("Back-up van bibliotheek mislukt: %s", exc)
+                log.warning(tr("Back-up van bibliotheek mislukt: %s"), exc)
         text = json.dumps(labels_to_document(self._labels), indent=2, ensure_ascii=False)
         atomic_write_text(self.path, text)
 
 
+#: The sample library per interface language.
+SEED_FILES = {"nl": "raaco_seed.csv", "en": "raaco_seed_en.csv"}
+
+
 def seed_labels() -> list[Label]:
-    """The bundled Raaco electronics sample library (23 labels)."""
+    """The bundled Raaco electronics sample library (23 labels), in the
+    active language.  Only used on first start: labels in an existing library
+    are the user's own texts and are never translated."""
     from etiknivo.storage.io import parse_csv_labels
 
-    text = resources.files("etiknivo.data").joinpath("raaco_seed.csv").read_text("utf-8")
+    name = SEED_FILES.get(language(), SEED_FILES["nl"])
+    text = resources.files("etiknivo.data").joinpath(name).read_text("utf-8")
     labels, errors = parse_csv_labels(text)
     if errors:  # pragma: no cover - bundled data is validated by tests
         raise LibraryError("; ".join(errors))

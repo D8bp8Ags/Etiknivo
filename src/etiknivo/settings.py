@@ -16,6 +16,7 @@ from typing import Any
 
 import platformdirs
 
+from etiknivo.i18n import tr
 from etiknivo.storage.atomic import atomic_write_text
 
 log = logging.getLogger(__name__)
@@ -103,7 +104,7 @@ def load_settings(path: Path | None = None) -> Settings:
     try:
         return Settings.from_dict(json.loads(path.read_text("utf-8")))
     except (OSError, ValueError, TypeError) as exc:
-        log.warning("Instellingen konden niet worden gelezen (%s); standaardwaarden gebruikt", exc)
+        log.warning(tr("Instellingen konden niet worden gelezen (%s); standaardwaarden gebruikt"), exc)
         return Settings()
 
 

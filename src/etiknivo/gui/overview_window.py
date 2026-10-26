@@ -287,7 +287,7 @@ class OverviewWindow(QDialog):
         """Save the labels shown (respecting the search) as PDF or PNG."""
         pattern, write = overview.EXPORTS[kind]
         path, _ = QFileDialog.getSaveFileName(self, tr("Labeloverzicht opslaan"),
-                                              f"etiknivo-overzicht.{kind}", pattern)
+                                              tr("etiknivo-overzicht") + f".{kind}", pattern)
         if not path:
             return None
         try:

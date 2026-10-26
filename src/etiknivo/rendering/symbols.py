@@ -346,6 +346,7 @@ SUGGESTIONS: tuple[tuple[str, str], ...] = (
     ("audiojack", "connector"), ("jack", "connector"), ("dupont", "connector"),
     ("lasklem", "connector"), ("wago", "connector"), ("connector", "connector"),
     ("breadboard", "connector"), ("krimpkous", "cable"), ("isolatie", "cable"),
+    ("heat shrink", "cable"), ("insulation", "cable"),
     ("header", "connector"), ("klem", "connector"),
     ("schuifpot", "potentiometer"), ("potmeter", "potentiometer"),
     ("potentiometer", "potentiometer"), ("encoder", "potentiometer"),

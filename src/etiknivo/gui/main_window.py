@@ -132,7 +132,7 @@ class MainWindow(QMainWindow):
             else self.profile.default_density)
         self.printer_panel.copies.setValue(self.settings.default_copies)
         self.printer_panel.remember_address(self.settings.printer_address)
-        self.queue_panel = QueuePanel(self.profile.densities)
+        self.queue_panel = QueuePanel(self.profile.density_names())
 
         self.printer_panel.setObjectName("inspector")
         self.printer_panel.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
@@ -849,7 +849,7 @@ class MainWindow(QMainWindow):
             self.library.save()
             self.statusBar().showMessage(tr("Opgeslagen"), 1500)
         except OSError as exc:
-            log.exception("Opslaan mislukt")
+            log.exception(tr("Opslaan mislukt"))
             QMessageBox.critical(self, APP_NAME,
                                  tr("Bibliotheek opslaan mislukt:\n{error}", error=exc))
 
@@ -867,7 +867,7 @@ class MainWindow(QMainWindow):
         try:
             save_settings(self.settings)
         except OSError as exc:
-            log.warning("Instellingen opslaan mislukt: %s", exc)
+            log.warning(tr("Instellingen opslaan mislukt: %s"), exc)
 
     def _after_library_change(self, select: list[str] | None = None) -> None:
         self.library_panel.refresh()
@@ -1173,7 +1173,7 @@ class MainWindow(QMainWindow):
         if not self._guard():
             return
         d = self.printer_panel.density.currentIndex()
-        lbl = test_label(self.profile.densities[d])
+        lbl = test_label(self.profile.density_names()[d])
         self._submit([PrintJob("test", tr("Testlabel"), self.engine.render(lbl).raster, 1, d)])
 
     def print_calibration(self) -> None:
@@ -1307,13 +1307,13 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage(
                 tr("{n} opdracht(en) in de wachtrij", n=len(result)), 3000)
         if exc is not None:
-            log.info("Taak %s mislukt: %s", tag, exc)
+            log.info(tr("Taak %s mislukt: %s"), tag, exc)
             self.statusBar().showMessage(f"{exc}", 8000)
 
     # -- import / export -----------------------------------------------------------------
 
     def _file_error(self, exc: OSError) -> None:
-        log.warning("Bestandsbewerking mislukt: %s", exc)
+        log.warning(tr("Bestandsbewerking mislukt: %s"), exc)
         QMessageBox.critical(self, APP_NAME, tr("Het bestand kon niet worden gelezen of "
                                                 "geschreven:\n{error}", error=exc))
 
@@ -1353,7 +1353,7 @@ class MainWindow(QMainWindow):
 
     def export_json(self) -> None:
         path, _ = QFileDialog.getSaveFileName(self, tr("Bibliotheek exporteren"),
-                                              "etiknivo-bibliotheek.json", "JSON (*.json)")
+                                              tr("etiknivo-bibliotheek") + ".json", "JSON (*.json)")
         if path:
             try:
                 lio.export_json(self.library.labels, Path(path))
@@ -1526,7 +1526,7 @@ class MainWindow(QMainWindow):
         if self._history_window is None or not self._history_window.isVisible():
             w = HistoryWindow(self.print_history,
                               lambda lid: self.library.get(lid) is not None,
-                              list(self.profile.densities), self)
+                              list(self.profile.density_names()), self)
             w.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
             w.reprintRequested.connect(self.reprint)
             w.destroyed.connect(lambda: setattr(self, "_history_window", None))

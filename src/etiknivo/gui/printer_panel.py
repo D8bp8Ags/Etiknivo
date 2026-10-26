@@ -134,7 +134,7 @@ class PrinterPanel(QWidget):
         self.set_label_size(profile)
         self.roll.activated.connect(self._roll_chosen)
         self.density = combo()
-        self.density.addItems(list(profile.densities))
+        self.density.addItems(list(profile.density_names()))
         self.copies = QSpinBox()
         self.copies.setRange(1, 99)
         self.test_btn = QPushButton(tr("Testlabel afdrukken"))

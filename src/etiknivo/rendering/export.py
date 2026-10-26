@@ -11,6 +11,7 @@ from pathlib import Path
 
 from PIL import Image
 
+from etiknivo import APP_NAME
 from etiknivo.i18n import tr
 from etiknivo.model import Label
 from etiknivo.rendering.engine import RenderEngine
@@ -72,7 +73,7 @@ def export_pdf(engine: RenderEngine, labels: list[Label], path: Path) -> None:
     pages = [engine.render(lbl).mono.convert("L") for lbl in labels]
     buf = io.BytesIO()
     pages[0].save(buf, "PDF", resolution=float(engine.profile.dpi), save_all=True,
-                  append_images=pages[1:], title="Etiknivo labels")
+                  append_images=pages[1:], title=tr("{app}-labels", app=APP_NAME))
     atomic_write_bytes(path, buf.getvalue())
 
 
