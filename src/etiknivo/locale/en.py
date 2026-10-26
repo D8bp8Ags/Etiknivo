@@ -419,7 +419,7 @@ EN: dict[str, str] = {
     "Geen": "None",
     "QR-code links": "QR code on the left",
     "QR-code rechts": "QR code on the right",
-    "Barcode (Code 128) i.p.v. onderregel": "Barcode (Code 128) instead of bottom line",
+    "Barcode (Code 128) onderaan": "Barcode (Code 128) at the bottom",
     "QR-code of barcode": "QR code or barcode",
     "Tekst of {veld}, bv. {Lade} of een link": "Text or {field}, e.g. {Tray} or a link",
     "Soort": "Type",
@@ -428,10 +428,11 @@ EN: dict[str, str] = {
     "past tot ongeveer 40 tekens goed.":
         "Scan it with your phone. Short text gives larger squares that scan more easily; a link "
         "of up to about 40 characters works well.",
-    "Voor een handscanner. Komt op de plaats van de onderregel; die tekst blijft bewaard. Past "
-    "tot ongeveer 15 tekens (cijfers het dubbele); korter geeft dikkere streepjes. Alleen "
-    "letters, cijfers en leestekens zonder accenten.":
-        "For a handheld scanner. Takes the place of the bottom line, whose text is kept. Fits "
+    "Voor een handscanner. Komt onderaan, onder de tekst; met minder regels (1 of 2) wordt de "
+    "tekst groter. Past tot ongeveer 15 tekens (cijfers het dubbele); korter geeft dikkere "
+    "streepjes. Alleen letters, cijfers en leestekens zonder accenten.":
+        "For a handheld scanner. Goes at the bottom, below the text; with fewer lines (1 or 2) "
+        "the text gets bigger. Fits "
         "about 15 characters (twice as many digits); shorter text gives thicker bars. Only "
         "letters, digits and punctuation without accents.",
     "De code is leeg: vul de tekst voor de code in": "The code is empty: fill in its content",
@@ -707,8 +708,6 @@ EN: dict[str, str] = {
     "Bovenregel, hoofdregel en onderregel":
         "Top line, main line and bottom line",
     # -- compact inspector --------------------------------------------------------------
-    "Vervangen door de barcode; de tekst blijft bewaard.":
-        "Replaced by the barcode; the text is kept.",
     "{n} specificaties": "{n} specifications",
     "notities": "notes",
     "vet": "bold",

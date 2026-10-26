@@ -338,11 +338,9 @@ class Label:
         return self.lines[SLOT_BOTTOM]
 
     def visible_lines(self) -> list[tuple[int, TextLine]]:
-        """Slots that will actually be rendered (enabled and non-empty).  A
-        barcode takes the place of the bottom line."""
+        """Slots that will actually be rendered (enabled and non-empty)."""
         return [(i, ln) for i, ln in enumerate(self.lines)
-                if ln.enabled and self.resolve(ln.text)[0].strip()
-                and not (i == SLOT_BOTTOM and self.code.kind == CodeKind.CODE128)]
+                if ln.enabled and self.resolve(ln.text)[0].strip()]
 
     # -- fields ----------------------------------------------------------------
 

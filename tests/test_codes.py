@@ -89,13 +89,12 @@ def test_qr_on_label_scans_and_text_moves_aside(side: HAlign) -> None:
     assert _decoded(eng, lbl) == ["https://example.com/ne555"]
 
 
-def test_barcode_replaces_bottom_line_and_scans() -> None:
+def test_barcode_goes_below_every_line_and_scans() -> None:
     eng = RenderEngine()
     lbl = _label(CodeKind.CODE128)
     r = eng.render(lbl)
     assert not r.warnings
-    assert SLOT_BOTTOM not in {lb.slot for lb in r.lines}
-    assert lbl.bottom.text == "Wi-Fi · u.FL"  # kept for when the barcode is switched off
+    assert SLOT_BOTTOM in {lb.slot for lb in r.lines}  # the bottom line stays on the label
     assert all(lb.y1 <= r.code.box[1] for lb in r.lines)
     assert _decoded(eng, lbl) == ["A14"]
 
@@ -143,7 +142,7 @@ def test_properties_panel_sets_code(qtbot) -> None:  # noqa: ANN001
     assert (lbl.code.kind, lbl.code.side) == (CodeKind.QR, HAlign.RIGHT)
     panel.code_kind.setCurrentIndex(3)  # barcode
     assert lbl.code.kind == CodeKind.CODE128
-    assert "barcode" in panel.lines[SLOT_BOTTOM].note.text()
+    assert not panel.lines[SLOT_BOTTOM].note.text()
     panel.code_text.setText("")
     panel.code_field_btn.insert_field("Naam")
     assert lbl.code.text == "{Naam}"

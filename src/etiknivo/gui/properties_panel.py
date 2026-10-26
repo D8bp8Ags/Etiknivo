@@ -44,7 +44,6 @@ from etiknivo.i18n import N_, tr
 from etiknivo.model import (
     FIELD_RE,
     LINE_COUNT_PRESETS,
-    SLOT_BOTTOM,
     SLOT_NAMES,
     CodeKind,
     HAlign,
@@ -65,7 +64,7 @@ CODE_CHOICES = (
     (CodeKind.NONE, HAlign.LEFT, N_("Geen")),
     (CodeKind.QR, HAlign.LEFT, N_("QR-code links")),
     (CodeKind.QR, HAlign.RIGHT, N_("QR-code rechts")),
-    (CodeKind.CODE128, HAlign.LEFT, N_("Barcode (Code 128) i.p.v. onderregel")),
+    (CodeKind.CODE128, HAlign.LEFT, N_("Barcode (Code 128) onderaan")),
 )
 
 
@@ -651,17 +650,13 @@ class PropertiesPanel(QScrollArea):
         self.code_text.setEnabled(kind != CodeKind.NONE)
         self.code_field_btn.setEnabled(kind != CodeKind.NONE)
         self._code_form.setRowVisible(self._code_row, kind != CodeKind.NONE)
-        bottom = self.lines[SLOT_BOTTOM]
-        if kind == CodeKind.CODE128:
-            bottom.set_note(tr("Vervangen door de barcode; de tekst blijft bewaard."))
-        else:
-            bottom.set_note("")
         self.code_hint.setText({
             CodeKind.NONE: "",
             CodeKind.QR: tr("Scan met je telefoon. Korte tekst geeft grotere blokjes die "
                             "makkelijker scannen; een link past tot ongeveer 40 tekens goed."),
-            CodeKind.CODE128: tr("Voor een handscanner. Komt op de plaats van de onderregel; "
-                                 "die tekst blijft bewaard. Past tot ongeveer 15 tekens "
+            CodeKind.CODE128: tr("Voor een handscanner. Komt onderaan, onder de tekst; met "
+                                 "minder regels (1 of 2) wordt de tekst groter. Past tot "
+                                 "ongeveer 15 tekens "
                                  "(cijfers het dubbele); korter geeft dikkere streepjes. "
                                  "Alleen letters, cijfers en leestekens zonder accenten."),
         }[kind])
