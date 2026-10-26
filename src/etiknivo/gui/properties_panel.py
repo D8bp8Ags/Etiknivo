@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import html
 from collections.abc import Callable
 from pathlib import Path
 
@@ -17,7 +18,6 @@ from PySide6.QtWidgets import (
     QLabel,
     QLineEdit,
     QMessageBox,
-    QPlainTextEdit,
     QPushButton,
     QScrollArea,
     QSizePolicy,
@@ -28,6 +28,7 @@ from PySide6.QtWidgets import (
 
 from etiknivo.gui import theme
 from etiknivo.gui.element_panel import ElementPanel
+from etiknivo.gui.notes_edit import NotesEdit, find_links
 from etiknivo.gui.specs_editor import SpecsEditor
 from etiknivo.gui.widgets import (
     ALIGN_TEXT,
@@ -316,10 +317,16 @@ class PropertiesPanel(QScrollArea):
                               "je de waarde aan, dan verandert het etiket mee."))
         spec_hint.setWordWrap(True)
         spec_hint.setObjectName("hint")
-        self.notes = QPlainTextEdit()
-        self.notes.setPlaceholderText(tr("Alleen voor jezelf, bv. waar besteld. Komt niet op "
-                                         "het etiket."))
-        self.notes.setFixedHeight(60)
+        self.notes = NotesEdit()
+        self.notes.setPlaceholderText(tr("Alleen voor jezelf, bv. waar besteld of een link "
+                                         "naar de winkel. Komt niet op het etiket."))
+        # the links in the notes, one click away
+        self.notes_links = QLabel()
+        self.notes_links.setObjectName("hint")
+        self.notes_links.setWordWrap(True)
+        self.notes_links.setTextInteractionFlags(Qt.TextInteractionFlag.LinksAccessibleByMouse)
+        self.notes_links.linkActivated.connect(self.notes.open_link)
+        self.notes_links.hide()
         self.notes_hint = QLabel(tr("Notities komen niet op het etiket, dus een {veld} wordt "
                                     "hier niet ingevuld. Zet het in een tekstregel."))
         self.notes_hint.setWordWrap(True)
@@ -327,7 +334,9 @@ class PropertiesPanel(QScrollArea):
         self.notes_hint.hide()
         f3.addRow(tr("Specificaties"), self.specs)
         f3.addRow(spec_hint)
-        f3.addRow(tr("Notities"), self.notes)
+        f3.addRow(QLabel(tr("Notities")))
+        f3.addRow(self.notes)
+        f3.addRow(self.notes_links)
         f3.addRow(self.notes_hint)
         lay.addWidget(meta)
 
@@ -458,6 +467,7 @@ class PropertiesPanel(QScrollArea):
             if self.notes.toPlainText() != label.notes:
                 self.notes.setPlainText(label.notes)
             self.notes_hint.setVisible(bool(FIELD_RE.search(label.notes)))
+            self._update_links(label.notes)
             self.elements.set_label(label)
         finally:
             self._loading = False
@@ -598,6 +608,7 @@ class PropertiesPanel(QScrollArea):
         lbl.specs = self.specs.specs()
         lbl.notes = self.notes.toPlainText()
         self.notes_hint.setVisible(bool(FIELD_RE.search(lbl.notes)))
+        self._update_links(lbl.notes)
         self._emit(structural)
 
     def _update_picture_widgets(self) -> None:
@@ -644,6 +655,19 @@ class PropertiesPanel(QScrollArea):
             if k == kind and (k != CodeKind.QR or sd == side):
                 return i
         return 0
+
+    def _update_links(self, notes: str) -> None:
+        links = find_links(notes)
+        self.notes_links.setVisible(bool(links))
+        if not links:
+            return
+        shown = []
+        for link in links:
+            short = link.split("://", 1)[-1].removeprefix("www.").rstrip("/")
+            short = short if len(short) <= 38 else short[:37] + "…"
+            shown.append(f'<a href="{html.escape(link)}">{html.escape(short)}</a>')
+        self.notes_links.setText(tr("Openen:") + " " + " · ".join(shown))
+        self.notes_links.setToolTip("\n".join(links))
 
     def _update_code_hint(self) -> None:
         kind = CODE_CHOICES[max(0, self.code_kind.currentIndex())][0]

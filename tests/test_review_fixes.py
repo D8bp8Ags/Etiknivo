@@ -218,3 +218,37 @@ def test_field_menu_explains_each_field(qtbot) -> None:  # noqa: ANN001
     assert any(t.startswith("{Nr}") and "volgnummer" in t for t in texts)
     next(a for a in btn._menu.actions() if a.text().startswith("{Nr}")).trigger()
     assert edit.text() == "{Nr}"
+
+
+def test_notes_grow_and_open_links(window, qtbot, monkeypatch) -> None:  # noqa: ANN001
+    from PySide6.QtCore import QPointF, Qt
+    from PySide6.QtGui import QDesktopServices, QMouseEvent
+
+    from etiknivo.gui.notes_edit import find_links, link_url
+
+    text = ("Passieve buzzer — TinyTronics\nhttps://www.tinytronics.nl/nl/audio/speakers/x.\n"
+            "mail info@example.com of www.example.org")
+    assert find_links(text) == ["https://www.tinytronics.nl/nl/audio/speakers/x",
+                                "info@example.com", "www.example.org"]
+    assert link_url("www.example.org").toString() == "https://www.example.org"
+    assert link_url("info@example.com").toString() == "mailto:info@example.com"
+
+    opened: list[str] = []
+    monkeypatch.setattr(QDesktopServices, "openUrl", lambda url: opened.append(url.toString()))
+    props = window.properties
+    notes = props.notes
+    short = notes.sizeHint().height()
+    notes.setPlainText(text + "\n" * 6)
+    assert notes.sizeHint().height() > short  # grows with its text
+    assert props.notes_links.isVisible() or not props.isVisible()
+    assert "tinytronics.nl/nl/audio/speakers/x" in props.notes_links.text()
+
+    notes.setPlainText(text)
+    cursor = notes.textCursor()
+    cursor.setPosition(text.index("tinytronics") + 3)
+    pos = QPointF(notes.cursorRect(cursor).center())
+    for mods in (Qt.KeyboardModifier.NoModifier, Qt.KeyboardModifier.ControlModifier):
+        notes.mousePressEvent(QMouseEvent(QMouseEvent.Type.MouseButtonPress, pos, pos,
+                                          Qt.MouseButton.LeftButton, Qt.MouseButton.LeftButton,
+                                          mods))
+    assert opened == ["https://www.tinytronics.nl/nl/audio/speakers/x"]  # only with Cmd

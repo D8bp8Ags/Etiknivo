@@ -119,7 +119,7 @@ Drie velden worden pas bij het afdrukken ingevuld:
 
 Print je 3 exemplaren van een label met `Doos {Nr}/{Aantal}`, dan krijg je *Doos 1/3*, *Doos 2/3* en *Doos 3/3*. Elke afdruk telt opnieuw vanaf 1. In het voorbeeld en bij exporteren zie je exemplaar 1 van 1. Heb je zelf een specificatie die *Aantal* (of *Datum*, *Nr*) heet, dan gebruikt het etiket jouw waarde.
 
-**Notities** zijn alleen voor jezelf, bijvoorbeeld waar je iets besteld hebt. Ze komen niet op het etiket. Specificaties en notities zijn wel doorzoekbaar en verschijnen als tooltip als je met de muis boven een label in de bibliotheek hangt.
+**Notities** zijn alleen voor jezelf, bijvoorbeeld waar je iets besteld hebt. Ze komen niet op het etiket. Het veld groeit mee met je tekst. Links (zoals een webadres of e-mailadres) worden onderstreept: ⌘-klik op een link opent hem, en onder het veld staan ze ook nog eens klikbaar onder *Openen*. Specificaties en notities zijn wel doorzoekbaar en verschijnen als tooltip als je met de muis boven een label in de bibliotheek hangt.
 
 ## Pictogrammen en afbeeldingen
 

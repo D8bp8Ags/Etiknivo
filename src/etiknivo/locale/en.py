@@ -590,8 +590,10 @@ EN: dict[str, str] = {
         "A specification has a name and a value, e.g. Voltage and 50 V. Put {Voltage} in a "
         "text line (or use the { } button after the specification) to show the value on the "
         "label. Change the value and the label follows.",
-    "Alleen voor jezelf, bv. waar besteld. Komt niet op het etiket.":
-        "Just for you, e.g. where it was ordered. Not printed on the label.",
+    "Alleen voor jezelf, bv. waar besteld of een link naar de winkel. Komt niet op het etiket.":
+        "Just for you, e.g. where it was ordered or a link to the shop. Not printed on the label.",
+    "{mod}klik om de link te openen": "{mod}click to open the link",
+    "Openen:": "Open:",
     "Notities komen niet op het etiket, dus een {veld} wordt hier niet ingevuld. Zet het in "
     "een tekstregel.":
         "Notes are not printed, so a {field} is not filled in here. Put it in a text line.",
