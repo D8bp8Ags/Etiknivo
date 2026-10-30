@@ -418,8 +418,12 @@ EN: dict[str, str] = {
     "Bibliotheek kon niet worden gelezen: {error}": "The library could not be read: {error}",
     # QR code and barcode
     "Geen": "None",
-    "QR-code links": "QR code on the left",
-    "QR-code rechts": "QR code on the right",
+    "Links boven": "Top left",
+    "Links midden": "Middle left",
+    "Links onder": "Bottom left",
+    "Rechts boven": "Top right",
+    "Rechts midden": "Middle right",
+    "Rechts onder": "Bottom right",
     "Barcode (Code 128) onderaan": "Barcode (Code 128) at the bottom",
     "QR-code of barcode": "QR code or barcode",
     "Klein": "Small",
@@ -429,6 +433,8 @@ EN: dict[str, str] = {
     "scant makkelijker.":
         "How big the QR code beside the text may get. Smaller leaves more room for text; larger "
         "scans more easily.",
+    "Hoe groot het pictogram naast de tekst mag worden. Kleiner laat meer ruimte voor tekst.":
+        "How big the pictogram beside the text may get. Smaller leaves more room for text.",
     "Tekst of {veld}, bv. {Lade} of een link": "Text or {field}, e.g. {Tray} or a link",
     "Soort": "Type",
     "Inhoud": "Content",

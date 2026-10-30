@@ -60,16 +60,49 @@ from etiknivo.settings import data_dir
 VALIGN_TEXT = {VAlign.TOP: N_("Boven"), VAlign.CENTER: N_("Midden"), VAlign.BOTTOM: N_("Onder")}
 PICTURE_KINDS = ((PictureKind.NONE, N_("Geen")), (PictureKind.SYMBOL, N_("Symbool")),
                  (PictureKind.IMAGE, N_("Eigen afbeelding")))
-SIDES = ((HAlign.LEFT, N_("Links")), (HAlign.RIGHT, N_("Rechts")))
-#: Choices for the code: (kind, QR side, text)
-CODE_SIZES = ((CodeSize.SMALL, N_("Klein")), (CodeSize.MEDIUM, N_("Middel")),
-              (CodeSize.LARGE, N_("Groot")))
-CODE_CHOICES = (
-    (CodeKind.NONE, HAlign.LEFT, N_("Geen")),
-    (CodeKind.QR, HAlign.LEFT, N_("QR-code links")),
-    (CodeKind.QR, HAlign.RIGHT, N_("QR-code rechts")),
-    (CodeKind.CODE128, HAlign.LEFT, N_("Barcode (Code 128) onderaan")),
+#: Where a QR code or pictogram goes beside the text: (side, height, text)
+POSITIONS = (
+    (HAlign.LEFT, VAlign.TOP, N_("Links boven")),
+    (HAlign.LEFT, VAlign.CENTER, N_("Links midden")),
+    (HAlign.LEFT, VAlign.BOTTOM, N_("Links onder")),
+    (HAlign.RIGHT, VAlign.TOP, N_("Rechts boven")),
+    (HAlign.RIGHT, VAlign.CENTER, N_("Rechts midden")),
+    (HAlign.RIGHT, VAlign.BOTTOM, N_("Rechts onder")),
 )
+#: How big a QR code or pictogram may get
+SIZES = ((CodeSize.SMALL, N_("Klein")), (CodeSize.MEDIUM, N_("Middel")),
+         (CodeSize.LARGE, N_("Groot")))
+#: Choices for the code: (kind, text)
+CODE_CHOICES = (
+    (CodeKind.NONE, N_("Geen")),
+    (CodeKind.QR, N_("QR-code")),
+    (CodeKind.CODE128, N_("Barcode (Code 128) onderaan")),
+)
+
+
+def position_combo() -> QComboBox:
+    box = combo()
+    for _side, _valign, text in POSITIONS:
+        box.addItem(tr(text))
+    return box
+
+
+def set_position(box: QComboBox, side: HAlign, valign: VAlign) -> None:
+    box.setCurrentIndex(next((i for i, (sd, va, _t) in enumerate(POSITIONS)
+                              if (sd, va) == (side, valign)), 1))
+
+
+def chosen_position(box: QComboBox) -> tuple[HAlign, VAlign]:
+    side, valign, _t = POSITIONS[max(0, box.currentIndex())]
+    return side, valign
+
+
+def set_size(buttons: list[QToolButton], size: CodeSize) -> None:
+    buttons[[sz for sz, _t in SIZES].index(size)].setChecked(True)
+
+
+def chosen_size(buttons: list[QToolButton]) -> CodeSize:
+    return next(sz for (sz, _t), b in zip(SIZES, buttons) if b.isChecked())
 
 
 class LineEditor(QWidget):
@@ -267,8 +300,9 @@ class PropertiesPanel(QScrollArea):
         fc = QFormLayout(code.body)
         fc.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
         self.code_kind = combo()
-        for _kind, _side, text in CODE_CHOICES:
+        for _kind, text in CODE_CHOICES:
             self.code_kind.addItem(tr(text))
+        self.code_pos = position_combo()
         self.code_text = QLineEdit()
         self.code_text.setPlaceholderText(tr("Tekst of {veld}, bv. {Lade} of een link"))
         self.code_field_btn = FieldButton(
@@ -281,11 +315,12 @@ class PropertiesPanel(QScrollArea):
         self.code_hint = QLabel()
         self.code_hint.setWordWrap(True)
         self.code_hint.setObjectName("hint")
-        size_box, self.code_sizes = segmented([tr(t) for _s, t in CODE_SIZES])
+        size_box, self.code_sizes = segmented([tr(t) for _s, t in SIZES])
         size_box.setToolTip(tr("Hoe groot de QR-code naast de tekst mag worden. Kleiner laat "
                                "meer ruimte voor tekst; groter scant makkelijker."))
         self._code_size_box = size_box
         fc.addRow(tr("Soort"), self.code_kind)
+        fc.addRow(tr("Plaats"), self.code_pos)
         fc.addRow(tr("Grootte"), size_box)
         fc.addRow(tr("Inhoud"), code_row)
         fc.addRow(self.code_hint)
@@ -298,16 +333,19 @@ class PropertiesPanel(QScrollArea):
         self.pic_kind = combo()
         for _k, text in PICTURE_KINDS:
             self.pic_kind.addItem(tr(text))
-        self.pic_side = combo()
-        for _s, text in SIDES:
-            self.pic_side.addItem(tr(text))
+        self.pic_pos = position_combo()
+        pic_size_box, self.pic_sizes = segmented([tr(t) for _s, t in SIZES])
+        pic_size_box.setToolTip(tr("Hoe groot het pictogram naast de tekst mag worden. Kleiner "
+                                   "laat meer ruimte voor tekst."))
+        self._pic_size_box = pic_size_box
         self.pic_symbol = symbol_combo()
         self.pic_image_btn = QPushButton(tr("Afbeelding kiezen…"))
         self.pic_image_btn.setToolTip(tr("PNG, JPG of SVG, bv. een logo. Wordt zwart-wit "
                                          "afgedrukt en in het label bewaard."))
         self.pic_image_btn.clicked.connect(self._choose_image)
         fp.addRow(tr("Soort"), self.pic_kind)
-        fp.addRow(tr("Plaats"), self.pic_side)
+        fp.addRow(tr("Plaats"), self.pic_pos)
+        fp.addRow(tr("Grootte"), pic_size_box)
         fp.addRow(tr("Symbool"), self.pic_symbol)
         fp.addRow(tr("Afbeelding"), self.pic_image_btn)
         self._pic_form = fp
@@ -397,10 +435,11 @@ class PropertiesPanel(QScrollArea):
             w.valueChanged.connect(lambda: self._apply(False))
         for w in (self.autofit, self.border, self.separators, self.invert):
             w.toggled.connect(lambda: self._apply(False))
-        self.code_kind.currentIndexChanged.connect(lambda: self._apply(False))
-        for b in self.code_sizes:
+        for w in (self.code_kind, self.code_pos):
+            w.currentIndexChanged.connect(lambda: self._apply(False))
+        for b in self.code_sizes + self.pic_sizes:
             b.clicked.connect(lambda _c=False: self._apply(False))
-        for w in (self.pic_kind, self.pic_side, self.pic_symbol):
+        for w in (self.pic_kind, self.pic_pos, self.pic_symbol):
             w.currentIndexChanged.connect(lambda: self._apply(False))
         self.code_text.textEdited.connect(lambda: self._apply(False))
         self.specs.changed.connect(lambda: self._apply(False))
@@ -464,14 +503,16 @@ class PropertiesPanel(QScrollArea):
             self.separators.setChecked(s.separators)
             self.invert.setChecked(s.invert)
             c = label.code
-            self.code_kind.setCurrentIndex(self._code_index(c.kind, c.side))
-            self.code_sizes[[sz for sz, _t in CODE_SIZES].index(c.size)].setChecked(True)
+            self.code_kind.setCurrentIndex(self._code_index(c.kind))
+            set_position(self.code_pos, c.side, c.valign)
+            set_size(self.code_sizes, c.size)
             if self.code_text.text() != c.text:
                 self.code_text.setText(c.text)
             self._update_code_hint()
             p = label.picture
             self.pic_kind.setCurrentIndex([k for k, _ in PICTURE_KINDS].index(p.kind))
-            self.pic_side.setCurrentIndex(1 if p.side == HAlign.RIGHT else 0)
+            set_position(self.pic_pos, p.side, p.valign)
+            set_size(self.pic_sizes, p.size)
             select_symbol(self.pic_symbol, p.symbol)
             self._update_picture_widgets()
             self.specs.set_specs(label.specs)
@@ -608,14 +649,15 @@ class PropertiesPanel(QScrollArea):
         s.border = self.border.isChecked()
         s.separators = self.separators.isChecked()
         s.invert = self.invert.isChecked()
-        kind, side, _ = CODE_CHOICES[max(0, self.code_kind.currentIndex())]
-        lbl.code.kind, lbl.code.side = kind, side
-        lbl.code.size = next(sz for (sz, _t), b in zip(CODE_SIZES, self.code_sizes)
-                             if b.isChecked())
+        lbl.code.kind = CODE_CHOICES[max(0, self.code_kind.currentIndex())][0]
+        if lbl.code.kind == CodeKind.QR:  # a barcode keeps the QR code's place for later
+            lbl.code.side, lbl.code.valign = chosen_position(self.code_pos)
+            lbl.code.size = chosen_size(self.code_sizes)
         lbl.code.text = self.code_text.text()
         self._update_code_hint()
         lbl.picture.kind = PICTURE_KINDS[max(0, self.pic_kind.currentIndex())][0]
-        lbl.picture.side = SIDES[max(0, self.pic_side.currentIndex())][0]
+        lbl.picture.side, lbl.picture.valign = chosen_position(self.pic_pos)
+        lbl.picture.size = chosen_size(self.pic_sizes)
         lbl.picture.symbol = self.pic_symbol.currentData() or lbl.picture.symbol
         self._update_picture_widgets()
         lbl.specs = self.specs.specs()
@@ -626,11 +668,12 @@ class PropertiesPanel(QScrollArea):
 
     def _update_picture_widgets(self) -> None:
         kind = PICTURE_KINDS[max(0, self.pic_kind.currentIndex())][0]
-        self.pic_side.setEnabled(kind != PictureKind.NONE)
+        self.pic_pos.setEnabled(kind != PictureKind.NONE)
         self.pic_symbol.setEnabled(kind == PictureKind.SYMBOL)
         self.pic_image_btn.setEnabled(kind == PictureKind.IMAGE)
         # only the rows that matter for the chosen kind
-        self._pic_form.setRowVisible(self.pic_side, kind != PictureKind.NONE)
+        self._pic_form.setRowVisible(self.pic_pos, kind != PictureKind.NONE)
+        self._pic_form.setRowVisible(self._pic_size_box, kind != PictureKind.NONE)
         self._pic_form.setRowVisible(self.pic_symbol, kind == PictureKind.SYMBOL)
         self._pic_form.setRowVisible(self.pic_image_btn, kind == PictureKind.IMAGE)
         has = bool(self.label and self.label.picture.image_png)
@@ -663,11 +706,8 @@ class PropertiesPanel(QScrollArea):
         return True
 
     @staticmethod
-    def _code_index(kind: CodeKind, side: HAlign) -> int:
-        for i, (k, sd, _) in enumerate(CODE_CHOICES):
-            if k == kind and (k != CodeKind.QR or sd == side):
-                return i
-        return 0
+    def _code_index(kind: CodeKind) -> int:
+        return next((i for i, (k, _) in enumerate(CODE_CHOICES) if k == kind), 0)
 
     def _update_links(self, notes: str) -> None:
         links = find_links(notes)
@@ -688,6 +728,7 @@ class PropertiesPanel(QScrollArea):
         self.code_text.setEnabled(kind != CodeKind.NONE)
         self.code_field_btn.setEnabled(kind != CodeKind.NONE)
         self._code_form.setRowVisible(self._code_row, kind != CodeKind.NONE)
+        self._code_form.setRowVisible(self.code_pos, kind == CodeKind.QR)
         self._code_form.setRowVisible(self._code_size_box, kind == CodeKind.QR)
         self.code_hint.setText({
             CodeKind.NONE: "",
@@ -724,6 +765,8 @@ class PropertiesPanel(QScrollArea):
         self.text_section.set_summary(" / ".join(ln.text for ln in lbl.lines
                                                  if ln.enabled and ln.text))
         code = self.code_kind.currentText()
+        if lbl.code.kind == CodeKind.QR:
+            code += " · " + self.code_pos.currentText().lower()
         if lbl.code.kind != CodeKind.NONE and lbl.code.text:
             code += f" · {lbl.code.text}"
         self.code_group.set_summary(code)
@@ -731,7 +774,7 @@ class PropertiesPanel(QScrollArea):
         if lbl.picture.kind == PictureKind.SYMBOL:
             pic = self.pic_symbol.currentText().strip()
         if lbl.picture.kind != PictureKind.NONE:
-            pic += " · " + self.pic_side.currentText().lower()
+            pic += " · " + self.pic_pos.currentText().lower()
         self.pic_group.set_summary(pic)
         meta = [tr("{n} specificaties", n=len(lbl.specs))] if lbl.specs else []
         meta += [tr("notities")] if lbl.notes.strip() else []

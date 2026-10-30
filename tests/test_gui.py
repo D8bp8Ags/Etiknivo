@@ -377,7 +377,7 @@ def test_qr_size_buttons(window) -> None:  # noqa: ANN001
     from etiknivo.model import CodeKind, CodeSize
 
     p = window.properties
-    p.code_kind.setCurrentIndex(p._code_index(CodeKind.QR, p.label.code.side))
+    p.code_kind.setCurrentIndex(p._code_index(CodeKind.QR))
     assert p._code_size_box.isVisibleTo(p)
     p.code_sizes[0].click()
     assert window.current.code.size == CodeSize.SMALL

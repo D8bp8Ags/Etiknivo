@@ -72,7 +72,7 @@ De snelknoppen veranderen alleen welke regels aan staan. Tekst, lettertype, groo
 
 Onder **Tekst** staat elke regel (Bovenregel, Hoofdregel, Onderregel) op één rij: het vinkje zet hem aan of uit, daarnaast typ je de tekst en voeg je met { } een veld in. Het knopje met de schuifjes klapt het lettertype, de grootte, de stijl (vet en cursief) en de uitlijning van die regel uit; met de muis erboven zie je ze ook zonder uitklappen.
 
-Het paneel rechts bestaat uit secties: Label, Tekst, QR-code of barcode, Pictogram, Specificaties en notities, en Opmaak. Met een klik op de titel klap je een sectie in of uit; Etiknivo onthoudt dat. Een ingeklapte sectie toont achter de titel kort wat erin staat, bijvoorbeeld *QR-code links · {Lade}*.
+Het paneel rechts bestaat uit secties: Label, Tekst, QR-code of barcode, Pictogram, Specificaties en notities, en Opmaak. Met een klik op de titel klap je een sectie in of uit; Etiknivo onthoudt dat. Een ingeklapte sectie toont achter de titel kort wat erin staat, bijvoorbeeld *QR-code · links midden · {Lade}*.
 
 Onder de regels vind je instellingen voor het hele label: verticale uitlijning, regelafstand, marges, *Tekst automatisch passend maken* (verkleint de tekst tot alles past), rotatie, een rand rond het etiket, een dunne lijn tussen de tekstregels en wit-op-zwart.
 
@@ -137,7 +137,7 @@ Onder *QR-code of barcode* staat **Pictogram**. Bij *Soort* kies je:
   - *Aanduidingen*: let op, verboden, informatie, vinkje, kruis, deze kant boven, breekbaar, ster en hart.
 - **Eigen afbeelding**: klik **Afbeelding kiezen…** en kies een PNG, JPG of SVG, bijvoorbeeld je logo. Etiknivo maakt hem zwart-wit, haalt witte randen weg en bewaart hem in het label zelf. Het originele bestand heb je daarna niet meer nodig, en de afbeelding gaat mee in exports en back-ups.
 
-Met *Plaats* zet je het pictogram links of rechts van de tekst. De tekst schuift opzij en wordt zo nodig kleiner. Een passend symbool voor al je labels tegelijk kies je met [Label → Pictogrammen…](#pictogrammen-kiezen). Staan een QR-code en een pictogram aan dezelfde kant, dan komt de QR-code aan de buitenkant en het pictogram ernaast.
+Met *Plaats* zet je het pictogram links of rechts van de tekst, en daar boven, in het midden (standaard) of onder: *Links boven*, *Links midden*, *Links onder*, *Rechts boven*, *Rechts midden* of *Rechts onder*. Met **Grootte** kies je *Klein*, *Middel* (standaard) of *Groot*, net als bij de QR-code. De tekst schuift opzij en wordt zo nodig kleiner. Een passend symbool voor al je labels tegelijk kies je met [Label → Pictogrammen…](#pictogrammen-kiezen). Staan een QR-code en een pictogram aan dezelfde kant, dan komt de QR-code aan de buitenkant en het pictogram ernaast.
 
 Afbeeldingen met veel kleine details of zachte kleurverlopen worden op 12 mm vaak onduidelijk. Eenvoudige vormen met dikke lijnen werken het best.
 
@@ -145,7 +145,7 @@ Afbeeldingen met veel kleine details of zachte kleurverlopen worden op 12 mm vaa
 
 Onder de tekstregels staat **QR-code of barcode**. Bij *Soort* kies je:
 
-- **QR-code links** of **QR-code rechts**: een vierkante code naast de tekst, om met je telefoon te scannen. De tekst schuift opzij en wordt zo nodig kleiner. Met **Grootte** kies je *Klein*, *Middel* (standaard) of *Groot*. Klein laat de meeste ruimte voor tekst en scant met een telefoon nog prima bij een korte inhoud zoals `{Lade}`; Groot scant het makkelijkst.
+- **QR-code**: een vierkante code naast de tekst, om met je telefoon te scannen. De tekst schuift opzij en wordt zo nodig kleiner. Met **Plaats** zet je de code links of rechts, boven, in het midden (standaard) of onder, net als het pictogram. Met **Grootte** kies je *Klein*, *Middel* (standaard) of *Groot*. Klein laat de meeste ruimte voor tekst en scant met een telefoon nog prima bij een korte inhoud zoals `{Lade}`; Groot scant het makkelijkst.
 - **Barcode (Code 128) onderaan**: een streepjescode onder de tekst, voor een handscanner. Alle regels blijven staan en worden zo nodig kleiner; met minder regels (knoppen 1/2/3) wordt de tekst groter.
 
 Bij *Inhoud* zet je wat de code bevat. Standaard is dat `{Lade}`, de lade-ID. Velden werken net als in de tekstregels, dus met een specificatie `Datasheet: https://…` en als inhoud `{Datasheet}` opent de QR-code die link. Een onbekend veld geeft een waarschuwing en dan wordt er geen code gedrukt, zodat je nooit een code met `{…}` erin print.
@@ -242,7 +242,7 @@ Wil je dat een hele categorie er hetzelfde uitziet, maak dan één label mooi en
 - **Layout en lettertypen**: welke regels zichtbaar zijn, lettertype, grootte, vet, cursief en uitlijning per regel.
 - **Opmaak**: verticale uitlijning, regelafstand, marges, automatisch passend maken, rotatie, rand, lijnen tussen regels en wit-op-zwart.
 - **QR-code of barcode**: soort, plaats en inhoud. Velden zoals `{Lade}` vullen zich per label in.
-- **Pictogram**: symbool of afbeelding en de plaats.
+- **Pictogram**: symbool of afbeelding, de plaats en de grootte.
 
 Kies daarna op welke labels het moet: de geselecteerde labels, alle labels in een categorie, of alle labels. De knop laat zien hoeveel labels er veranderen. De tekst, specificaties en notities van die labels blijven zoals ze waren. Klopt het resultaat niet, dan zet ⌘Z alles in één keer terug.
 
@@ -261,7 +261,7 @@ Labels met een eigen afbeelding blijven zoals ze zijn. Heb je in de bibliotheek 
 
 **Label → Labels bewerken…** (⌘E, ook in het rechtsklikmenu van de bibliotheek) toont al je labels in één tabel, met de naam, lade-ID, categorie en de drie regels. Dubbelklik een cel of begin gewoon te typen om hem te wijzigen. Selecteer je meerdere rijen (Shift- of ⌘-klik) en typ je een waarde, dan krijgen alle geselecteerde labels die. Zo zet je in één keer tien labels in een andere categorie. Gewijzigde cellen worden blauw, het zoekveld bovenin beperkt de lijst en pas met **Toepassen** verandert er iets. ⌘Z zet alles in één keer terug.
 
-Het pictogram is op elk label even groot, zodat een ladekast er rustig uitziet. Alleen als een regel anders niet meer past, wordt het pictogram op dat label kleiner.
+Het pictogram is op elk label met dezelfde *Grootte* even groot, zodat een ladekast er rustig uitziet. Alleen als een regel anders niet meer past, wordt het pictogram op dat label kleiner.
 
 Bij de eerste start staan er 23 voorbeeldlabels voor Raaco-laden met elektronicaonderdelen in. Die kun je gewoon aanpassen of verwijderen.
 

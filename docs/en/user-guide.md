@@ -74,7 +74,7 @@ The quick buttons only change which lines are switched on. Text, font, size and 
 
 Under **Text**, each line (Top line, Main line, Bottom line) has its own row: the checkbox switches it on or off, next to it you type the text and insert a field with { }. The button with the sliders expands the font, size, style (bold and italic) and alignment of that line; hover over it to see them without expanding.
 
-The panel on the right consists of sections: Label, Text, QR code or barcode, Pictogram, Specifications and notes, and Style. Click a title to collapse or expand a section; Etiknivo remembers this. A collapsed section shows a short summary after its title, for example *QR code on the left · {Tray}*.
+The panel on the right consists of sections: Label, Text, QR code or barcode, Pictogram, Specifications and notes, and Style. Click a title to collapse or expand a section; Etiknivo remembers this. A collapsed section shows a short summary after its title, for example *QR code · middle left · {Tray}*.
 
 Below the lines are settings for the whole label: vertical alignment, line spacing, margins, *Shrink text to fit* (makes the text smaller until everything fits), rotation, a border around the label, a thin line between the text lines and white on black.
 
@@ -139,7 +139,7 @@ Below *QR code or barcode* is **Pictogram**. Under *Type* you choose:
   - *Signs*: warning, prohibited, information, check mark, cross, this way up, fragile, star and heart.
 - **Own image**: click **Choose image…** and pick a PNG, JPG or SVG, for example your logo. Etiknivo turns it black and white, trims white borders and stores it inside the label. You no longer need the original file, and the image travels along in exports and backups.
 
-With *Position* you put the pictogram to the left or right of the text. The text moves aside and gets smaller if needed. To pick a fitting symbol for all your labels at once, use [Label → Pictograms…](#choosing-pictograms). If a QR code and a pictogram are on the same side, the QR code goes on the outside and the pictogram next to it.
+With *Position* you put the pictogram to the left or right of the text, at the top, in the middle (default) or at the bottom: *Top left*, *Middle left*, *Bottom left*, *Top right*, *Middle right* or *Bottom right*. With **Size** you choose *Small*, *Medium* (default) or *Large*, just like the QR code. The text moves aside and gets smaller if needed. To pick a fitting symbol for all your labels at once, use [Label → Pictograms…](#choosing-pictograms). If a QR code and a pictogram are on the same side, the QR code goes on the outside and the pictogram next to it.
 
 Images with lots of small details or soft colour gradients often become unclear at 12 mm. Simple shapes with thick lines work best.
 
@@ -147,7 +147,7 @@ Images with lots of small details or soft colour gradients often become unclear 
 
 Below the text lines is **QR code or barcode**. Under *Type* you choose:
 
-- **QR code on the left** or **QR code on the right**: a square code next to the text, to scan with your phone. The text moves aside and gets smaller if needed. With **Size** you choose *Small*, *Medium* (default) or *Large*. Small leaves the most room for text and still scans fine with a phone when the content is short, such as `{Tray}`; Large scans most easily.
+- **QR code**: a square code next to the text, to scan with your phone. The text moves aside and gets smaller if needed. With **Position** you put the code on the left or right, at the top, in the middle (default) or at the bottom, just like the pictogram. With **Size** you choose *Small*, *Medium* (default) or *Large*. Small leaves the most room for text and still scans fine with a phone when the content is short, such as `{Tray}`; Large scans most easily.
 - **Barcode (Code 128) at the bottom**: a barcode below the text, for a handheld scanner. All lines stay and get smaller if needed; with fewer lines (buttons 1/2/3) the text gets bigger.
 
 Under *Content* you set what the code contains. By default this is `{Tray}`, the tray ID. Fields work just like in the text lines, so with a specification `Datasheet: https://…` and `{Datasheet}` as the content, the QR code opens that link. An unknown field gives a warning and then no code is printed, so you never print a code with `{…}` in it.
@@ -244,7 +244,7 @@ If you want a whole category to look the same, make one label look good and choo
 - **Layout and fonts**: which lines are visible, and font, size, bold, italic and alignment per line.
 - **Style**: vertical alignment, line spacing, margins, shrink to fit, rotation, border, lines between lines and white on black.
 - **QR code or barcode**: type, position and content. Fields such as `{Tray}` are filled in per label.
-- **Pictogram**: symbol or image and its position.
+- **Pictogram**: symbol or image, its position and its size.
 
 Then choose which labels it applies to: the selected labels, all labels in a category, or all labels. The button shows how many labels will change. The text, specifications and notes of those labels stay as they were. If the result isn't right, ⌘Z undoes everything at once.
 
@@ -263,7 +263,7 @@ Labels with an image of their own stay as they are. If more than one label is se
 
 **Label → Edit labels…** (⌘E, also in the library's right-click menu) shows all your labels in one table, with the name, tray ID, category and the three lines. Double-click a cell or just start typing to change it. If you select several rows (Shift- or ⌘-click) and type a value, all selected labels get it. That way you move ten labels to another category in one go. Changed cells turn blue, the search field at the top narrows the list, and nothing changes until you click **Apply**. ⌘Z undoes everything at once.
 
-The pictogram is the same size on every label, so a drawer cabinet looks tidy. Only when a line wouldn't fit otherwise does the pictogram get smaller on that label.
+The pictogram is the same size on every label with the same *Size*, so a drawer cabinet looks tidy. Only when a line wouldn't fit otherwise does the pictogram get smaller on that label.
 
 On first start there are 23 sample labels for Raaco drawers with electronic components. You can simply change or delete them.
 

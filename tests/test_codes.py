@@ -138,9 +138,10 @@ def test_properties_panel_sets_code(qtbot) -> None:  # noqa: ANN001
     lbl = _label(CodeKind.NONE)
     panel.set_label(lbl)
     assert not panel.code_text.isEnabled()
-    panel.code_kind.setCurrentIndex(2)  # QR right
+    panel.code_kind.setCurrentIndex(1)  # QR
+    panel.code_pos.setCurrentIndex(4)  # right, middle
     assert (lbl.code.kind, lbl.code.side) == (CodeKind.QR, HAlign.RIGHT)
-    panel.code_kind.setCurrentIndex(3)  # barcode
+    panel.code_kind.setCurrentIndex(2)  # barcode
     assert lbl.code.kind == CodeKind.CODE128
     assert not panel.lines[SLOT_BOTTOM].note.text()
     panel.code_text.setText("")
@@ -177,3 +178,26 @@ def test_qr_size_choice_scans_and_leaves_room() -> None:
     lbl = _label(CodeKind.QR)
     lbl.code.size = CodeSize.SMALL
     assert Label.from_dict(lbl.to_dict()).code.size == CodeSize.SMALL
+
+
+@pytest.mark.parametrize("valign", ["top", "center", "bottom"])
+def test_qr_top_middle_or_bottom(valign: str) -> None:
+    from etiknivo.model import CodeSize, VAlign
+
+    eng = RenderEngine()
+    lbl = _label(CodeKind.QR, side=HAlign.RIGHT)
+    lbl.code.size, lbl.code.valign = CodeSize.SMALL, VAlign(valign)
+    r = eng.render(lbl)
+    assert not r.warnings and _decoded(eng, lbl) == ["A14"]
+    _cx0, cy0, _cx1, cy1 = r.content_box
+    _x0, y0, _x1, y1 = r.code.box
+    gap_top, gap_bottom = y0 - cy0, cy1 - y1
+    if valign == "top":
+        assert gap_top <= 1 < gap_bottom
+    elif valign == "bottom":
+        assert gap_bottom <= 1 < gap_top
+    else:
+        assert abs(gap_top - gap_bottom) <= 1
+    back = Label.from_dict(lbl.to_dict()).code
+    assert (back.side, back.valign) == (HAlign.RIGHT, VAlign(valign))
+    assert Label.from_dict({"code": {"kind": "qr"}}).code.valign == VAlign.CENTER

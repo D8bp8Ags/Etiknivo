@@ -2,6 +2,12 @@
 
 All notable changes to Etiknivo are listed here. Version numbers follow [Semantic Versioning](https://semver.org/); before 1.0 a minor version may still change file formats or behaviour.
 
+## [Unreleased]
+
+### Designing labels
+- The pictogram now has a size (Small, Medium, Large) just like the QR code.
+- Pictogram and QR code can each go top left, middle left, bottom left, top right, middle right or bottom right. Existing labels keep their look (middle, medium).
+
 ## [0.1.0] - 2026-10-26
 
 First public release.

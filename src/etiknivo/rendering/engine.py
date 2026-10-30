@@ -66,9 +66,13 @@ BAR_HEIGHT_MM = 3.5
 BAR_GAP_MM = 0.75
 PICTURE_GAP_MM = 1.0
 PICTURE_MAX_WIDTH = 0.5  # share of the room left for text
-#: sizes a pictogram takes (share of the text height): the first on every label alike, the
-#: smaller ones only when the text would otherwise have to shrink
-PICTURE_SCALES = (0.6, 0.45, 0.35)
+#: sizes a pictogram takes per size choice (share of the text height): the first on every
+#: label alike, the smaller ones only when the text would otherwise have to shrink
+PICTURE_SCALES = {
+    CodeSize.SMALL: (0.4, 0.3),
+    CodeSize.MEDIUM: (0.6, 0.45, 0.35),
+    CodeSize.LARGE: (0.85, 0.6, 0.45, 0.35),
+}
 SEPARATOR_GAP_PX = 3  # minimum line gap with separators: white, line, white
 ITALIC_SHEAR = 0.2
 
@@ -662,7 +666,7 @@ class RenderEngine:
                 module = max(1, module)
             size = n * module
             x0 = round(cx0) if spec.side != HAlign.RIGHT else int(cx1) - size
-            y0 = round(cy0 + (cy1 - cy0 - size) / 2)
+            y0 = _vplace(spec.valign, cy0, cy1, size)
             rects = [(x0 + c * module, y0 + r * module, x0 + (c + 1) * module,
                       y0 + (r + 1) * module)
                      for r, row in enumerate(matrix) for c, dark in enumerate(row) if dark]
@@ -694,7 +698,7 @@ class RenderEngine:
         """The pictogram at the same size on every label, so a drawer cabinet
         looks even; smaller only when a line would otherwise be cut short."""
         placed = None
-        for scale in PICTURE_SCALES:
+        for scale in PICTURE_SCALES[label.picture.size]:
             tried: list[str] = []
             attempt = self._place_picture(label, area, tried, scale)
             if attempt is None:
@@ -747,11 +751,13 @@ class RenderEngine:
         if w < 8 or h < 8:  # 1 mm: no room
             warnings.append(tr("Geen ruimte voor het pictogram"))
             return None
-        y0 = round(ay0 + (ay1 - ay0 - h) / 2)
         gap = self.mm_to_px(PICTURE_GAP_MM)
-        # a symbol's white space left and right does not push the text away
-        fx0, _fy0, fx1, _fy1 = (symbols.ink_box(source) if isinstance(source, str)
-                                else (0.0, 0.0, 1.0, 1.0))
+        # a symbol's white space does not push the text away, nor keep its ink
+        # from the top or bottom edge
+        fx0, fy0, fx1, fy1 = (symbols.ink_box(source) if isinstance(source, str)
+                              else (0.0, 0.0, 1.0, 1.0))
+        y0 = (_vplace(pic.valign, ay0, ay1, h) if pic.valign == VAlign.CENTER
+              else _vplace(pic.valign, ay0 - fy0 * h, ay1 + (1 - fy1) * h, h))
         if pic.side == HAlign.RIGHT:
             x0 = round(ax1 - fx1 * w)
             rest = (ax0, ay0, x0 + fx0 * w - gap, ay1)
@@ -878,6 +884,15 @@ class RenderEngine:
                                  (1, ITALIC_SHEAR, -ITALIC_SHEAR * hgt, 0, 1, 0),
                                  resample=Image.Resampling.BILINEAR)
         canvas.paste(0, (int(x * ss + l - 1), int(y * ss + t - 1)), sheared)
+
+
+def _vplace(valign: VAlign, y0: float, y1: float, size: float) -> int:
+    """Top of something *size* high at the top, middle or bottom of y0..y1."""
+    if valign == VAlign.TOP:
+        return round(y0)
+    if valign == VAlign.BOTTOM:
+        return round(y1 - size)
+    return round(y0 + (y1 - y0 - size) / 2)
 
 
 def _fit(w: float, h: float, aspect: float) -> tuple[float, float]:

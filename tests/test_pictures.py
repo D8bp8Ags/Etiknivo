@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 from PIL import Image, ImageDraw
 
-from etiknivo.model import CodeKind, HAlign, Label, PictureKind, make_label
+from etiknivo.model import CodeKind, CodeSize, HAlign, Label, PictureKind, VAlign, make_label
 from etiknivo.rendering import pictures, symbols
 from etiknivo.rendering.engine import RenderEngine
 
@@ -58,6 +58,47 @@ def test_picture_and_qr_share_the_label() -> None:
     assert min(lb.x0 for lb in r.lines) > r.code.box[2] + 40
 
 
+def test_picture_sizes() -> None:
+    eng = RenderEngine()
+    heights = {}
+    for size in CodeSize:
+        lbl = make_label("A1", "R", "", "")  # short text: no shrinking back
+        lbl.picture.kind, lbl.picture.size = PictureKind.SYMBOL, size
+        r = eng.render(lbl)
+        assert not r.warnings and not r.has_overflow
+        heights[size] = r.picture_box[3] - r.picture_box[1]
+    assert heights[CodeSize.SMALL] < heights[CodeSize.MEDIUM] < heights[CodeSize.LARGE]
+    # labels from before the choice keep their size
+    assert Label.from_dict({"picture": {"kind": "symbol"}}).picture.size == CodeSize.MEDIUM
+
+
+@pytest.mark.parametrize("side", [HAlign.LEFT, HAlign.RIGHT])
+@pytest.mark.parametrize("valign", list(VAlign))
+def test_picture_six_positions(side: HAlign, valign: VAlign) -> None:
+    eng = RenderEngine()
+    lbl = _label(PictureKind.SYMBOL, side)
+    lbl.picture.valign, lbl.picture.size = valign, CodeSize.SMALL
+    r = eng.render(lbl)
+    assert not r.warnings and not r.has_overflow
+    _cx0, cy0, _cx1, cy1 = r.content_box
+    bx0, by0, bx1, by1 = r.picture_box
+    fx0, fy0, fx1, fy1 = symbols.ink_box(lbl.picture.symbol)
+    ink_top, ink_bottom = by0 + fy0 * (by1 - by0), by0 + fy1 * (by1 - by0)
+    if valign == VAlign.TOP:
+        assert abs(ink_top - cy0) <= 1
+    elif valign == VAlign.BOTTOM:
+        assert abs(ink_bottom - cy1) <= 1
+    else:
+        assert abs((by0 - cy0) - (cy1 - by1)) <= 1
+    if side == HAlign.LEFT:
+        assert min(lb.x0 for lb in r.lines) > bx0 + fx1 * (bx1 - bx0)
+    else:
+        assert max(lb.x1 for lb in r.lines) < bx0 + fx0 * (bx1 - bx0)
+    back = Label.from_dict(lbl.to_dict()).picture
+    assert (back.side, back.valign, back.size) == (side, valign, CodeSize.SMALL)
+    assert Label.from_dict({"picture": {"kind": "symbol"}}).picture.valign == VAlign.CENTER
+
+
 def _logo(tmp_path: Path) -> Path:
     img = Image.new("RGBA", (300, 150), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
@@ -104,9 +145,12 @@ def test_panel_picture_controls(qtbot, tmp_path: Path) -> None:  # noqa: ANN001
     assert not panel.pic_symbol.isEnabled() and not panel.pic_image_btn.isEnabled()
     panel.pic_kind.setCurrentIndex(1)
     panel.pic_symbol.setCurrentIndex(panel.pic_symbol.findData("diode"))
-    panel.pic_side.setCurrentIndex(1)
-    assert (lbl.picture.kind, lbl.picture.symbol, lbl.picture.side) == (
-        PictureKind.SYMBOL, "diode", HAlign.RIGHT)
+    panel.pic_pos.setCurrentIndex(5)  # right, bottom
+    panel.pic_sizes[2].click()
+    assert (lbl.picture.kind, lbl.picture.symbol, lbl.picture.side, lbl.picture.valign,
+            lbl.picture.size) == (PictureKind.SYMBOL, "diode", HAlign.RIGHT, VAlign.BOTTOM,
+                                  CodeSize.LARGE)
+    assert panel._pic_size_box.isVisibleTo(panel)
     assert panel.pic_symbol.isEnabled()
     assert panel.set_image_file(_logo(tmp_path))
     assert lbl.picture.kind == PictureKind.IMAGE and lbl.picture.image_png

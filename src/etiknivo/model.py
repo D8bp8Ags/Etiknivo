@@ -178,7 +178,7 @@ class CodeKind(StrEnum):
 
 
 class CodeSize(StrEnum):
-    """How big a QR code beside the text may get (its module size)."""
+    """How big a QR code or pictogram beside the text may get."""
 
     SMALL = "small"
     MEDIUM = "medium"
@@ -193,6 +193,7 @@ class LabelCode:
     kind: CodeKind = CodeKind.NONE
     text: str = "{Lade}"
     side: HAlign = HAlign.LEFT  # QR code: LEFT or RIGHT of the text
+    valign: VAlign = VAlign.CENTER  # QR code: top, middle or bottom of its side
     size: CodeSize = CodeSize.MEDIUM  # QR code only
 
     @classmethod
@@ -204,11 +205,23 @@ class LabelCode:
             c.kind = CodeKind.NONE
         c.text = str(data.get("text", c.text))
         c.side = HAlign.RIGHT if data.get("side") == HAlign.RIGHT else HAlign.LEFT
-        try:
-            c.size = CodeSize(data.get("size", CodeSize.MEDIUM))
-        except ValueError:
-            c.size = CodeSize.MEDIUM
+        c.valign = _valign(data.get("valign"))
+        c.size = _size(data.get("size"))
         return c
+
+
+def _valign(value: Any) -> VAlign:
+    try:
+        return VAlign(value)
+    except ValueError:
+        return VAlign.CENTER
+
+
+def _size(value: Any) -> CodeSize:
+    try:
+        return CodeSize(value)
+    except ValueError:
+        return CodeSize.MEDIUM
 
 
 class PictureKind(StrEnum):
@@ -227,6 +240,8 @@ class LabelPicture:
     symbol: str = "resistor"
     image_png: str = ""
     side: HAlign = HAlign.LEFT
+    valign: VAlign = VAlign.CENTER
+    size: CodeSize = CodeSize.MEDIUM
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> LabelPicture:
@@ -238,6 +253,8 @@ class LabelPicture:
         p.symbol = str(data.get("symbol", p.symbol))
         p.image_png = str(data.get("image_png", ""))
         p.side = HAlign.RIGHT if data.get("side") == HAlign.RIGHT else HAlign.LEFT
+        p.valign = _valign(data.get("valign"))
+        p.size = _size(data.get("size"))
         return p
 
 
