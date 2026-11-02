@@ -48,7 +48,9 @@ def remember_size(window: QDialog, key: str, header: QHeaderView | None = None) 
     if geo is not None:
         window.restoreGeometry(geo)
     cols = qs.value(f"{key}/columns") if header is not None else None
-    if cols is not None:
+    # a state saved with another number of columns (an older version) would
+    # leave the new columns outside the table: blank and unclickable
+    if cols is not None and str(qs.value(f"{key}/column_count")) == str(header.count()):
         header.restoreState(cols)
 
     def save() -> None:
@@ -56,5 +58,6 @@ def remember_size(window: QDialog, key: str, header: QHeaderView | None = None) 
         qs.setValue(f"{key}/geometry", window.saveGeometry())
         if header is not None:
             qs.setValue(f"{key}/columns", header.saveState())
+            qs.setValue(f"{key}/column_count", header.count())
 
     window.finished.connect(save)

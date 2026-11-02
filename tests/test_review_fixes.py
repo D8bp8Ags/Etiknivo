@@ -330,3 +330,33 @@ def test_bulk_edit_sets_pictogram_and_qr_size_for_all(window, monkeypatch) -> No
     assert {lbl.picture.size for lbl in window.library.labels} == {CodeSize.SMALL}
     assert {lbl.code.size for lbl in window.library.labels} == {CodeSize.LARGE}
     assert window.current.picture.size == CodeSize.SMALL and not window.is_dirty()
+
+
+def test_column_widths_from_an_older_version_do_not_hide_new_columns(qtbot) -> None:  # noqa: ANN001
+    from PySide6.QtWidgets import QDialog, QHeaderView, QTableWidget, QTableWidgetItem
+
+    from etiknivo.gui.qt_util import remember_size, ui_state
+
+    def dialog(columns: int) -> tuple[QDialog, QTableWidget]:
+        dlg = QDialog()
+        qtbot.addWidget(dlg)
+        table = QTableWidget(2, columns, dlg)
+        table.resize(900, 300)
+        head = table.horizontalHeader()
+        head.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
+        head.setStretchLastSection(True)
+        for c in range(columns):
+            table.setItem(0, c, QTableWidgetItem(f"c{c}"))
+        remember_size(dlg, "old_columns", head)
+        return dlg, table
+
+    ui_state().remove("old_columns")
+    old, _ = dialog(6)
+    old.show()
+    old.reject()  # saves the state of six columns, as before the size columns
+    ui_state().remove("old_columns/column_count")  # older versions did not store it
+    _new, table = dialog(8)
+    table.show()
+    qtbot.wait(20)
+    rect = table.visualItemRect(table.item(0, 7))
+    assert table.indexAt(rect.center()).column() == 7
