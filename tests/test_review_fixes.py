@@ -332,6 +332,27 @@ def test_bulk_edit_sets_pictogram_and_qr_size_for_all(window, monkeypatch) -> No
     assert window.current.picture.size == CodeSize.SMALL and not window.is_dirty()
 
 
+def test_bulk_edit_sets_pictogram_and_qr_position_for_all(window, monkeypatch) -> None:  # noqa: ANN001
+    from etiknivo.gui.bulk_edit import POSITION_COLUMNS, BulkEditDialog
+    from etiknivo.model import HAlign, VAlign
+
+    picture_col, qr_col = POSITION_COLUMNS
+
+    def accept(dlg: BulkEditDialog) -> int:
+        assert dlg.table.horizontalHeaderItem(qr_col).text() == "QR-positie"
+        dlg.table.selectAll()
+        dlg.set_cell(0, picture_col, "Rechts onder")
+        dlg.set_cell(0, qr_col, "Links boven")
+        return QDialog.DialogCode.Accepted
+
+    monkeypatch.setattr(BulkEditDialog, "exec", accept)
+    window.edit_labels()
+    labels = window.library.labels
+    assert {(lbl.picture.side, lbl.picture.valign) for lbl in labels} == {
+        (HAlign.RIGHT, VAlign.BOTTOM)}
+    assert {(lbl.code.side, lbl.code.valign) for lbl in labels} == {(HAlign.LEFT, VAlign.TOP)}
+
+
 def test_column_widths_from_an_older_version_do_not_hide_new_columns(qtbot) -> None:  # noqa: ANN001
     from PySide6.QtWidgets import QDialog, QHeaderView, QTableWidget, QTableWidgetItem
 

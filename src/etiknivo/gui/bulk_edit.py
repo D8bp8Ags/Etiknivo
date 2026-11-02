@@ -25,7 +25,7 @@ from PySide6.QtWidgets import (
 from etiknivo.gui import theme
 from etiknivo.gui.qt_util import remember_size
 from etiknivo.i18n import N_, tr
-from etiknivo.model import SLOT_BOTTOM, SLOT_MAIN, SLOT_TOP, CodeSize, Label
+from etiknivo.model import SLOT_BOTTOM, SLOT_MAIN, SLOT_TOP, CodeSize, HAlign, Label, VAlign
 
 #: The size choices as the table shows them, as in the properties panel
 SIZE_NAMES: tuple[tuple[CodeSize, str], ...] = (
@@ -44,6 +44,31 @@ def _set_line(slot: int) -> Callable[[Label, str], None]:
 def _set(attr: str) -> Callable[[Label, str], None]:
     def write(lbl: Label, text: str) -> None:
         setattr(lbl, attr, text.strip())
+    return write
+
+#: The places beside the text, as in the properties panel
+POSITION_NAMES: tuple[tuple[HAlign, VAlign, str], ...] = (
+    (HAlign.LEFT, VAlign.TOP, N_("Links boven")),
+    (HAlign.LEFT, VAlign.CENTER, N_("Links midden")),
+    (HAlign.LEFT, VAlign.BOTTOM, N_("Links onder")),
+    (HAlign.RIGHT, VAlign.TOP, N_("Rechts boven")),
+    (HAlign.RIGHT, VAlign.CENTER, N_("Rechts midden")),
+    (HAlign.RIGHT, VAlign.BOTTOM, N_("Rechts onder")),
+)
+
+
+def _position_name(part: object) -> str:
+    return next(tr(name) for side, valign, name in POSITION_NAMES
+                if (side, valign) == (part.side, part.valign))  # type: ignore[attr-defined]
+
+
+def _set_position(part: str) -> Callable[[Label, str], None]:
+    """Write a position name to the label's pictogram or QR code; anything
+    else leaves it as it is."""
+    def write(lbl: Label, text: str) -> None:
+        for side, valign, name in POSITION_NAMES:
+            if text.strip().casefold() == tr(name).casefold():
+                getattr(lbl, part).side, getattr(lbl, part).valign = side, valign
     return write
 
 
@@ -69,18 +94,25 @@ COLUMNS: tuple[Column, ...] = (
     (N_("Hoofdregel"), lambda lbl: lbl.lines[SLOT_MAIN].text, _set_line(SLOT_MAIN)),
     (N_("Onderregel"), lambda lbl: lbl.lines[SLOT_BOTTOM].text, _set_line(SLOT_BOTTOM)),
     (N_("Pictogramgrootte"), lambda lbl: _size_name(lbl.picture.size), _set_size("picture")),
+    (N_("Pictogrampositie"), lambda lbl: _position_name(lbl.picture), _set_position("picture")),
     (N_("QR-grootte"), lambda lbl: _size_name(lbl.code.size), _set_size("code")),
+    (N_("QR-positie"), lambda lbl: _position_name(lbl.code), _set_position("code")),
 )
 CATEGORY_COLUMN = 2
-SIZE_COLUMNS = (6, 7)
+SIZE_COLUMNS = (6, 8)  # pictogram, QR code
+POSITION_COLUMNS = (7, 9)
 
 
-class _SizeDelegate(QStyledItemDelegate):
-    """Picks Klein, Middel or Groot from a list that opens at once."""
+class _ChoiceDelegate(QStyledItemDelegate):
+    """Picks one of a few fixed values from a list that opens at once."""
+
+    def __init__(self, names: list[str], parent: QWidget) -> None:
+        super().__init__(parent)
+        self._names = names
 
     def createEditor(self, parent, option, index):  # type: ignore[no-untyped-def]  # noqa: N802
         editor = QComboBox(parent)
-        editor.addItems([tr(name) for _value, name in SIZE_NAMES])
+        editor.addItems([tr(name) for name in self._names])
         editor.activated.connect(lambda _i: self.commitData.emit(editor))
         QTimer.singleShot(0, editor.showPopup)
         return editor
@@ -142,8 +174,8 @@ class BulkEditDialog(QDialog):
         lay = QVBoxLayout(self)
         intro = QLabel(tr("Dubbelklik een cel om hem te wijzigen. Selecteer meerdere rijen "
                           "(Shift-klik) en typ een waarde: alle geselecteerde labels krijgen "
-                          "hem. Velden zoals {Lade} werken ook hier. De groottes gelden voor het "
-                          "pictogram en de QR-code, ook als je die later pas toevoegt."))
+                          "hem. Velden zoals {Lade} werken ook hier. Grootte en positie gelden "
+                          "voor het pictogram en de QR-code, ook als je die later pas toevoegt."))
         intro.setWordWrap(True)
         lay.addWidget(intro)
         self.search = QLineEdit()
@@ -162,8 +194,12 @@ class BulkEditDialog(QDialog):
         self._categories = categories
         self.table.setItemDelegateForColumn(CATEGORY_COLUMN,
                                             _CategoryDelegate(self._category_list, self.table))
+        sizes = [name for _value, name in SIZE_NAMES]
+        places = [name for _side, _valign, name in POSITION_NAMES]
         for col in SIZE_COLUMNS:
-            self.table.setItemDelegateForColumn(col, _SizeDelegate(self.table))
+            self.table.setItemDelegateForColumn(col, _ChoiceDelegate(sizes, self.table))
+        for col in POSITION_COLUMNS:
+            self.table.setItemDelegateForColumn(col, _ChoiceDelegate(places, self.table))
         head = self.table.horizontalHeader()
         head.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
         head.setStretchLastSection(True)
