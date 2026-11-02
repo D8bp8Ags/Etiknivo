@@ -246,15 +246,21 @@ class RenderEngine:
         warnings: list[str] = []
 
         prepared = self._prepare_lines(label, warnings)
-        code = self._place_code(label, content, bool(prepared), warnings)
-        area = code.text_area if code else content
         sizes = [ln.line.font_size_pt for ln in prepared]
         spacing = self.mm_to_px(style.line_spacing_mm)
         if style.separators and len(prepared) > 1:
             spacing = max(spacing, SEPARATOR_GAP_PX)  # room for the line and white around it
-        picture = self._fit_picture(label, area, prepared, sizes, spacing, warnings)
-        if picture is not None:
+        stack = (self._fit_stack(label, content, prepared, sizes, spacing, warnings)
+                 if is_stacked(label) else None)
+        if stack is not None:
+            code, picture = stack
             area = picture[2]
+        else:
+            code = self._place_code(label, content, bool(prepared), warnings)
+            area = code.text_area if code else content
+            picture = self._fit_picture(label, area, prepared, sizes, spacing, warnings)
+            if picture is not None:
+                area = picture[2]
         avail_w = max(1.0, area[2] - area[0])
         avail_h = max(1.0, area[3] - area[1])
 
@@ -710,6 +716,104 @@ class RenderEngine:
                 break
         return placed
 
+    def _fit_stack(self, label: Label, content: tuple[float, float, float, float],
+                   prepared: list[_Prepared], sizes: list[float], spacing: float,
+                   warnings: list[str]) -> tuple[PlacedCode, tuple[
+                       tuple[int, int, int, int], str | Image.Image,
+                       tuple[float, float, float, float]]] | None:
+        """QR code and pictogram under each other in one column at the side
+        they share; None (nothing warned) when the QR code or the pictogram
+        cannot be made, so the usual layout handles it."""
+        text = _code_text(label, label.code.text, [])
+        matrix = None
+        if text is not None:
+            try:
+                matrix = codes.qr_matrix(text)
+            except codes.CodeError:
+                pass
+        if matrix is None or self._picture_source(label, []) is None:
+            return None
+        placed = None
+        for scale in PICTURE_SCALES[label.picture.size]:
+            tried: list[str] = []
+            attempt = self._place_stack(label, content, text, matrix, scale, tried)
+            if attempt is None:
+                break
+            placed, notes = attempt, tried
+            if self._lines_fit(prepared, sizes, placed[1][2], spacing, label.style.autofit):
+                break
+        if placed is None:
+            return None
+        warnings.extend(notes)
+        return placed
+
+    def _place_stack(self, label: Label, content: tuple[float, float, float, float],
+                     text: str, matrix: list[list[bool]], scale: float,
+                     warnings: list[str]) -> tuple[PlacedCode, tuple[
+                         tuple[int, int, int, int], str | Image.Image,
+                         tuple[float, float, float, float]]] | None:
+        """One column of QR code and pictogram: the one set higher (top,
+        middle, bottom) goes above.  Top sticks to the top edge, bottom to the
+        bottom edge, middle right next to the other one."""
+        spec, pic = label.code, label.picture
+        source, aspect = self._picture_source(label, warnings)  # type: ignore[misc]
+        cx0, cy0, cx1, cy1 = content
+        height = cy1 - cy0
+        gap = self.mm_to_px(PICTURE_GAP_MM)
+        fx0, fy0, fx1, fy1 = (symbols.ink_box(source) if isinstance(source, str)
+                              else (0.0, 0.0, 1.0, 1.0))
+        ink_h = max(0.1, fy1 - fy0)
+        # the QR code goes first (it has to scan); the pictogram keeps at least
+        # half the height it would get beside the text
+        n = len(matrix)
+        keep = max(8.0, height * scale / 2 * ink_h)
+        module = min(QR_SIZE_MODULE_PX[spec.size],
+                     max(QR_MIN_MODULE_PX, int((height - gap - keep) // n)))
+        if n * module > height - gap - 8:
+            module = int((height - gap - 8) // n)
+        if module < QR_MIN_MODULE_PX:
+            warnings.append(tr("QR-code wordt te klein om te scannen; kort de tekst in"))
+            if module < 1:
+                return None
+        qr = n * module
+        h = int(min(height * scale, (height - qr - gap) / ink_h))
+        w = round(h * aspect)
+        max_w = int((cx1 - cx0) * PICTURE_MAX_WIDTH)
+        if w > max_w:
+            w = max_w
+            h = max(1, round(w / aspect))
+        if w < 8 or h < 8:  # 1 mm: no room
+            warnings.append(tr("Geen ruimte voor het pictogram"))
+            return None
+        pic_ink_w, pic_ink_h = (fx1 - fx0) * w, ink_h * h
+        column = max(qr, pic_ink_w)
+        left = spec.side != HAlign.RIGHT
+        col_x0 = cx0 if left else cx1 - column
+        qx0 = round(col_x0 + (column - qr) / 2)
+        px0 = round(col_x0 + (column - pic_ink_w) / 2 - fx0 * w)
+        # vertical: ink heights of the upper and the lower part
+        rank = {VAlign.TOP: 0, VAlign.CENTER: 1, VAlign.BOTTOM: 2}
+        qr_above = rank[spec.valign] < rank[pic.valign]
+        h_up, h_down = (qr, pic_ink_h) if qr_above else (pic_ink_h, qr)
+        ends = {spec.valign, pic.valign}
+        if VAlign.TOP in ends:
+            up = cy0
+            down = cy1 - h_down if VAlign.BOTTOM in ends else cy0 + h_up + gap
+        else:
+            down = cy1 - h_down
+            up = down - gap - h_up
+        qy0, ink_y = (up, down) if qr_above else (down, up)
+        qy0 = round(qy0)
+        py0 = round(ink_y - fy0 * h)
+        rects = [(qx0 + c * module, qy0 + r * module, qx0 + (c + 1) * module,
+                  qy0 + (r + 1) * module)
+                 for r, row in enumerate(matrix) for c, dark in enumerate(row) if dark]
+        text_gap = self.mm_to_px(QR_GAP_MM)
+        area = ((col_x0 + column + text_gap, cy0, cx1, cy1) if left
+                else (cx0, cy0, col_x0 - text_gap, cy1))
+        code = PlacedCode(spec.kind, text, (qx0, qy0, qx0 + qr, qy0 + qr), module, rects, area)
+        return code, ((px0, py0, px0 + w, py0 + h), source, area)
+
     def _lines_fit(self, prepared: list[_Prepared], sizes: list[float],
                    area: tuple[float, float, float, float], spacing: float,
                    autofit: bool) -> bool:
@@ -727,20 +831,10 @@ class RenderEngine:
         """Box for the label's pictogram at the outer edge of *area*:
         (box in design dots, source, area left for the text) or None."""
         pic = label.picture
-        if pic.kind == PictureKind.SYMBOL:
-            if pic.symbol not in symbols.SYMBOLS:
-                warnings.append(tr("Onbekend symbool '{name}'", name=pic.symbol))
-                return None
-            source: str | Image.Image = pic.symbol
-            aspect = 1.0
-        elif pic.kind == PictureKind.IMAGE:
-            img = pictures.decode(pic.image_png)
-            if img is None:
-                warnings.append(tr("Geen afbeelding gekozen"))
-                return None
-            source, aspect = img, img.width / max(1, img.height)
-        else:
+        found = self._picture_source(label, warnings)
+        if found is None:
             return None
+        source, aspect = found
         ax0, ay0, ax1, ay1 = area
         h = int((ay1 - ay0) * scale)
         w = round(h * aspect)
@@ -765,6 +859,24 @@ class RenderEngine:
             x0 = round(ax0 - fx0 * w)
             rest = (x0 + fx1 * w + gap, ay0, ax1, ay1)
         return (x0, y0, x0 + w, y0 + h), source, rest
+
+    @staticmethod
+    def _picture_source(label: Label, warnings: list[str]
+                        ) -> tuple[str | Image.Image, float] | None:
+        """The pictogram to draw (symbol key or image) and its width/height."""
+        pic = label.picture
+        if pic.kind == PictureKind.SYMBOL:
+            if pic.symbol not in symbols.SYMBOLS:
+                warnings.append(tr("Onbekend symbool '{name}'", name=pic.symbol))
+                return None
+            return pic.symbol, 1.0
+        if pic.kind == PictureKind.IMAGE:
+            img = pictures.decode(pic.image_png)
+            if img is None:
+                warnings.append(tr("Geen afbeelding gekozen"))
+                return None
+            return img, img.width / max(1, img.height)
+        return None
 
     @staticmethod
     def _draw_picture(canvas: Image.Image, box: tuple[int, int, int, int],
@@ -884,6 +996,14 @@ class RenderEngine:
                                  (1, ITALIC_SHEAR, -ITALIC_SHEAR * hgt, 0, 1, 0),
                                  resample=Image.Resampling.BILINEAR)
         canvas.paste(0, (int(x * ss + l - 1), int(y * ss + t - 1)), sheared)
+
+
+def is_stacked(label: Label) -> bool:
+    """Whether the QR code and the pictogram stand under each other: both on
+    the same side of the text, at different heights."""
+    code, pic = label.code, label.picture
+    return (code.kind == CodeKind.QR and pic.kind != PictureKind.NONE
+            and code.side == pic.side and code.valign != pic.valign)
 
 
 def _vplace(valign: VAlign, y0: float, y1: float, size: float) -> int:

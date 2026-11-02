@@ -198,3 +198,47 @@ def test_tight_label_with_qr_and_symbol_never_overlaps() -> None:
         >= r.code.box[2]
     assert all(lb.x0 >= ink_right and lb.x1 <= eng.printable_box[2] + 0.5 for lb in r.lines)
     assert any("ingekort" in w for w in r.warnings)
+
+
+@pytest.mark.parametrize("side", [HAlign.LEFT, HAlign.RIGHT])
+@pytest.mark.parametrize(("qr_v", "pic_v"), [(VAlign.TOP, VAlign.BOTTOM),
+                                             (VAlign.BOTTOM, VAlign.TOP),
+                                             (VAlign.CENTER, VAlign.BOTTOM),
+                                             (VAlign.TOP, VAlign.CENTER)])
+def test_qr_and_picture_below_each_other(side: HAlign, qr_v: VAlign, pic_v: VAlign) -> None:
+    """Same side, different heights: one column, the higher one on top, the
+    text beside the column and nothing outside the printable band."""
+    import zxingcpp
+
+    lbl = _label(PictureKind.SYMBOL, side)
+    lbl.code.kind, lbl.code.side, lbl.code.valign = CodeKind.QR, side, qr_v
+    lbl.picture.valign = pic_v
+    eng = RenderEngine()
+    r = eng.render(lbl)
+    assert r.code is not None and r.picture_box is not None
+    qx0, qy0, qx1, qy1 = r.code.box
+    bx0, by0, bx1, by1 = r.picture_box
+    fx0, fy0, fx1, fy1 = symbols.ink_box(lbl.picture.symbol)
+    ink = (bx0 + fx0 * (bx1 - bx0), by0 + fy0 * (by1 - by0),
+           bx0 + fx1 * (bx1 - bx0), by0 + fy1 * (by1 - by0))
+    order = list(VAlign)
+    if order.index(qr_v) < order.index(pic_v):
+        assert ink[1] >= qy1  # pictogram below the QR code
+    else:
+        assert ink[3] <= qy0  # pictogram above the QR code
+    # one column: they overlap horizontally
+    assert ink[0] < qx1 and ink[2] > qx0
+    px0, py0, px1, py1 = eng.printable_box
+    assert qy0 >= py0 and qy1 <= py1 and ink[1] >= py0 - 0.5 and ink[3] <= py1 + 0.5
+    col = (min(qx0, ink[0]), max(qx1, ink[2]))
+    for lb in r.lines:
+        assert lb.x0 >= col[1] if side == HAlign.LEFT else lb.x1 <= col[0]
+    found = zxingcpp.read_barcodes(r.mono.convert("L"))
+    assert any(f.text == r.code.text for f in found)
+
+
+def test_same_height_stays_side_by_side() -> None:
+    lbl = _label(PictureKind.SYMBOL, HAlign.LEFT)
+    lbl.code.kind, lbl.code.side = CodeKind.QR, HAlign.LEFT
+    r = RenderEngine().render(lbl)
+    assert r.code is not None and r.picture_box[0] >= r.code.box[2]
