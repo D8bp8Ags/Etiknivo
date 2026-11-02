@@ -25,7 +25,11 @@ from PySide6.QtWidgets import (
 from etiknivo.gui import theme
 from etiknivo.gui.qt_util import remember_size
 from etiknivo.i18n import N_, tr
-from etiknivo.model import SLOT_BOTTOM, SLOT_MAIN, SLOT_TOP, Label
+from etiknivo.model import SLOT_BOTTOM, SLOT_MAIN, SLOT_TOP, CodeSize, Label
+
+#: The size choices as the table shows them, as in the properties panel
+SIZE_NAMES: tuple[tuple[CodeSize, str], ...] = (
+    (CodeSize.SMALL, N_("Klein")), (CodeSize.MEDIUM, N_("Middel")), (CodeSize.LARGE, N_("Groot")))
 
 #: (column title, read the value from a label, write it to a label)
 Column = tuple[str, Callable[[Label], str], Callable[[Label, str], None]]
@@ -43,6 +47,20 @@ def _set(attr: str) -> Callable[[Label, str], None]:
     return write
 
 
+def _size_name(size: CodeSize) -> str:
+    return next(tr(name) for value, name in SIZE_NAMES if value == size)
+
+
+def _set_size(part: str) -> Callable[[Label, str], None]:
+    """Write a size name (in the current language) to the label's pictogram or
+    QR code; anything else leaves it as it is."""
+    def write(lbl: Label, text: str) -> None:
+        for value, name in SIZE_NAMES:
+            if text.strip().casefold() in (tr(name).casefold(), value.value):
+                getattr(lbl, part).size = value
+    return write
+
+
 COLUMNS: tuple[Column, ...] = (
     (N_("Naam"), lambda lbl: lbl.name, _set("name")),
     (N_("Lade-ID"), lambda lbl: lbl.tray_id, _set("tray_id")),
@@ -50,8 +68,28 @@ COLUMNS: tuple[Column, ...] = (
     (N_("Bovenregel"), lambda lbl: lbl.lines[SLOT_TOP].text, _set_line(SLOT_TOP)),
     (N_("Hoofdregel"), lambda lbl: lbl.lines[SLOT_MAIN].text, _set_line(SLOT_MAIN)),
     (N_("Onderregel"), lambda lbl: lbl.lines[SLOT_BOTTOM].text, _set_line(SLOT_BOTTOM)),
+    (N_("Pictogramgrootte"), lambda lbl: _size_name(lbl.picture.size), _set_size("picture")),
+    (N_("QR-grootte"), lambda lbl: _size_name(lbl.code.size), _set_size("code")),
 )
 CATEGORY_COLUMN = 2
+SIZE_COLUMNS = (6, 7)
+
+
+class _SizeDelegate(QStyledItemDelegate):
+    """Picks Klein, Middel or Groot from a list that opens at once."""
+
+    def createEditor(self, parent, option, index):  # type: ignore[no-untyped-def]  # noqa: N802
+        editor = QComboBox(parent)
+        editor.addItems([tr(name) for _value, name in SIZE_NAMES])
+        editor.activated.connect(lambda _i: self.commitData.emit(editor))
+        QTimer.singleShot(0, editor.showPopup)
+        return editor
+
+    def setEditorData(self, editor, index):  # type: ignore[no-untyped-def]  # noqa: N802
+        editor.setCurrentText(index.data() or "")
+
+    def setModelData(self, editor, model, index):  # type: ignore[no-untyped-def]  # noqa: N802
+        model.setData(index, editor.currentText())
 
 
 class _CategoryDelegate(QStyledItemDelegate):
@@ -104,7 +142,8 @@ class BulkEditDialog(QDialog):
         lay = QVBoxLayout(self)
         intro = QLabel(tr("Dubbelklik een cel om hem te wijzigen. Selecteer meerdere rijen "
                           "(Shift-klik) en typ een waarde: alle geselecteerde labels krijgen "
-                          "hem. Velden zoals {Lade} werken ook hier."))
+                          "hem. Velden zoals {Lade} werken ook hier. De groottes gelden voor het "
+                          "pictogram en de QR-code, ook als je die later pas toevoegt."))
         intro.setWordWrap(True)
         lay.addWidget(intro)
         self.search = QLineEdit()
@@ -123,6 +162,8 @@ class BulkEditDialog(QDialog):
         self._categories = categories
         self.table.setItemDelegateForColumn(CATEGORY_COLUMN,
                                             _CategoryDelegate(self._category_list, self.table))
+        for col in SIZE_COLUMNS:
+            self.table.setItemDelegateForColumn(col, _SizeDelegate(self.table))
         head = self.table.horizontalHeader()
         head.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
         head.setStretchLastSection(True)
@@ -187,9 +228,10 @@ class BulkEditDialog(QDialog):
                 cell = self.table.item(row, col)
                 if self.table.isRowHidden(row):
                     continue
-                if cell.text() != text:
-                    cell.setText(text)
                 COLUMNS[col][2](self._labels[row], text)
+                shown = COLUMNS[col][1](self._labels[row])  # sizes: an unknown word stays
+                if cell.text() != shown:
+                    cell.setText(shown)
         finally:
             self._spreading = False
         self._update()

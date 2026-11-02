@@ -261,7 +261,7 @@ Labels with an image of their own stay as they are. If more than one label is se
 
 ### Editing many labels at once
 
-**Label → Edit labels…** (⌘E, also in the library's right-click menu) shows all your labels in one table, with the name, tray ID, category and the three lines. Double-click a cell or just start typing to change it. If you select several rows (Shift- or ⌘-click) and type a value, all selected labels get it. That way you move ten labels to another category in one go. Changed cells turn blue, the search field at the top narrows the list, and nothing changes until you click **Apply**. ⌘Z undoes everything at once.
+**Label → Edit labels…** (⌘E, also in the library's right-click menu) shows all your labels in one table, with the name, tray ID, category, the three lines and the size of the pictogram and the QR code. Double-click a cell or just start typing to change it. If you select several rows (Shift- or ⌘-click) and type a value, all selected labels get it. That way you move ten labels to another category in one go. To make every pictogram small, click the *Pictogram size* column header (that selects the whole column), press Enter and choose **Small**; the *QR size* column works the same for the QR code. Changed cells turn blue, the search field at the top narrows the list, and nothing changes until you click **Apply**. ⌘Z undoes everything at once.
 
 The pictogram is the same size on every label with the same *Size*, so a drawer cabinet looks tidy. Only when a line wouldn't fit otherwise does the pictogram get smaller on that label.
 

@@ -259,7 +259,7 @@ Labels met een eigen afbeelding blijven zoals ze zijn. Heb je in de bibliotheek 
 
 ### Veel labels tegelijk bewerken
 
-**Label → Labels bewerken…** (⌘E, ook in het rechtsklikmenu van de bibliotheek) toont al je labels in één tabel, met de naam, lade-ID, categorie en de drie regels. Dubbelklik een cel of begin gewoon te typen om hem te wijzigen. Selecteer je meerdere rijen (Shift- of ⌘-klik) en typ je een waarde, dan krijgen alle geselecteerde labels die. Zo zet je in één keer tien labels in een andere categorie. Gewijzigde cellen worden blauw, het zoekveld bovenin beperkt de lijst en pas met **Toepassen** verandert er iets. ⌘Z zet alles in één keer terug.
+**Label → Labels bewerken…** (⌘E, ook in het rechtsklikmenu van de bibliotheek) toont al je labels in één tabel, met de naam, lade-ID, categorie, de drie regels en de grootte van het pictogram en de QR-code. Dubbelklik een cel of begin gewoon te typen om hem te wijzigen. Selecteer je meerdere rijen (Shift- of ⌘-klik) en typ je een waarde, dan krijgen alle geselecteerde labels die. Zo zet je in één keer tien labels in een andere categorie. Wil je alle pictogrammen klein, klik dan op de kolomkop *Pictogramgrootte* (dat selecteert de hele kolom), druk op Enter en kies **Klein**; voor de QR-code werkt de kolom *QR-grootte* net zo. Gewijzigde cellen worden blauw, het zoekveld bovenin beperkt de lijst en pas met **Toepassen** verandert er iets. ⌘Z zet alles in één keer terug.
 
 Het pictogram is op elk label met dezelfde *Grootte* even groot, zodat een ladekast er rustig uitziet. Alleen als een regel anders niet meer past, wordt het pictogram op dat label kleiner.
 

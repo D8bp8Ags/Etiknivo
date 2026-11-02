@@ -1072,6 +1072,7 @@ class MainWindow(QMainWindow):
                 lbl.name, lbl.tray_id, lbl.category = edited.name, edited.tray_id, edited.category
                 for line, new in zip(lbl.lines, edited.lines):
                     line.text = new.text
+                lbl.picture.size, lbl.code.size = edited.picture.size, edited.code.size
                 lbl.touch()
         if self.current is not None:
             self.properties.set_label(self.current)

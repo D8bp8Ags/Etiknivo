@@ -792,9 +792,13 @@ EN: dict[str, str] = {
     "Voor elk label": "For every label",
     "Labels bewerken…": "Edit labels…",
     "Dubbelklik een cel om hem te wijzigen. Selecteer meerdere rijen (Shift-klik) en typ een "
-    "waarde: alle geselecteerde labels krijgen hem. Velden zoals {Lade} werken ook hier.":
+    "waarde: alle geselecteerde labels krijgen hem. Velden zoals {Lade} werken ook hier. De "
+    "groottes gelden voor het pictogram en de QR-code, ook als je die later pas toevoegt.":
         "Double-click a cell to change it. Select several rows (Shift-click) and type a value: "
-        "every selected label gets it. Fields such as {Tray} work here too.",
+        "every selected label gets it. Fields such as {Tray} work here too. The sizes apply to "
+        "the pictogram and the QR code, also if you only add them later.",
+    "Pictogramgrootte": "Pictogram size",
+    "QR-grootte": "QR size",
     "{n} label(s) bewerkt": "{n} label(s) edited",
     "Kies per categorie een pictogram; de labels eronder krijgen het, behalve labels met een "
     "eigen pictogram. Alleen aangevinkte labels veranderen. Selecteer meerdere labels "

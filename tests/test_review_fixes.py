@@ -305,3 +305,28 @@ def test_bulk_edit_category_shows_every_category(qtbot) -> None:  # noqa: ANN001
     editor.setCurrentText("Nieuwe categorie")
     dlg.table.commitData(editor)
     assert dlg.changes()[labels[0].id].category == "Nieuwe categorie"
+
+
+def test_bulk_edit_sets_pictogram_and_qr_size_for_all(window, monkeypatch) -> None:  # noqa: ANN001
+    from etiknivo.gui.bulk_edit import SIZE_COLUMNS, BulkEditDialog
+    from etiknivo.model import CodeSize
+
+    window.open_label(window.library.labels[0].id)
+    picture_col, qr_col = SIZE_COLUMNS
+
+    def accept(dlg: BulkEditDialog) -> int:
+        assert dlg.table.horizontalHeaderItem(picture_col).text() == "Pictogramgrootte"
+        dlg.table.selectAll()
+        dlg.set_cell(0, picture_col, "Klein")
+        dlg.set_cell(0, qr_col, "Groot")
+        dlg.set_cell(1, qr_col, "onzin")  # an unknown word leaves the size as it is
+        rows = range(dlg.table.rowCount())
+        assert all(dlg.table.item(r, picture_col).text() == "Klein" for r in rows)
+        assert all(dlg.table.item(r, qr_col).text() == "Groot" for r in rows)
+        return QDialog.DialogCode.Accepted
+
+    monkeypatch.setattr(BulkEditDialog, "exec", accept)
+    window.edit_labels()
+    assert {lbl.picture.size for lbl in window.library.labels} == {CodeSize.SMALL}
+    assert {lbl.code.size for lbl in window.library.labels} == {CodeSize.LARGE}
+    assert window.current.picture.size == CodeSize.SMALL and not window.is_dirty()
