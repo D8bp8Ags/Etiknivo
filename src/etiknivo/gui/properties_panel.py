@@ -397,6 +397,11 @@ class PropertiesPanel(QScrollArea):
         self.margin_h = spin(0, 10, 0.25, " mm", 2)
         self.margin_v = spin(0, 5, 0.25, " mm", 2)
         self.autofit = QCheckBox(tr("Tekst automatisch passend maken"))
+        self.same_size = QCheckBox(tr("Zelfde lettergrootte binnen de categorie"))
+        self.same_size.setToolTip(tr(
+            "Aan: alle labels in deze categorie krijgen per regel dezelfde grootte, de "
+            "kleinste die nodig is. Een label met veel langere tekst wordt los kleiner, "
+            "zodat de rest niet meekrimpt.\nUit: elk label zo groot als het past."))
         self.rotation = combo()
         self.rotation.addItem("0°", 0)
         self.rotation.addItem(tr("90° (van onder naar boven lezen)"), 90)
@@ -411,6 +416,8 @@ class PropertiesPanel(QScrollArea):
         f2.addRow(tr("Marge verticaal"), self.margin_v)
         f2.addRow(tr("Rotatie"), self.rotation)
         f2.addRow(self.autofit)
+        f2.addRow(self.same_size)
+        self.autofit.toggled.connect(self.same_size.setEnabled)
         f2.addRow(self.border)
         f2.addRow(self.separators)
         f2.addRow(self.invert)
@@ -433,7 +440,7 @@ class PropertiesPanel(QScrollArea):
             w.currentIndexChanged.connect(lambda: self._apply(False))
         for w in (self.spacing, self.margin_h, self.margin_v):
             w.valueChanged.connect(lambda: self._apply(False))
-        for w in (self.autofit, self.border, self.separators, self.invert):
+        for w in (self.autofit, self.same_size, self.border, self.separators, self.invert):
             w.toggled.connect(lambda: self._apply(False))
         for w in (self.code_kind, self.code_pos):
             w.currentIndexChanged.connect(lambda: self._apply(False))
@@ -498,6 +505,8 @@ class PropertiesPanel(QScrollArea):
             self.margin_h.setValue(s.margin_h_mm)
             self.margin_v.setValue(s.margin_v_mm)
             self.autofit.setChecked(s.autofit)
+            self.same_size.setChecked(s.same_size_in_category)
+            self.same_size.setEnabled(s.autofit)
             self.rotation.setCurrentIndex(max(0, self.rotation.findData(s.rotation)))
             self.border.setChecked(s.border)
             self.separators.setChecked(s.separators)
@@ -549,12 +558,13 @@ class PropertiesPanel(QScrollArea):
         for w in (self.text_section, self.code_group, self.pic_group):
             w.setVisible(not free)
         for w in (self.valign, self.spacing, self.margin_h, self.margin_v, self.rotation,
-                  self.autofit, self.separators):
+                  self.autofit, self.same_size, self.separators):
             self._style_form.setRowVisible(w, not free)
 
-    def show_fitted_sizes(self, sizes: dict[int, tuple[float, float]]) -> None:
-        """Show the auto-fit result per slot: {slot: (fitted_pt, requested_pt)};
-        in the free layout the slot is the element's index."""
+    def show_fitted_sizes(self, sizes: dict[int, tuple[float, float, str]]) -> None:
+        """Show the auto-fit result per slot: {slot: (fitted_pt, requested_pt,
+        shared)}, *shared* as in :class:`LineBox`; in the free layout the slot
+        is the element's index."""
         if self.label is not None and self.label.is_free:
             el = self.elements.current()
             idx = self.label.elements.index(el) if el is not None else -1
@@ -562,7 +572,13 @@ class PropertiesPanel(QScrollArea):
             return
         for le in self.lines:
             fitted = sizes.get(le.slot)
-            if fitted and fitted[0] < fitted[1] - 0.05:
+            if fitted and fitted[2] == "shared":
+                le.set_fitted(tr("{pt} pt, gelijk aan de rest van de categorie",
+                                 pt=f"{fitted[0]:.1f}"))
+            elif fitted and fitted[2] == "own":
+                le.set_fitted(tr("Verkleind tot {pt} pt, kleiner dan de rest van de categorie",
+                                 pt=f"{fitted[0]:.1f}"))
+            elif fitted and fitted[0] < fitted[1] - 0.05:
                 le.set_fitted(tr("Automatisch verkleind tot {pt} pt", pt=f"{fitted[0]:.1f}"))
             else:
                 le.set_fitted("")
@@ -645,6 +661,7 @@ class PropertiesPanel(QScrollArea):
         s.margin_h_mm = self.margin_h.value()
         s.margin_v_mm = self.margin_v.value()
         s.autofit = self.autofit.isChecked()
+        s.same_size_in_category = self.same_size.isChecked()
         s.rotation = int(self.rotation.currentData() or 0)
         s.border = self.border.isChecked()
         s.separators = self.separators.isChecked()

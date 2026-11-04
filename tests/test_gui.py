@@ -383,3 +383,16 @@ def test_qr_size_buttons(window) -> None:  # noqa: ANN001
     assert window.current.code.size == CodeSize.SMALL
     p.code_kind.setCurrentIndex(0)
     assert not p._code_size_box.isVisibleTo(p)
+
+
+def test_same_size_in_category_is_a_choice(window) -> None:  # noqa: ANN001
+    props = window.properties
+    lbl = window.current
+    assert props.same_size.isChecked() and lbl.style.same_size_in_category
+    props.same_size.setChecked(False)
+    assert not lbl.style.same_size_in_category
+    props.autofit.setChecked(False)
+    assert not props.same_size.isEnabled()
+    props.autofit.setChecked(True)
+    props.same_size.setChecked(True)
+    assert props.same_size.isEnabled() and lbl.style.same_size_in_category

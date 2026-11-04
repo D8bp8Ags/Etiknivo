@@ -26,6 +26,7 @@ Pipeline
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field, replace
 
 from PIL import Image, ImageChops, ImageDraw, ImageOps
@@ -56,6 +57,9 @@ from etiknivo.settings import Calibration
 log = logging.getLogger(__name__)
 
 MIN_FONT_PT = 4.0  # below this text is no longer legible at 203 dpi
+#: a label whose text needs this much less than the median of its category keeps
+#: its own size instead of making the whole category smaller
+SHARED_OUTLIER_PT = 1.0
 QR_MAX_MODULE_PX = 4  # 0.5 mm per module is plenty for a phone camera
 QR_MIN_MODULE_PX = 2  # smaller modules (0.125 mm) do not scan reliably
 #: largest module per QR size choice: 0.25, 0.375 and 0.5 mm
@@ -90,6 +94,9 @@ class LineBox:
     size_pt: float
     requested_pt: float
     overflow: bool = False
+    #: "shared": made smaller to match the rest of the category; "own": the
+    #: category shares a larger size, but this text needs a smaller one
+    shared: str = ""
 
 
 @dataclass
@@ -204,6 +211,10 @@ class RenderEngine:
         self.profile = profile
         self.calibration = calibration or Calibration()
         self.fonts = fonts or default_registry()
+        #: the other labels, so a category can share its font sizes
+        #: (see :meth:`size_caps`); None renders every label on its own
+        self.peers: Callable[[], Iterable[Label]] | None = None
+        self._own_fit: dict[tuple, dict[int, float]] = {}
 
     # -- geometry ------------------------------------------------------------------
 
@@ -233,10 +244,53 @@ class RenderEngine:
     # -- public API ----------------------------------------------------------------
 
     def render(self, label: Label) -> RenderResult:
+        return self._render(label, self.size_caps(label))
+
+    def size_caps(self, label: Label) -> dict[int, float] | None:
+        """Largest font size per line slot that the label's category shares,
+        or None when the label sizes its text on its own.
+
+        Every label in the category that has auto-fit with "same size in the
+        category" on takes, per line, the smallest size any of them needs, so
+        a drawer cabinet looks even.  Only lines with the same chosen size are
+        compared.  A label that needs much less than the others (more than
+        :data:`SHARED_OUTLIER_PT` under the median) keeps its own smaller size
+        rather than pulling the whole category down."""
+        if self.peers is None or not _shares_sizes(label):
+            return None
+        group = [label] + [p for p in self.peers()
+                           if p.id != label.id and p.category == label.category
+                           and _shares_sizes(p)]
+        if len(group) < 2:
+            return None
+        fits = [self._own_sizes(m) for m in group]
+        caps: dict[int, float] = {}
+        for slot in fits[0]:
+            want = label.lines[slot].font_size_pt
+            sizes = sorted(f[slot] for m, f in zip(group, fits)
+                           if slot in f and abs(m.lines[slot].font_size_pt - want) < 0.01)
+            if len(sizes) < 2:
+                continue
+            median = sizes[(len(sizes) - 1) // 2]
+            caps[slot] = min(s for s in sizes if s >= median - SHARED_OUTLIER_PT)
+        return caps or None
+
+    def _own_sizes(self, label: Label) -> dict[int, float]:
+        """The font size per slot the label gets on its own (cached)."""
+        key = (label.render_key(), self.profile, self.calibration.supersample)
+        hit = self._own_fit.get(key)
+        if hit is None:
+            if len(self._own_fit) > 4000:
+                self._own_fit.clear()
+            hit = {lb.slot: lb.size_pt for lb in self._render(label, None).lines}
+            self._own_fit[key] = hit
+        return hit
+
+    def _render(self, label: Label, caps: dict[int, float] | None) -> RenderResult:
         if label.is_free:
             return self._render_free(label)
         if label.style.rotation in (90, 270):
-            return self._render_turned(label)
+            return self._render_turned(label, caps)
         ss = max(1, int(self.calibration.supersample))
         w, h = self.design_size
         px0, py0, px1, py1 = self.printable_box
@@ -266,6 +320,15 @@ class RenderEngine:
 
         if style.autofit and prepared:
             sizes = self._autofit(prepared, sizes, avail_w, avail_h, spacing)
+        shared = [""] * len(prepared)
+        for n, p in enumerate(prepared):
+            cap = (caps or {}).get(p.slot)
+            if cap is None:
+                continue
+            if sizes[n] > cap + 0.05:
+                sizes[n], shared[n] = cap, "shared"
+            elif sizes[n] < cap - 0.05:
+                shared[n] = "own"
 
         # A line that is still too wide is cut short with "…" rather than
         # printed over the code or pictogram; it still gets a warning.
@@ -302,7 +365,7 @@ class RenderEngine:
             overflow = (n in cut) or (lw > avail_w + 0.5) or (x < area[0] - 0.5) \
                 or (x + lw > area[2] + 0.5) or (y < py0 - 0.5) or (y + lh > py1 + 0.5)
             line_boxes.append(LineBox(p.slot, cut.get(n, p.text), x, y, x + lw, y + lh, size,
-                                      p.line.font_size_pt, overflow))
+                                      p.line.font_size_pt, overflow, shared[n]))
             y += lh + spacing
 
         if block_h > avail_h + 0.5:
@@ -567,7 +630,7 @@ class RenderEngine:
                 out.append(make(ElementKind.IMAGE, r.picture_box, image_png=pic.image_png))
         return out
 
-    def _render_turned(self, label: Label) -> RenderResult:
+    def _render_turned(self, label: Label, caps: dict[int, float] | None) -> RenderResult:
         """Text turned a quarter: lay the label out on an upright (portrait)
         version of the printable area, then turn it into place.  90° reads from
         bottom to top, 270° from top to bottom."""
@@ -581,7 +644,7 @@ class RenderEngine:
         flat = label.clone(new_id=False)
         flat.style.rotation = 0
         flat.style.border = flat.style.invert = False
-        part = sub.render(flat)
+        part = sub._render(flat, caps)
         turned = part.hires.rotate(label.style.rotation, expand=True)
         w, h = self.design_size
         hires = Image.new("L", (w * ss, h * ss), 255)
@@ -996,6 +1059,12 @@ class RenderEngine:
                                  (1, ITALIC_SHEAR, -ITALIC_SHEAR * hgt, 0, 1, 0),
                                  resample=Image.Resampling.BILINEAR)
         canvas.paste(0, (int(x * ss + l - 1), int(y * ss + t - 1)), sheared)
+
+
+def _shares_sizes(label: Label) -> bool:
+    """Whether the label takes part in its category's shared font sizes."""
+    return (not label.is_free and label.style.autofit
+            and label.style.same_size_in_category)
 
 
 def is_stacked(label: Label) -> bool:

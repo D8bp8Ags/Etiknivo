@@ -151,6 +151,9 @@ class LabelStyle:
     margin_h_mm: float = 0.0  # on top of the profile's safe end margin
     margin_v_mm: float = 0.5
     autofit: bool = True
+    #: with auto-fit: every label in the category gets the same size per line
+    #: (the smallest one any of them needs); off, each label is as large as it fits
+    same_size_in_category: bool = True
     #: 0, 90, 180 or 270 degrees counter-clockwise (content rotation, independent of
     #: the print orientation); 90 and 270 turn the text a quarter for upright labels
     rotation: int = 0

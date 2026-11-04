@@ -76,7 +76,9 @@ Under **Text**, each line (Top line, Main line, Bottom line) has its own row: th
 
 The panel on the right consists of sections: Label, Text, QR code or barcode, Pictogram, Specifications and notes, and Style. Click a title to collapse or expand a section; Etiknivo remembers this. A collapsed section shows a short summary after its title, for example *QR code · middle left · {Tray}*.
 
-Below the lines are settings for the whole label: vertical alignment, line spacing, margins, *Shrink text to fit* (makes the text smaller until everything fits), rotation, a border around the label, a thin line between the text lines and white on black.
+Below the lines are settings for the whole label: vertical alignment, line spacing, margins, *Shrink text to fit* (makes the text smaller until everything fits) with *Same font size within the category*, rotation, a border around the label, a thin line between the text lines and white on black.
+
+With *Same font size within the category* on (the default), every label in the same category gets the same font size per line: the smallest one any of them needs, for example because a pictogram or QR code stands beside the text. That keeps a drawer cabinet looking even. A label with much longer text (more than about 1 pt smaller than the rest) shrinks on its own, so the others don't shrink with it. Only lines with the same chosen size are compared. Switch it off and each label is as large as it fits by itself. Below the line you can see the size it got, for example *13.3 pt, same as the rest of the category*.
 
 With *Rotation* you can also turn the text a quarter turn: **90°** reads from bottom to top, **270°** from top to bottom. This is useful for narrow drawers or when you stick the label on upright. The lines then run below each other along the length of the label. Because the label is only 12 mm wide, they often get smaller; shorten the text if it becomes too small.
 

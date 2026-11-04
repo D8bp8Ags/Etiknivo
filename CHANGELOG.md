@@ -8,6 +8,7 @@ All notable changes to Etiknivo are listed here. Version numbers follow [Semanti
 - The pictogram now has a size (Small, Medium, Large) just like the QR code.
 - Pictogram and QR code can each go top left, middle left, bottom left, top right, middle right or bottom right. Existing labels keep their look (middle, medium).
 - QR code and pictogram can stand below each other: put them on the same side at different heights (for example top left and bottom left) and they share one column, leaving the text more width.
+- Same font size within a category: with auto-fit on, labels in the same category now get the same size per line instead of each its own, so a pictogram or QR code on some labels no longer makes the sizes differ. A label with much longer text still shrinks on its own. Switch it off per label under Opmaak (*Zelfde lettergrootte binnen de categorie*) to keep the old behaviour.
 
 ## [0.1.0] - 2026-10-26
 

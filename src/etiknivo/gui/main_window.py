@@ -101,6 +101,7 @@ class MainWindow(QMainWindow):
         theme.apply(self.settings.theme)
         self.profile = self._roll_profile()
         self.engine = RenderEngine(self.profile, self.settings.calibration)
+        self.engine.peers = lambda: self.library.labels
         # The open label is edited as a draft (a copy); the library keeps the
         # saved version until the user clicks Opslaan.
         self.current: Label | None = None
@@ -840,7 +841,7 @@ class MainWindow(QMainWindow):
         r = self.engine.render(self.current)
         self.design_view.set_result(r)
         self.raster_view.set_result(r)
-        self.properties.show_fitted_sizes({lb.slot: (lb.size_pt, lb.requested_pt)
+        self.properties.show_fitted_sizes({lb.slot: (lb.size_pt, lb.requested_pt, lb.shared)
                                            for lb in r.lines})
         if r.warnings:
             self.warnings.setProperty("state", "warn")

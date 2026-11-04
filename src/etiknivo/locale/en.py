@@ -192,6 +192,13 @@ EN: dict[str, str] = {
     "Layout": "Layout",
     "Opmaak": "Style",
     "Tekst automatisch passend maken": "Shrink text to fit",
+    "Zelfde lettergrootte binnen de categorie": "Same font size within the category",
+    ("Aan: alle labels in deze categorie krijgen per regel dezelfde grootte, de "
+     "kleinste die nodig is. Een label met veel langere tekst wordt los kleiner, "
+     "zodat de rest niet meekrimpt.\nUit: elk label zo groot als het past."):
+        ("On: every label in this category gets the same size per line, the smallest "
+         "one needed. A label with much longer text shrinks on its own, so the rest "
+         "doesn't shrink with it.\nOff: each label as large as it fits."),
     "180° (ondersteboven)": "180° (upside down)",
     "Rand rond printbaar gebied": "Border around printable area",
     "Wit op zwart": "White on black",
@@ -204,6 +211,9 @@ EN: dict[str, str] = {
     "Specificaties": "Specifications",
     "Notities": "Notes",
     "Automatisch verkleind tot {pt} pt": "Automatically reduced to {pt} pt",
+    "{pt} pt, gelijk aan de rest van de categorie": "{pt} pt, same as the rest of the category",
+    "Verkleind tot {pt} pt, kleiner dan de rest van de categorie":
+        "Reduced to {pt} pt, smaller than the rest of the category",
     # -- printer panel ---------------------------------------------------------------
     "Niet verbonden": "Not connected",
     "Fout": "Error",

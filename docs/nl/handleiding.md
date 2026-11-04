@@ -74,7 +74,9 @@ Onder **Tekst** staat elke regel (Bovenregel, Hoofdregel, Onderregel) op één r
 
 Het paneel rechts bestaat uit secties: Label, Tekst, QR-code of barcode, Pictogram, Specificaties en notities, en Opmaak. Met een klik op de titel klap je een sectie in of uit; Etiknivo onthoudt dat. Een ingeklapte sectie toont achter de titel kort wat erin staat, bijvoorbeeld *QR-code · links midden · {Lade}*.
 
-Onder de regels vind je instellingen voor het hele label: verticale uitlijning, regelafstand, marges, *Tekst automatisch passend maken* (verkleint de tekst tot alles past), rotatie, een rand rond het etiket, een dunne lijn tussen de tekstregels en wit-op-zwart.
+Onder de regels vind je instellingen voor het hele label: verticale uitlijning, regelafstand, marges, *Tekst automatisch passend maken* (verkleint de tekst tot alles past) met *Zelfde lettergrootte binnen de categorie*, rotatie, een rand rond het etiket, een dunne lijn tussen de tekstregels en wit-op-zwart.
+
+Met *Zelfde lettergrootte binnen de categorie* aan (standaard) krijgen alle labels in dezelfde categorie per regel dezelfde lettergrootte: de kleinste die een van hen nodig heeft, bijvoorbeeld omdat er een pictogram of QR-code naast staat. Zo ziet een ladekast er rustig uit. Een label met veel langere tekst (meer dan ongeveer 1 pt kleiner dan de rest) wordt los kleiner, zodat de andere niet meekrimpen. Alleen regels met dezelfde ingestelde grootte worden vergeleken. Zet je het uit, dan wordt elk label zo groot als het zelf past. Onder de regel zie je welke grootte het werd, bijvoorbeeld *13,3 pt, gelijk aan de rest van de categorie*.
 
 Bij *Rotatie* kun je de tekst ook een kwartslag draaien: **90°** leest van onder naar boven, **270°** van boven naar onder. Dat is handig voor smalle laden of als je het etiket rechtop plakt. De regels staan dan onder elkaar over de lengte van het etiket. Omdat het etiket maar 12 mm breed is, worden ze vaak kleiner; kort de tekst in als dat te klein wordt.
 

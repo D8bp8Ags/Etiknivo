@@ -298,7 +298,8 @@ class LibraryPanel(QWidget):
         return all(part in hay for part in needle.casefold().split())
 
     def thumbnail(self, lbl: Label) -> QIcon:
-        key = lbl.render_key()
+        # the category's shared font sizes change the look without the label changing
+        key = f"{lbl.render_key()}{self.engine.size_caps(lbl)}"
         hit = self._thumbs.get(lbl.id)
         if hit and hit[0] == key:
             return hit[1]
