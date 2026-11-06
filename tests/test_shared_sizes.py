@@ -3,7 +3,7 @@ an outlier shrinks on its own, and the choice can be switched off."""
 
 from __future__ import annotations
 
-from etiknivo.model import Label, PictureKind, make_label
+from etiknivo.model import CodeSize, Label, PictureKind, make_label
 from etiknivo.rendering.engine import RenderEngine
 from etiknivo.storage.library import Library
 
@@ -91,3 +91,34 @@ def test_old_libraries_get_the_shared_size(tmp_path) -> None:  # noqa: ANN001
     lib = Library(tmp_path / "lib.json")
     lib.add(lbl)
     assert Label.from_dict(lib.get(lbl.id).to_dict()).style.same_size_in_category
+
+
+def test_baselines_line_up_whatever_the_letters(engine: RenderEngine) -> None:
+    """"Gemengd" has descenders, "Zwart" none: the lines still sit at the
+    same height on both labels."""
+    a = caps_label("Dupont F-F", "10 cm", "Zwart", symbol="cable")
+    b = caps_label("Dupont F-F", "20 cm", "Gemengd", symbol="cable")
+    alone = [lb.y0 for lb in engine.render(a).lines], [lb.y0 for lb in engine.render(b).lines]
+    assert alone[0] != alone[1]
+    with_peers(engine, [a, b])
+    ra, rb = engine.render(a), engine.render(b)
+    assert [lb.y0 for lb in ra.lines] == [lb.y0 for lb in rb.lines]
+    assert not ra.has_overflow and not rb.has_overflow
+
+
+def test_pictogram_has_the_same_size_in_the_category(engine: RenderEngine) -> None:
+    a = caps_label("Connectoren", "WAGO", "3- en 5-voudig", symbol="connector")
+    b = caps_label("Connectoren", "Connectoren", "Contacten + behuizingen",
+                   symbol="connector")
+    for lbl in (a, b):
+        lbl.picture.size = CodeSize.LARGE
+
+    def box(lbl: Label) -> tuple[int, int]:
+        x0, y0, x1, y1 = engine.render(lbl).picture_box  # type: ignore[misc]
+        return x1 - x0, y1 - y0
+
+    assert box(a) != box(b)  # on its own the long text makes b's pictogram smaller
+    with_peers(engine, [a, b])
+    assert box(a) == box(b)
+    b.style.same_size_in_category = False
+    assert box(a) != box(b)

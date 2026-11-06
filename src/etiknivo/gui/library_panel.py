@@ -299,7 +299,7 @@ class LibraryPanel(QWidget):
 
     def thumbnail(self, lbl: Label) -> QIcon:
         # the category's shared font sizes change the look without the label changing
-        key = f"{lbl.render_key()}{self.engine.size_caps(lbl)}"
+        key = f"{lbl.render_key()}{self.engine.category_share(lbl)}"
         hit = self._thumbs.get(lbl.id)
         if hit and hit[0] == key:
             return hit[1]
