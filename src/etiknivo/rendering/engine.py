@@ -75,6 +75,9 @@ PICTURE_MAX_WIDTH = 0.5  # share of the room left for text
 #: size a pictogram takes per size choice (share of the content height); the
 #: same on every label, whatever the text: the text makes room, not the pictogram
 PICTURE_SCALE = {CodeSize.SMALL: 0.4, CodeSize.MEDIUM: 0.6, CodeSize.LARGE: 0.85}
+#: auto-fit keeps the order of the chosen sizes: a line chosen smaller than
+#: another stays at most this share of that line's size when it has to shrink
+HIERARCHY_RATIO = 0.85
 SEPARATOR_GAP_PX = 3  # minimum line gap with separators: white, line, white
 ITALIC_SHEAR = 0.2
 
@@ -402,6 +405,8 @@ class RenderEngine:
                 sizes[n], shared[n] = cap, "shared"
             elif sizes[n] < cap - 0.05:
                 shared[n] = "own"
+        if style.autofit:  # a shared size may have made the main line smaller
+            sizes = _keep_order(prepared, sizes)
 
         # A line that is still too wide is cut short with "…" rather than
         # printed over the code or pictogram; it still gets a warning.
@@ -1102,6 +1107,7 @@ class RenderEngine:
                 if width <= avail_w or sizes[i] <= MIN_FONT_PT:
                     break
                 sizes[i] = max(MIN_FONT_PT, sizes[i] * min(0.98, avail_w / width))
+        sizes = _keep_order(prepared, sizes)
         # 2. whole block low enough: scale all lines together
         for _ in range(20):
             boxes = [self._vbox(p, s, share) for p, s in zip(prepared, sizes)]
@@ -1143,6 +1149,21 @@ class RenderEngine:
                                  (1, ITALIC_SHEAR, -ITALIC_SHEAR * hgt, 0, 1, 0),
                                  resample=Image.Resampling.BILINEAR)
         canvas.paste(0, (int(x * ss + l - 1), int(y * ss + t - 1)), sheared)
+
+
+def _keep_order(prepared: list[_Prepared], sizes: list[float]) -> list[float]:
+    """Sizes in which a line chosen smaller than another one stays smaller
+    after shrinking: a long main line that has to shrink takes the category
+    and specification lines down with it (at most :data:`HIERARCHY_RATIO` of
+    its size), so the main line stays the largest."""
+    out = list(sizes)
+    for i, p in enumerate(prepared):
+        for j, q in enumerate(prepared):
+            want_i, want_j = p.line.font_size_pt, q.line.font_size_pt
+            if want_i < want_j - 0.01 and sizes[j] < want_j - 0.01:
+                limit = sizes[j] * max(HIERARCHY_RATIO, want_i / want_j)
+                out[i] = max(MIN_FONT_PT, min(out[i], limit))
+    return out
 
 
 def _shares_sizes(label: Label) -> bool:

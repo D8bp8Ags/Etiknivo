@@ -347,3 +347,20 @@ def test_same_letters_print_equally_thick(engine: RenderEngine) -> None:
         bb = ink_bbox(r.mono)
         shapes.add(r.mono.crop(bb).tobytes())
     assert len(shapes) == 1
+
+
+def test_long_main_line_stays_the_largest(engine: RenderEngine) -> None:
+    """A main line that must shrink takes the smaller lines down with it."""
+    lbl = make_label("A01", "Schuifpotmeters", "Toroidale weerstanden", "Mono · 75 / 88 mm")
+    r = engine.render(lbl)
+    top, main, bottom = r.lines
+    assert main.size_pt < main.requested_pt
+    assert top.size_pt <= main.size_pt * engine_mod.HIERARCHY_RATIO + 0.01
+    assert bottom.size_pt <= main.size_pt * engine_mod.HIERARCHY_RATIO + 0.01
+    assert not r.has_overflow
+
+
+def test_short_main_line_leaves_other_lines_alone(engine: RenderEngine) -> None:
+    lbl = make_label("A02", "Weerstanden", "10 kΩ", "¼ W")
+    r = engine.render(lbl)
+    assert [lb.size_pt for lb in r.lines] == [lb.requested_pt for lb in r.lines]
