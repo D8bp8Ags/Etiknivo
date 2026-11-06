@@ -326,7 +326,8 @@ De kolomnamen zijn in beide talen dezelfde, zodat een export uit de Engelse app 
 ## Taal en thema
 
 - **Weergave → Taal / Language**: Nederlands, English, of de taal van je systeem. Herstart de app om te wisselen.
-- **Weergave → Thema**: licht, donker, of volgen wat het systeem gebruikt.
+- **Weergave → Thema**: Systeem (licht of donker, zoals je systeem), Licht, Donker, Papier (warm crème), Nacht (puur zwart, fijn op OLED-schermen) of Hoog contrast.
+- **Weergave → Accentkleur**: de kleur van knoppen, selecties en vinkjes: Blauw, Groen, Oranje of Paars. *Standaard* gebruikt de eigen kleur van het thema.
 - **Weergave → Hulplijnen** toont of verbergt de marges in het ontwerpvoorbeeld.
 
 ## Nieuwe versies

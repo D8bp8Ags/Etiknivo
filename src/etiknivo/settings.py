@@ -75,7 +75,8 @@ class Settings:
     show_native_raster: bool = False
     group_by_category: bool = True
     sort_key: str = "tray_id"
-    theme: str = "system"  # system, light or dark
+    theme: str = "system"  # system, light, dark, paper, night or contrast
+    accent: str = "default"  # default (the theme's own), blue, green, orange or purple
     language: str = "system"  # system, nl or en (applied at start-up)
     check_updates: bool = False  # look for a new version on GitHub at start-up
     last_update_check: str = ""  # ISO date; the automatic check runs once a day

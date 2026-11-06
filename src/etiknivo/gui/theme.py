@@ -15,7 +15,7 @@ current text colour.  A new icon is one more SVG in that folder that uses
 from __future__ import annotations
 
 import tempfile
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from functools import cache, lru_cache
 from importlib import resources
 from pathlib import Path
@@ -27,7 +27,11 @@ from PySide6.QtWidgets import QApplication
 
 from etiknivo.i18n import N_
 
-THEMES = {"system": N_("Systeem"), "light": N_("Licht"), "dark": N_("Donker")}  # tr() when shown
+# tr() when shown
+THEMES = {"system": N_("Systeem"), "light": N_("Licht"), "dark": N_("Donker"),
+          "paper": N_("Papier"), "night": N_("Nacht"), "contrast": N_("Hoog contrast")}
+ACCENTS = {"default": N_("Standaard"), "blue": N_("Blauw"), "green": N_("Groen"),
+           "orange": N_("Oranje"), "purple": N_("Paars")}
 
 
 @dataclass(frozen=True)
@@ -68,6 +72,46 @@ DARK = Tokens(
     warning="#f2a33a", danger="#ff6259",
 )
 
+PAPER = Tokens(
+    dark=False, window="#f7f2e8", sidebar="#efe7d8", surface="#fffdf8", canvas="#e6dcc8",
+    hover="#e9dfcc", pressed="#ddd0b8", border="#e0d5c0", border_strong="#c9b99c",
+    text="#2b2418", muted="#7a6c55", accent="#b5652a", accent_hover="#9c5420",
+    on_accent="#ffffff", selection="#f1dcc4", track="#ddd2bd", success="#2e8b4e",
+    warning="#b86e00", danger="#c8321f",
+)
+NIGHT = replace(
+    DARK, window="#000000", sidebar="#0b0b0d", surface="#141417", canvas="#000000",
+    hover="#1d1d22", pressed="#27272d", border="#222227", border_strong="#34343b",
+    selection="#1c2a4a", track="#2b2b31",
+)
+CONTRAST = Tokens(
+    dark=False, window="#ffffff", sidebar="#ffffff", surface="#ffffff", canvas="#d0d0d0",
+    hover="#e6e6e6", pressed="#cccccc", border="#000000", border_strong="#000000",
+    text="#000000", muted="#333333", accent="#0040c0", accent_hover="#002e8c",
+    on_accent="#ffffff", selection="#b8ccff", track="#888888", success="#006b2e",
+    warning="#8a4b00", danger="#b00000",
+)
+BASES = {"light": LIGHT, "dark": DARK, "paper": PAPER, "night": NIGHT, "contrast": CONTRAST}
+
+#: accent, accent_hover and selection for (light, dark) themes
+_ACCENT_COLORS = {
+    "blue": (("#3b6ef5", "#2c5de0", "#dde6fd"), ("#5b8cff", "#7aa2ff", "#2c3b60")),
+    "green": (("#1f8a5b", "#187349", "#d7efe3"), ("#2f9e6c", "#3fb57f", "#1f4535")),
+    "orange": (("#d9601a", "#bf5210", "#fbe3d3"), ("#d9702e", "#e8884a", "#4a3020")),
+    "purple": (("#7a4fd6", "#6740bf", "#e8defa"), ("#a07cf0", "#b597f5", "#3a2d5c")),
+}
+
+
+def resolve(mode: str, accent: str = "default", system_dark: bool = False) -> Tokens:
+    """The tokens for theme *mode* with *accent*; "default" keeps the theme's own colour."""
+    if mode not in BASES:
+        mode = "dark" if system_dark else "light"
+    t = BASES[mode]
+    if accent in _ACCENT_COLORS:
+        a, hover, sel = _ACCENT_COLORS[accent][t.dark]
+        t = replace(t, accent=a, accent_hover=hover, selection=sel)
+    return t
+
 
 class _ThemeManager(QObject):
     changed = Signal()
@@ -75,6 +119,7 @@ class _ThemeManager(QObject):
     def __init__(self) -> None:
         super().__init__()
         self.mode = "system"
+        self.accent = "default"
         self.tokens = LIGHT
         self._listening = False
 
@@ -98,13 +143,15 @@ def _system_is_dark() -> bool:
     return hints.colorScheme() == Qt.ColorScheme.Dark
 
 
-def apply(mode: str = "system") -> None:
-    """Apply *mode* (system, light or dark) to the running application."""
+def apply(mode: str = "system", accent: str | None = None) -> None:
+    """Apply theme *mode* and *accent* (unchanged when None) to the running application."""
     app = QApplication.instance()
     if app is None:
         return
     m = manager()
     m.mode = mode if mode in THEMES else "system"
+    if accent is not None:
+        m.accent = accent if accent in ACCENTS else "default"
     hints = QGuiApplication.styleHints()
     if not m._listening:
         hints.colorSchemeChanged.connect(lambda _s: m.mode == "system" and _refresh(app))
@@ -112,14 +159,14 @@ def apply(mode: str = "system") -> None:
     if m.mode == "system":
         hints.unsetColorScheme()
     else:
-        hints.setColorScheme(Qt.ColorScheme.Dark if m.mode == "dark" else Qt.ColorScheme.Light)
+        dark = BASES[m.mode].dark
+        hints.setColorScheme(Qt.ColorScheme.Dark if dark else Qt.ColorScheme.Light)
     _refresh(app)
 
 
 def _refresh(app: QApplication) -> None:
     m = manager()
-    dark = _system_is_dark() if m.mode == "system" else m.mode == "dark"
-    t = DARK if dark else LIGHT
+    t = resolve(m.mode, m.accent, m.mode == "system" and _system_is_dark())
     m.tokens = t
     app.setStyle("Fusion")
     app.setPalette(_palette(t))

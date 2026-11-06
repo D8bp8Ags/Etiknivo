@@ -98,7 +98,7 @@ class MainWindow(QMainWindow):
         self.setUnifiedTitleAndToolBarOnMac(True)
         self.library = library
         self.settings = settings or load_settings()
-        theme.apply(self.settings.theme)
+        theme.apply(self.settings.theme, self.settings.accent)
         self.profile = self._roll_profile()
         self.engine = RenderEngine(self.profile, self.settings.calibration)
         self.engine.peers = lambda: self.library.labels
@@ -532,6 +532,14 @@ class MainWindow(QMainWindow):
             a.setChecked(key == self.settings.theme)
             a.triggered.connect(lambda _c=False, k=key: self.set_theme(k))
             group.addAction(a)
+        am = m.addMenu(tr("Accentkleur"))
+        accents = QActionGroup(self)
+        for key, text in theme.ACCENTS.items():
+            a = am.addAction(tr(text))
+            a.setCheckable(True)
+            a.setChecked(key == self.settings.accent)
+            a.triggered.connect(lambda _c=False, k=key: self.set_accent(k))
+            accents.addAction(a)
         lm = m.addMenu(tr("Taal / Language"))
         langs = QActionGroup(self)
         for key, text in LANGUAGES.items():
@@ -568,6 +576,11 @@ class MainWindow(QMainWindow):
         self.settings.theme = mode
         self._save_settings()
         theme.apply(mode)
+
+    def set_accent(self, accent: str) -> None:
+        self.settings.accent = accent
+        self._save_settings()
+        theme.apply(self.settings.theme, accent)
 
     def _connect_signals(self) -> None:
         lp = self.library_panel
@@ -1535,7 +1548,7 @@ class MainWindow(QMainWindow):
         self.current = None
         self.settings = load_settings()
         self.engine.calibration = self.settings.calibration
-        theme.apply(self.settings.theme)
+        theme.apply(self.settings.theme, self.settings.accent)
         self._apply_roll()  # the back-up may be for another label roll
         self._after_library_change([])
         first = self.library_panel.visible_ids()

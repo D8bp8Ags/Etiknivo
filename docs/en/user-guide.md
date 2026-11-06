@@ -328,7 +328,8 @@ The column names are the same in both languages, so an export from the English a
 ## Language and theme
 
 - **View → Language / Taal**: Nederlands, English, or your system language. Restart the app to switch.
-- **View → Theme**: light, dark, or follow the system.
+- **View → Theme**: System (light or dark, like your system), Light, Dark, Paper (warm cream), Night (pure black, nice on OLED screens) or High contrast.
+- **View → Accent colour**: the colour of buttons, selections and check boxes: Blue, Green, Orange or Purple. *Default* uses the theme's own colour.
 - **View → Guides** shows or hides the margins in the design preview.
 
 ## New versions

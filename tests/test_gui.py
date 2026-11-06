@@ -194,6 +194,15 @@ def test_theme_switch_and_icons(window) -> None:  # noqa: ANN001
     assert theme.tokens().dark and window.settings.theme == "dark"
     window.set_theme("light")
     assert not theme.tokens().dark
+    window.set_accent("green")
+    assert window.settings.accent == "green" and theme.tokens().accent == "#1f8a5b"
+    window.set_theme("night")
+    assert theme.tokens().dark and theme.tokens().window == "#000000"
+    assert theme.tokens().accent == "#2f9e6c"  # the dark variant of green
+    window.set_accent("default")
+    window.set_theme("paper")
+    assert theme.tokens().accent == theme.PAPER.accent
+    window.set_theme("light")
     names = [p.name[:-4] for p in resources.files("etiknivo.gui.icons").iterdir()
              if p.name.endswith(".svg")]
     assert names and all(not theme.icon(n).isNull() for n in names)
@@ -396,3 +405,28 @@ def test_same_size_in_category_is_a_choice(window) -> None:  # noqa: ANN001
     props.autofit.setChecked(True)
     props.same_size.setChecked(True)
     assert props.same_size.isEnabled() and lbl.style.same_size_in_category
+
+
+def test_theme_resolve_and_contrast() -> None:
+    from etiknivo.gui import theme
+
+    assert theme.resolve("system", system_dark=True) is theme.DARK
+    assert theme.resolve("bogus") is theme.LIGHT
+    assert set(theme.BASES) | {"system"} == set(theme.THEMES)
+
+    def lum(hex_color: str) -> float:
+        rgb = [int(hex_color[i:i + 2], 16) / 255 for i in (1, 3, 5)]
+        lin = [c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4 for c in rgb]
+        return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2]
+
+    def ratio(a: str, b: str) -> float:
+        hi, lo = sorted((lum(a), lum(b)), reverse=True)
+        return (hi + 0.05) / (lo + 0.05)
+
+    for mode in theme.BASES:
+        for accent in theme.ACCENTS:
+            t = theme.resolve(mode, accent)
+            assert ratio(t.text, t.window) >= 7, (mode, accent)
+            assert ratio(t.text, t.selection) >= 4.5, (mode, accent)
+            assert ratio(t.muted, t.surface) >= 4.5, (mode, accent)
+            assert ratio(t.accent, t.on_accent) >= 3, (mode, accent)
