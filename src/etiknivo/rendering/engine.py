@@ -70,13 +70,9 @@ BAR_HEIGHT_MM = 3.5
 BAR_GAP_MM = 0.75
 PICTURE_GAP_MM = 1.0
 PICTURE_MAX_WIDTH = 0.5  # share of the room left for text
-#: sizes a pictogram takes per size choice (share of the text height): the first on every
-#: label alike, the smaller ones only when the text would otherwise have to shrink
-PICTURE_SCALES = {
-    CodeSize.SMALL: (0.4, 0.3),
-    CodeSize.MEDIUM: (0.6, 0.45, 0.35),
-    CodeSize.LARGE: (0.85, 0.6, 0.45, 0.35),
-}
+#: size a pictogram takes per size choice (share of the content height); the
+#: same on every label, whatever the text: the text makes room, not the pictogram
+PICTURE_SCALE = {CodeSize.SMALL: 0.4, CodeSize.MEDIUM: 0.6, CodeSize.LARGE: 0.85}
 SEPARATOR_GAP_PX = 3  # minimum line gap with separators: white, line, white
 ITALIC_SHEAR = 0.2
 
@@ -110,8 +106,6 @@ class CategoryShare:
     #: font size: the highest ascender and lowest descender in the category, so
     #: every label puts its baselines in the same place ("Zwart" and "Gemengd")
     extents: tuple[tuple[int, float, float], ...] = ()
-    #: pictogram size step (index into PICTURE_SCALES): every pictogram alike
-    picture_step: int | None = None
 
     def cap(self, slot: int) -> float | None:
         return dict(self.sizes).get(slot)
@@ -147,8 +141,6 @@ class RenderResult:
     content_box: tuple[float, float, float, float] = (0, 0, 0, 0)  # x0,y0,x1,y1 in dots
     code: PlacedCode | None = None
     picture_box: tuple[int, int, int, int] | None = None
-    #: the pictogram size step used (index into PICTURE_SCALES)
-    picture_step: int | None = None
     text_area: tuple[float, float, float, float] = (0, 0, 0, 0)  # room the lines had
     #: free layout: element id -> its box in design dots
     element_boxes: dict[str, tuple[float, float, float, float]] = field(default_factory=dict)
@@ -240,7 +232,7 @@ class RenderEngine:
         #: the other labels, so a category can share its font sizes
         #: (see :meth:`category_share`); None renders every label on its own
         self.peers: Callable[[], Iterable[Label]] | None = None
-        self._own_fit: dict[tuple, tuple[dict[int, float], int | None]] = {}
+        self._own_fit: dict[tuple, dict[int, float]] = {}
         self._extent_cache: dict[tuple, tuple[float, float]] = {}
         self._share_cache: dict[tuple, CategoryShare] = {}
 
@@ -283,7 +275,6 @@ class RenderEngine:
 
         * per line the same room above and below the baseline, so lines sit
           at the same height whatever letters they hold;
-        * the same pictogram size: the smallest any of them needs;
         * per line the smallest font size any of them needs.  Only lines
           with the same chosen size are compared.  A label that needs much
           less than the others (more than :data:`SHARED_OUTLIER_PT` under the
@@ -306,10 +297,8 @@ class RenderEngine:
 
     def _share_of(self, label: Label, group: list[Label]) -> CategoryShare:
         extents = self._group_extents(group)
-        base = CategoryShare(extents=extents)
-        steps = [step for m in group if (step := self._own_fit_of(m, base)[1]) is not None]
-        share = replace(base, picture_step=max(steps) if steps else None)
-        fits = [self._own_fit_of(m, share)[0] for m in group]
+        share = CategoryShare(extents=extents)
+        fits = [self._own_fit_of(m, share) for m in group]
         caps: dict[int, float] = {}
         for slot in fits[0]:
             want = label.lines[slot].font_size_pt
@@ -354,17 +343,16 @@ class RenderEngine:
             self._extent_cache[key] = hit
         return hit
 
-    def _own_fit_of(self, label: Label, share: CategoryShare
-                    ) -> tuple[dict[int, float], int | None]:
-        """The font size per slot and the pictogram step the label gets with
-        the category's line extents (and pictogram step) but its own sizes."""
+    def _own_fit_of(self, label: Label, share: CategoryShare) -> dict[int, float]:
+        """The font size per slot the label gets with the category's line
+        extents but its own sizes."""
         key = (label.render_key(), share, self.profile, self.calibration.supersample)
         hit = self._own_fit.get(key)
         if hit is None:
             if len(self._own_fit) > 4000:
                 self._own_fit.clear()
             r = self._render(label, share)
-            hit = ({lb.slot: lb.size_pt for lb in r.lines}, r.picture_step)
+            hit = {lb.slot: lb.size_pt for lb in r.lines}
             self._own_fit[key] = hit
         return hit
 
@@ -386,18 +374,16 @@ class RenderEngine:
         spacing = self.mm_to_px(style.line_spacing_mm)
         if style.separators and len(prepared) > 1:
             spacing = max(spacing, SEPARATOR_GAP_PX)  # room for the line and white around it
-        step: int | None = None
         code: PlacedCode | None
-        stack = (self._fit_stack(label, content, prepared, sizes, spacing, warnings, share)
-                 if is_stacked(label) else None)
+        stack = self._fit_stack(label, content, warnings) if is_stacked(label) else None
         if stack is not None:
-            code, picture, step = stack
+            code, picture = stack
             area = picture[2]
         else:
             code = self._place_code(label, content, bool(prepared), warnings)
             area = code.text_area if code else content
-            picture, step = self._fit_picture(label, area, prepared, sizes, spacing, warnings,
-                                              share)
+            picture = self._place_picture(label, area, warnings,
+                                          PICTURE_SCALE[label.picture.size])
             if picture is not None:
                 area = picture[2]
         avail_w = max(1.0, area[2] - area[0])
@@ -479,7 +465,6 @@ class RenderEngine:
             hires = hires.rotate(180)
         result = self._finish(hires, label, ss, line_boxes, warnings, content, code)
         result.picture_box = picture[0] if picture is not None else None
-        result.picture_step = step if picture is not None else None
         result.text_area = area
         return result
 
@@ -749,9 +734,7 @@ class RenderEngine:
         (ax, ay), (bx, by) = (place(part.content_box[0], part.content_box[1]),
                               place(part.content_box[2], part.content_box[3]))
         content = (min(ax, bx), min(ay, by), max(ax, bx), max(ay, by))
-        result = self._finish(hires, label, ss, boxes, list(part.warnings), content, None)
-        result.picture_step = part.picture_step
-        return result
+        return self._finish(hires, label, ss, boxes, list(part.warnings), content, None)
 
     def threshold(self, gray: Image.Image) -> Image.Image:
         t = int(self.calibration.threshold)
@@ -848,34 +831,10 @@ class RenderEngine:
         area = (cx0, cy0, cx1, y0 - self.mm_to_px(BAR_GAP_MM))
         return PlacedCode(spec.kind, text, (x0, y0, x0 + width, y1), module, rects, area)
 
-    def _fit_picture(self, label: Label, area: tuple[float, float, float, float],
-                     prepared: list[_Prepared], sizes: list[float], spacing: float,
-                     warnings: list[str], share: CategoryShare | None = None,
-                     ) -> tuple[tuple[tuple[int, int, int, int], str | Image.Image,
-                                      tuple[float, float, float, float]] | None, int | None]:
-        """The pictogram at the same size on every label, so a drawer cabinet
-        looks even; smaller only when a line would otherwise be cut short (in
-        a shared category: when it would on any label of the category).
-        Returns the placement and the size step used."""
-        placed, used = None, None
-        for step, scale in _picture_steps(label, share):
-            tried: list[str] = []
-            attempt = self._place_picture(label, area, tried, scale)
-            if attempt is None:
-                if placed is None:
-                    warnings.extend(tried)
-                break
-            placed, used = attempt, step
-            if self._lines_fit(prepared, sizes, placed[2], spacing, label.style.autofit, share):
-                break
-        return placed, used
-
     def _fit_stack(self, label: Label, content: tuple[float, float, float, float],
-                   prepared: list[_Prepared], sizes: list[float], spacing: float,
-                   warnings: list[str], share: CategoryShare | None = None,
-                   ) -> tuple[PlacedCode, tuple[
+                   warnings: list[str]) -> tuple[PlacedCode, tuple[
                        tuple[int, int, int, int], str | Image.Image,
-                       tuple[float, float, float, float]], int] | None:
+                       tuple[float, float, float, float]]] | None:
         """QR code and pictogram under each other in one column at the side
         they share; None (nothing warned) when the QR code or the pictogram
         cannot be made, so the usual layout handles it."""
@@ -888,20 +847,13 @@ class RenderEngine:
                 pass
         if matrix is None or self._picture_source(label, []) is None:
             return None
-        placed, used = None, 0
-        for step, scale in _picture_steps(label, share):
-            tried: list[str] = []
-            attempt = self._place_stack(label, content, text, matrix, scale, tried)
-            if attempt is None:
-                break
-            placed, notes, used = attempt, tried, step
-            if self._lines_fit(prepared, sizes, placed[1][2], spacing, label.style.autofit,
-                               share):
-                break
+        tried: list[str] = []
+        placed = self._place_stack(label, content, text, matrix,
+                                   PICTURE_SCALE[label.picture.size], tried)
         if placed is None:
             return None
-        warnings.extend(notes)
-        return placed[0], placed[1], used
+        warnings.extend(tried)
+        return placed
 
     def _place_stack(self, label: Label, content: tuple[float, float, float, float],
                      text: str, matrix: list[list[bool]], scale: float,
@@ -969,17 +921,6 @@ class RenderEngine:
                 else (cx0, cy0, col_x0 - text_gap, cy1))
         code = PlacedCode(spec.kind, text, (qx0, qy0, qx0 + qr, qy0 + qr), module, rects, area)
         return code, ((px0, py0, px0 + w, py0 + h), source, area)
-
-    def _lines_fit(self, prepared: list[_Prepared], sizes: list[float],
-                   area: tuple[float, float, float, float], spacing: float,
-                   autofit: bool, share: CategoryShare | None = None) -> bool:
-        """Whether every line fits in the width of *area* (after auto-fit)."""
-        if not prepared:
-            return True
-        avail_w, avail_h = max(1.0, area[2] - area[0]), max(1.0, area[3] - area[1])
-        fitted = (self._autofit(prepared, sizes, avail_w, avail_h, spacing, share) if autofit
-                  else sizes)
-        return all(self._width(p, f) <= avail_w + 0.5 for p, f in zip(prepared, fitted))
 
     def _place_picture(self, label: Label, area: tuple[float, float, float, float],
                        warnings: list[str], scale: float = 1.0,
@@ -1164,15 +1105,6 @@ class RenderEngine:
                                  (1, ITALIC_SHEAR, -ITALIC_SHEAR * hgt, 0, 1, 0),
                                  resample=Image.Resampling.BILINEAR)
         canvas.paste(0, (int(x * ss + l - 1), int(y * ss + t - 1)), sheared)
-
-
-def _picture_steps(label: Label, share: CategoryShare | None
-                   ) -> list[tuple[int, float]]:
-    """The pictogram size steps to try, largest first; a category that
-    shares its layout starts at its shared step."""
-    steps = list(enumerate(PICTURE_SCALES[label.picture.size]))
-    first = share.picture_step if share and share.picture_step is not None else 0
-    return steps[min(first, len(steps) - 1):]
 
 
 def _shares_sizes(label: Label) -> bool:

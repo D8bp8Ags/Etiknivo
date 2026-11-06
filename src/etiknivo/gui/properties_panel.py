@@ -335,8 +335,8 @@ class PropertiesPanel(QScrollArea):
             self.pic_kind.addItem(tr(text))
         self.pic_pos = position_combo()
         pic_size_box, self.pic_sizes = segmented([tr(t) for _s, t in SIZES])
-        pic_size_box.setToolTip(tr("Hoe groot het pictogram naast de tekst mag worden. Kleiner "
-                                   "laat meer ruimte voor tekst."))
+        pic_size_box.setToolTip(tr("Hoe groot het pictogram naast de tekst is, op elk label "
+                                   "even groot. Kleiner laat meer ruimte voor tekst."))
         self._pic_size_box = pic_size_box
         self.pic_symbol = symbol_combo()
         self.pic_image_btn = QPushButton(tr("Afbeelding kiezen…"))

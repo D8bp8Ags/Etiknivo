@@ -106,9 +106,11 @@ def test_baselines_line_up_whatever_the_letters(engine: RenderEngine) -> None:
     assert not ra.has_overflow and not rb.has_overflow
 
 
-def test_pictogram_has_the_same_size_in_the_category(engine: RenderEngine) -> None:
+def test_pictogram_has_the_same_size_whatever_the_text(engine: RenderEngine) -> None:
+    """The pictogram size only follows the size choice: long text gets smaller
+    (or is shortened), the pictogram stays, in every category and on its own."""
     a = caps_label("Connectoren", "WAGO", "3- en 5-voudig", symbol="connector")
-    b = caps_label("Connectoren", "Connectoren", "Contacten + behuizingen",
+    b = caps_label("Kabels", "Connectoren", "Contacten + behuizingen voor alle soorten",
                    symbol="connector")
     for lbl in (a, b):
         lbl.picture.size = CodeSize.LARGE
@@ -117,8 +119,8 @@ def test_pictogram_has_the_same_size_in_the_category(engine: RenderEngine) -> No
         x0, y0, x1, y1 = engine.render(lbl).picture_box  # type: ignore[misc]
         return x1 - x0, y1 - y0
 
-    assert box(a) != box(b)  # on its own the long text makes b's pictogram smaller
+    assert box(a) == box(b)
     with_peers(engine, [a, b])
     assert box(a) == box(b)
-    b.style.same_size_in_category = False
-    assert box(a) != box(b)
+    b.picture.size = CodeSize.SMALL
+    assert box(b)[1] < box(a)[1]

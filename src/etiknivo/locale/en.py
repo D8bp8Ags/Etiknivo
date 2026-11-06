@@ -452,8 +452,10 @@ EN: dict[str, str] = {
     "scant makkelijker.":
         "How big the QR code beside the text may get. Smaller leaves more room for text; larger "
         "scans more easily.",
-    "Hoe groot het pictogram naast de tekst mag worden. Kleiner laat meer ruimte voor tekst.":
-        "How big the pictogram beside the text may get. Smaller leaves more room for text.",
+    "Hoe groot het pictogram naast de tekst is, op elk label even groot. Kleiner laat meer "
+    "ruimte voor tekst.":
+        "How large the pictogram beside the text is, the same on every label. Smaller leaves "
+        "more room for text.",
     "Tekst of {veld}, bv. {Lade} of een link": "Text or {field}, e.g. {Tray} or a link",
     "Soort": "Type",
     "Inhoud": "Content",
