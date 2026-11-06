@@ -26,6 +26,7 @@ Pipeline
 from __future__ import annotations
 
 import logging
+import math
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field, replace
 
@@ -49,6 +50,7 @@ from etiknivo.rendering.fonts import (
     FontFace,
     FontRegistry,
     default_registry,
+    kern_pairs,
     missing_glyphs,
     pil_font,
 )
@@ -432,11 +434,14 @@ class RenderEngine:
                 x = area[2] - lw
             else:
                 x = area[0] + (avail_w - lw) / 2
-            self._draw_line(hires, p, size, x - bbox[0], y - bbox[1], ss)
+            ox = _snap(x - bbox[0], area[0] - bbox[0], area[2] - bbox[2])
+            oy = _snap(y - bbox[1], area[1] - bbox[1], area[3] - bbox[3])
+            x, ink_y = ox + bbox[0], oy + bbox[1]
+            self._draw_line(hires, p, size, ox, oy, ss)
             overflow = (n in cut) or (lw > avail_w + 0.5) or (x < area[0] - 0.5) \
                 or (x + lw > area[2] + 0.5) or (y < py0 - 0.5) or (y + lh > py1 + 0.5)
-            line_boxes.append(LineBox(p.slot, cut.get(n, p.text), x, y, x + lw, y + lh, size,
-                                      p.line.font_size_pt, overflow, shared[n]))
+            line_boxes.append(LineBox(p.slot, cut.get(n, p.text), x, ink_y, x + lw, ink_y + lh,
+                                      size, p.line.font_size_pt, overflow, shared[n]))
             y += lh + spacing
 
         if block_h > avail_h + 0.5:
@@ -575,6 +580,8 @@ class RenderEngine:
         else:
             x = bx0 + (bw - tw) / 2
         y = by0 + (bh - th) / 2
+        x = _snap(x - l, bx0 - l, bx1 - r) + l  # baseline on a whole dot, as drawn
+        y = _snap(y - t, by0 - t, by1 - b) + t
         self._draw_line(canvas, p, size, x - l, y - t, ss)
         return LineBox(n, p.text, x, y, x + tw, y + th, size, el.font_size_pt,
                        tw > bw + 0.5 or th > bh + 0.5)
@@ -1034,9 +1041,30 @@ class RenderEngine:
         ss = 4  # measure at high resolution for sub-dot accuracy
         font = self._font(p, size_pt, ss)
         l, t, r, b = font.getbbox(p.text, anchor="ls", stroke_width=self._stroke(p, size_pt, ss))
+        r += self._kern_total(p, font)
         if p.face.synthetic_italic:
             r += (b - t) * ITALIC_SHEAR
         return l / ss, t / ss, r / ss, b / ss
+
+    @staticmethod
+    def _kern_total(p: _Prepared, font) -> float:  # type: ignore[no-untyped-def]
+        return sum(shift for _, shift in kern_pairs(p.face.path, p.face.index, p.text)) \
+            * font.size
+
+    @staticmethod
+    def _runs(p: _Prepared, font) -> list[tuple[float, str]]:  # type: ignore[no-untyped-def]
+        """The text in pieces that are drawn on their own, with the offset of
+        each from the line's origin: the font's kerning ("To", "AV", "We")
+        moves the letters after a kerned pair."""
+        pairs = kern_pairs(p.face.path, p.face.index, p.text)
+        if not pairs:
+            return [(0.0, p.text)]
+        runs, start, shift = [], 0, 0.0
+        for pos, kern in pairs:
+            runs.append((font.getlength(p.text[:start]) + shift, p.text[start:pos]))
+            start, shift = pos, shift + kern * font.size
+        runs.append((font.getlength(p.text[:start]) + shift, p.text[start:]))
+        return runs
 
     def _vbox(self, p: _Prepared, size_pt: float, share: CategoryShare | None
               ) -> tuple[float, float, float, float]:
@@ -1090,17 +1118,27 @@ class RenderEngine:
         """Draw one line with its baseline origin at design position (x, y)."""
         font = self._font(p, size_pt, ss)
         stroke = self._stroke(p, size_pt, ss)
+        runs = self._runs(p, font)
+        # The baseline origin on a whole printer dot: the same letter then
+        # always falls on the grid the same way, so its strokes print equally
+        # thick on every line and every label.
+        x, y = round(x), round(y)
         if not p.face.synthetic_italic:
-            ImageDraw.Draw(canvas).text((x * ss, y * ss), p.text, font=font, fill=0, anchor="ls",
-                                        stroke_width=stroke, stroke_fill=0)
+            draw = ImageDraw.Draw(canvas)
+            for dx, part in runs:
+                draw.text((x * ss + dx, y * ss), part, font=font, fill=0, anchor="ls",
+                          stroke_width=stroke, stroke_fill=0)
             return
         # Synthetic italic: render to a mask and shear it.
         l, t, r, b = font.getbbox(p.text, anchor="ls", stroke_width=stroke)
+        r += self._kern_total(p, font)
         hgt = int(b - t) + 2
         extra = int(hgt * ITALIC_SHEAR) + 2
         mask = Image.new("L", (int(r - l) + extra + 2, hgt), 0)
-        ImageDraw.Draw(mask).text((-l + 1, -t + 1), p.text, font=font, fill=255, anchor="ls",
-                                  stroke_width=stroke, stroke_fill=255)
+        mdraw = ImageDraw.Draw(mask)
+        for dx, part in runs:
+            mdraw.text((-l + 1 + dx, -t + 1), part, font=font, fill=255, anchor="ls",
+                       stroke_width=stroke, stroke_fill=255)
         sheared = mask.transform(mask.size, Image.Transform.AFFINE,
                                  (1, ITALIC_SHEAR, -ITALIC_SHEAR * hgt, 0, 1, 0),
                                  resample=Image.Resampling.BILINEAR)
@@ -1128,6 +1166,14 @@ def _vplace(valign: VAlign, y0: float, y1: float, size: float) -> int:
     if valign == VAlign.BOTTOM:
         return round(y1 - size)
     return round(y0 + (y1 - y0 - size) / 2)
+
+
+def _snap(v: float, lo: float, hi: float) -> int:
+    """*v* rounded to a whole dot, preferring the neighbour that keeps it
+    between *lo* and *hi* (rounding must not push ink out of its area)."""
+    down = math.floor(v)
+    return min((down, down + 1), key=lambda n: (max(0.0, lo - n) + max(0.0, n - hi),
+                                                abs(n - v)))
 
 
 def _fit(w: float, h: float, aspect: float) -> tuple[float, float]:

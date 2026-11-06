@@ -792,6 +792,7 @@ EN: dict[str, str] = {
     "Wachtrij-listener faalde": "Queue listener failed",
     "Lettertype overgeslagen %s: %s": "Font skipped %s: %s",
     "Lettertype overgeslagen %s#%d: %s": "Font skipped %s#%d: %s",
+    "Geen kerning voor %s: %s": "No kerning for %s: %s",
     "Lettertypecache niet opgeslagen: %s": "Font cache not saved: %s",
     "Instellingen konden niet worden gelezen (%s); standaardwaarden gebruikt":
         "Settings could not be read (%s); defaults used",

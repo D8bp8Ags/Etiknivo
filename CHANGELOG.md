@@ -10,6 +10,8 @@ All notable changes to Etiknivo are listed here. Version numbers follow [Semanti
 - QR code and pictogram can stand below each other: put them on the same side at different heights (for example top left and bottom left) and they share one column, leaving the text more width.
 - Same font size within a category: with auto-fit on, labels in the same category now get the same size per line instead of each its own, so a pictogram or QR code on some labels no longer makes the sizes differ. A label with much longer text still shrinks on its own. Switch it off per label under Opmaak (*Zelfde lettergrootte binnen de categorie*) to keep the old behaviour.
 - The pictogram now has exactly the same size on every label with the same Size choice; it no longer shrinks when the text is long (the text gets smaller instead). Same font size within a category now also puts the text lines at the same height whatever letters they hold (a word with descenders no longer moves the text up).
+- Text is kerned: letter pairs such as "To", "AV" and "We" now stand as close as the font intends. Pillow does not do this on macOS, so Etiknivo reads the pairs from the font itself.
+- Crisper small text: every line now starts on a whole printer dot, so the same letter prints equally thick on every line and every label (before, a stroke could print one dot wide on one label and two on the next).
 
 ### Look
 - New themes under View → Theme: Paper (warm cream), Night (pure black) and High contrast, next to System, Light and Dark.

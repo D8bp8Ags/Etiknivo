@@ -313,3 +313,37 @@ def test_font_file_flaws_do_not_reach_the_log(caplog) -> None:  # noqa: ANN001
     messages = [r.getMessage() for r in caplog.records]
     assert "a real problem" in messages
     assert not any("post.stringData" in m for m in messages)
+
+
+def test_kerning_pulls_pairs_together(engine: RenderEngine) -> None:
+    """Pillow's basic layout does not kern; Etiknivo reads the font's pairs."""
+    from etiknivo.rendering.fonts import bundled_font_path, kern_pairs
+
+    path = bundled_font_path("DejaVuSans.ttf")
+    assert dict(kern_pairs(path, 0, "To"))[1] < -0.1
+    assert kern_pairs(path, 0, "lll") == ()
+
+    def width(text: str) -> float:
+        lbl = make_label("", "", text, "", layout=LayoutPreset.SINGLE)
+        lbl.style.autofit = False
+        lbl.lines[1].font_size_pt = 10
+        lb = engine.render(lbl).lines[0]
+        return lb.x1 - lb.x0
+
+    assert width("To") < width("Tn") - 2  # "o" tucks in under the T, "n" has no pair
+
+
+def test_same_letters_print_equally_thick(engine: RenderEngine) -> None:
+    """Baselines land on whole dots, so a line prints the same wherever it
+    ends up: shifting the text a fraction of a dot does not change it."""
+    shapes = set()
+    for margin in (0.5, 0.53, 0.56, 0.6):
+        lbl = make_label("", "", "Illmn 10k", "", layout=LayoutPreset.SINGLE)
+        lbl.style.autofit = False
+        lbl.style.valign = engine_mod.VAlign.TOP
+        lbl.style.margin_v_mm = margin
+        lbl.lines[1].font_size_pt = 6
+        r = engine.render(lbl)
+        bb = ink_bbox(r.mono)
+        shapes.add(r.mono.crop(bb).tobytes())
+    assert len(shapes) == 1

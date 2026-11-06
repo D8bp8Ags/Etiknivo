@@ -233,6 +233,124 @@ def missing_glyphs(face: FontFace, text: str) -> str:
     return "".join(sorted({c for c in text if not c.isspace() and ord(c) not in cps}))
 
 
+class Kerning:
+    """Pair kerning of one font: how much closer (or further apart) two
+    letters stand, as in "To", "AV" or "We".
+
+    Pillow's basic layout, the only one that works everywhere (the Raqm
+    layout needs the FriBiDi library, which macOS does not have), places
+    letters without kerning.  This reads the pairs from the font itself: the
+    ``kern`` feature of its GPOS table, or else its old ``kern`` table."""
+
+    def __init__(self, path: str, index: int = 0) -> None:
+        self.upem = 1000
+        self._glyph: dict[int, str] = {}
+        #: per lookup its subtables: (format, coverage, data)
+        self._lookups: list[list[tuple]] = []
+        self._legacy: dict[tuple[str, str], int] = {}
+        try:
+            self._load(path, index)
+        except Exception as exc:  # noqa: BLE001 - a font without usable kerning
+            log.debug(tr("Geen kerning voor %s: %s"), path, exc)
+            self._lookups, self._legacy = [], {}
+
+    def _load(self, path: str, index: int) -> None:
+        from fontTools.ttLib import TTFont
+
+        font = TTFont(path, fontNumber=index, lazy=True)
+        self.upem = font["head"].unitsPerEm
+        self._glyph = font.getBestCmap() or {}
+        if "GPOS" in font:
+            table = font["GPOS"].table
+            wanted: set[int] = set()
+            for rec in table.FeatureList.FeatureRecord if table.FeatureList else ():
+                if rec.FeatureTag == "kern":
+                    wanted.update(rec.Feature.LookupListIndex)
+            for i in sorted(wanted):
+                lookup = table.LookupList.Lookup[i]
+                subs = []
+                for st in lookup.SubTable:
+                    if lookup.LookupType == 9:
+                        if st.ExtensionLookupType != 2:
+                            continue
+                        st = st.ExtSubTable
+                    elif lookup.LookupType != 2:
+                        continue
+                    subs.append(_pair_subtable(st))
+                if subs:
+                    self._lookups.append(subs)
+        if not self._lookups and "kern" in font:
+            for sub in font["kern"].kernTables:
+                if getattr(sub, "coverage", 1) & 1 and hasattr(sub, "kernTable"):
+                    self._legacy.update(sub.kernTable)
+
+    def __bool__(self) -> bool:
+        return bool(self._lookups or self._legacy)
+
+    def pair(self, left: str, right: str) -> float:
+        """Kerning between two characters, as a share of the font size."""
+        a, b = self._glyph.get(ord(left)), self._glyph.get(ord(right))
+        if a is None or b is None:
+            return 0.0
+        if not self._lookups:
+            return self._legacy.get((a, b), 0) / self.upem
+        total = 0
+        for subs in self._lookups:
+            for fmt, coverage, data in subs:
+                if a not in coverage:
+                    continue
+                if fmt == 1:
+                    found = data.get(a, {}).get(b)
+                    if found is None:
+                        continue  # format 1: the next subtable may know the pair
+                    total += found
+                else:
+                    class1, class2, values = data
+                    row = values[class1.get(a, 0)]
+                    c2 = class2.get(b, 0)
+                    total += row[c2] if c2 < len(row) else 0
+                break
+        return total / self.upem
+
+
+def _x_advance(value) -> int:  # type: ignore[no-untyped-def]
+    return int(getattr(value, "XAdvance", 0) or 0) if value is not None else 0
+
+
+def _pair_subtable(st) -> tuple:  # type: ignore[no-untyped-def]
+    """A GPOS pair adjustment subtable as plain dicts: (format, coverage, data)."""
+    coverage = set(st.Coverage.glyphs)
+    if st.Format == 1:
+        pairs = {}
+        for glyph, pset in zip(st.Coverage.glyphs, st.PairSet):
+            pairs[glyph] = {r.SecondGlyph: _x_advance(r.Value1) for r in pset.PairValueRecord}
+        return 1, coverage, pairs
+    class1 = dict(st.ClassDef1.classDefs) if st.ClassDef1 else {}
+    class2 = dict(st.ClassDef2.classDefs) if st.ClassDef2 else {}
+    values = [[_x_advance(r.Value1) for r in rec.Class2Record] for rec in st.Class1Record]
+    return 2, coverage, (class1, class2, values)
+
+
+@lru_cache(maxsize=32)
+def kerning(path: str, index: int = 0) -> Kerning:
+    return Kerning(path, index)
+
+
+@lru_cache(maxsize=4096)
+def kern_pairs(path: str, index: int, text: str) -> tuple[tuple[int, float], ...]:
+    """Where *text* is kerned: (position of the right-hand character, shift as
+    a share of the font size) for every pair that has kerning."""
+    kern = kerning(path, index)
+    if not kern:
+        return ()
+    out = []
+    for i in range(1, len(text)):
+        shift = kern.pair(text[i - 1], text[i])
+        if shift:
+            out.append((i, shift))
+    return tuple(out)
+
+
 @lru_cache(maxsize=256)
 def pil_font(path: str, index: int, size_px: float) -> ImageFont.FreeTypeFont:
     return ImageFont.truetype(path, size=max(1.0, size_px), index=index,
