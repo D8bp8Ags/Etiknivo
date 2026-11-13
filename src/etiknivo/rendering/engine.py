@@ -1073,12 +1073,19 @@ class RenderEngine:
 
     def _vbox(self, p: _Prepared, size_pt: float, share: CategoryShare | None
               ) -> tuple[float, float, float, float]:
-        """Ink box of a line, made as tall as the category's tallest line in
-        that slot so baselines line up from label to label."""
+        """Ink box of a line.  In a category its height is the category's
+        tallest line in that slot, so baselines line up from label to label.
+
+        The category's extents alone set that height, not this line's own
+        ink: the own ink is measured on the supersampled grid and can stick
+        out a fraction of a dot past the shared extents ("Transparant" goes
+        a hair lower than the category's descender at a small size).  That
+        hair made the block a hair taller, moved its centre and, after
+        rounding to whole dots, put the other lines one dot apart."""
         l, t, r, b = self._measure(p, size_pt)
         ext = share.extent(p.slot) if share else None
         if ext is not None:
-            t, b = min(t, ext[0] * size_pt), max(b, ext[1] * size_pt)
+            t, b = ext[0] * size_pt, ext[1] * size_pt
         return l, t, r, b
 
     def _width(self, p: _Prepared, size_pt: float) -> float:

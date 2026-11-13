@@ -106,6 +106,21 @@ def test_baselines_line_up_whatever_the_letters(engine: RenderEngine) -> None:
     assert not ra.has_overflow and not rb.has_overflow
 
 
+def test_lines_keep_their_spacing_with_long_main_lines(engine: RenderEngine) -> None:
+    """A long main line makes every line small; "Transparant" then reaches a
+    hair lower than the shared descender.  That hair may not move the other
+    lines a dot (seen with "Breadboard" above "830 contactpunten")."""
+    a = caps_label("Prototyping", "170 contactpunten", "Zwart")
+    b = caps_label("Prototyping", "830 contactpunten", "Transparant")
+    for lbl in (a, b):
+        lbl.lines[0].text = "Breadboard"
+        lbl.style.margin_h_mm = 1.0
+    with_peers(engine, [a, b])
+    ra, rb = engine.render(a), engine.render(b)
+    assert [lb.y0 for lb in ra.lines] == [lb.y0 for lb in rb.lines]
+    assert not ra.has_overflow and not rb.has_overflow
+
+
 def test_pictogram_has_the_same_size_whatever_the_text(engine: RenderEngine) -> None:
     """The pictogram size only follows the size choice: long text gets smaller
     (or is shortened), the pictogram stays, in every category and on its own."""
