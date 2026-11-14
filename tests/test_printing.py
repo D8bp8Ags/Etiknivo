@@ -130,13 +130,47 @@ async def test_pause_cancels_between_copies(engine: RenderEngine) -> None:
     await asyncio.sleep(0.12)
     q.pause()
     await q.wait_idle(5)
-    assert q.jobs[0].status == JobStatus.CANCELLED
-    assert 0 < len(b.printed) < 10
+    # Stop keeps the job: it waits with the copies done so far (audit F-04)
+    done = len(b.printed)
+    assert q.jobs[0].status == JobStatus.PENDING
+    assert 0 < done < 10 and q.jobs[0].copies_done == done
     assert q.jobs[1].status == JobStatus.PENDING  # stays queued until resumed
-    q.cancel_pending()
-    assert q.jobs[1].status == JobStatus.CANCELLED
+    q.resume()
+    await q.wait_idle(5)
+    assert [j.status for j in q.jobs] == [JobStatus.DONE, JobStatus.DONE]
+    assert len(b.printed) == 10 + 1  # no copy printed twice
     q.clear_finished()
     assert q.jobs == []
+    await q.stop()
+
+
+async def test_cancel_only_removes_waiting_jobs(engine: RenderEngine) -> None:
+    b = MockPrinterBackend(delay=0.05)
+    await b.connect()
+    q = PrintQueue(lambda: b)
+    q.start()
+    q.enqueue([PrintJob("a", "A", raster(engine), copies=4),
+               PrintJob("b", "B", raster(engine, "x"))])
+    await asyncio.sleep(0.07)
+    q.cancel_pending()
+    await q.wait_idle(5)
+    assert q.jobs[0].status == JobStatus.DONE and q.jobs[0].copies_done == 4
+    assert q.jobs[1].status == JobStatus.CANCELLED
+    assert len(b.printed) == 4
+    await q.stop()
+
+
+async def test_retry_continues_after_the_copies_done(engine: RenderEngine) -> None:
+    b = MockPrinterBackend()
+    b.fail_after_labels = 2  # the third copy fails
+    await b.connect()
+    q = await run_queue(b, [PrintJob("a", "A", raster(engine), copies=5)])
+    assert q.jobs[0].status == JobStatus.FAILED and q.jobs[0].copies_done == 2
+    b.fail_after_labels = None
+    q.retry_failed()
+    await q.wait_idle(5)
+    assert q.jobs[0].status == JobStatus.DONE and q.jobs[0].copies_done == 5
+    assert len(b.printed) == 5
     await q.stop()
 
 

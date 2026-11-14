@@ -68,14 +68,15 @@ def decode_status(byte: int) -> PrinterStatusInfo:
     """Status bitmask returned by the ``10 FF 40`` query (0xFF = no answer)."""
     if byte == 0xFF:
         return PrinterStatusInfo(raw=byte, unknown=True)
+    bits = StatusBits
     return PrinterStatusInfo(
         raw=byte,
-        printing=bool(byte & 0x01),
-        cover_open=bool(byte & 0x02),
-        no_paper=bool(byte & 0x04),
-        low_battery=bool(byte & 0x08),
-        overheated=bool(byte & 0x10 or byte & 0x40),
-        charging=bool(byte & 0x20),
+        printing=bool(byte & bits.PRINTING),
+        cover_open=bool(byte & bits.COVER_OPEN),
+        no_paper=bool(byte & bits.NO_PAPER),
+        low_battery=bool(byte & bits.LOW_BATTERY),
+        overheated=bool(byte & (bits.OVERHEAT_A | bits.OVERHEAT_B)),
+        charging=bool(byte & bits.CHARGING),
     )
 
 

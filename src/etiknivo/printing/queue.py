@@ -1,8 +1,13 @@
 """Sequential print queue.
 
 * Jobs run strictly one after another.
+* :meth:`PrintQueue.pause` stops after the label being printed; that job goes
+  back to *pending* and :meth:`PrintQueue.resume` prints its remaining copies.
 * When a job fails the queue pauses: the remaining jobs stay pending until the
-  user resumes, and failed jobs can be retried.
+  user resumes, and failed jobs can be retried.  A retry continues with the
+  copy that failed; copies that were printed are not printed again.
+* :meth:`PrintQueue.cancel_pending` cancels waiting jobs only, never the job
+  being printed.
 * Identical jobs submitted within :attr:`PrintQueue.dedupe_window` seconds
   (e.g. an accidental double-click) are ignored.
 * Every result is written to the print log.
@@ -19,7 +24,7 @@ import itertools
 import logging
 import time
 from collections.abc import Callable
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field
 from enum import StrEnum
 
 from PIL import Image
@@ -111,6 +116,11 @@ class QueueSnapshot:
         return sum(j.status == JobStatus.FAILED for j in self.jobs)
 
 
+def _after(before: int, progress: Callable[[int], None]) -> Callable[[int, int], None]:
+    """A progress callback for one copy that counts the *before* copies too."""
+    return lambda done, _total: progress(before + done)
+
+
 class PrintQueue:
     def __init__(
         self,
@@ -177,7 +187,9 @@ class PrintQueue:
         return accepted
 
     def pause(self) -> None:
-        """Stop after the current label; pending jobs stay in the queue."""
+        """Stop after the current label.  The job being printed goes back to
+        pending with the copies it printed counted, so :meth:`resume`
+        continues with its next copy; other jobs stay in the queue."""
         self.paused = True
         self._cancel.set()
         self._changed()
@@ -188,30 +200,27 @@ class PrintQueue:
         self._kick()
 
     def retry_failed(self) -> int:
+        """Failed and cancelled jobs back to pending.  They continue with the
+        copy that did not get printed: a copy only counts as done once the
+        printer confirmed it, so a copy that failed halfway is printed again
+        and finished copies are not."""
         n = 0
         for j in self.jobs:
             if j.status in (JobStatus.FAILED, JobStatus.CANCELLED):
-                j.status, j.error, j.copies_done = JobStatus.PENDING, "", 0
+                j.status, j.error = JobStatus.PENDING, ""
                 j.submitted = time.monotonic() - self.dedupe_window
                 n += 1
         self.resume()
         return n
 
-    def retry_job(self, job_id: int) -> bool:
-        for j in self.jobs:
-            if j.id == job_id and j.status in (JobStatus.FAILED, JobStatus.CANCELLED):
-                j.status, j.error, j.copies_done = JobStatus.PENDING, "", 0
-                self.resume()
-                return True
-        return False
-
     def cancel_pending(self) -> int:
+        """Cancel the jobs that wait; the job being printed goes on (use
+        :meth:`pause` to stop it after its current label)."""
         n = 0
         for j in self.jobs:
             if j.status == JobStatus.PENDING:
                 j.status = JobStatus.CANCELLED
                 n += 1
-        self._cancel.set()
         self._changed()
         return n
 
@@ -257,28 +266,38 @@ class PrintQueue:
     async def _print(self, job: PrintJob) -> None:
         backend = self._backend_getter()
         self._current = job
-        job.status, job.error, job.copies_done = JobStatus.PRINTING, "", 0
+        # a resumed or retried job continues after the copies it printed
+        start = min(job.copies_done, job.copies)
+        job.status, job.error = JobStatus.PRINTING, ""
         self._cancel.clear()
         self._changed()
 
-        def progress(done: int, total: int) -> None:
-            job.copies_done = done
+        def progress(done: int) -> None:
+            job.copies_done = start + done
             self._changed()
 
         try:
             if backend is None or not backend.connected:
                 raise PrinterError(tr("Geen printer verbonden"))
             if job.copy_rasters:
-                for n, raster in enumerate(job.copy_rasters):
+                for n, raster in enumerate(job.copy_rasters[start:]):
                     await backend.print_raster(
                         raster, density=job.density, copies=1, cancel=self._cancel,
-                        progress=lambda done, _total, n=n: progress(n + done, job.copies))
-            else:
-                await backend.print_raster(job.raster, density=job.density, copies=job.copies,
-                                           progress=progress, cancel=self._cancel)
+                        progress=_after(n, progress))
+            elif start < job.copies:
+                await backend.print_raster(job.raster, density=job.density,
+                                           copies=job.copies - start,
+                                           progress=lambda done, _total: progress(done),
+                                           cancel=self._cancel)
         except PrintCancelled as exc:
-            job.status, job.error = JobStatus.CANCELLED, str(exc)
-            print_log.info(tr("GESTOPT  %s  (%d/%d)"), job.title, job.copies_done, job.copies)
+            if self.paused:  # Stop: continue with the next copy on resume
+                job.status = JobStatus.PENDING
+                print_log.info(tr("GEPAUZEERD  %s  (%d/%d)"), job.title, job.copies_done,
+                               job.copies)
+            else:
+                job.status, job.error = JobStatus.CANCELLED, str(exc)
+                print_log.info(tr("GESTOPT  %s  (%d/%d)"), job.title, job.copies_done,
+                               job.copies)
         except (PrinterError, ValueError, OSError) as exc:
             job.status, job.error = JobStatus.FAILED, str(exc) or type(exc).__name__
             self.paused = True  # stop the queue on error
@@ -301,6 +320,3 @@ class PrintQueue:
             self._current = None
             self._changed()
 
-
-def clone_job(job: PrintJob) -> PrintJob:
-    return replace(job, id=next(_ids), status=JobStatus.PENDING, copies_done=0, error="")

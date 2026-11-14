@@ -78,6 +78,8 @@ class D11sBackend(PrinterBackend):
         self._link: BleLink | None = None
         self._address: str | None = None
         self._job_lock = asyncio.Lock()
+        #: clients we are closing ourselves: their disconnect is no news
+        self._closing: set[int] = set()
 
     # -- connection ------------------------------------------------------------------
 
@@ -112,11 +114,29 @@ class D11sBackend(PrinterBackend):
         devices.sort(key=lambda d: (not d.supported, -d.rssi))
         return devices
 
-    def _dropped(self, _client: Any) -> None:
+    def _dropped(self, client: Any) -> None:
+        """Bleak's disconnect callback.  Only the client of the current link
+        counts: Bluetooth stacks report a disconnect asynchronously, so the
+        report of an earlier (closed or failed) client can arrive after a new
+        connection was made, and must not throw that one away."""
+        link = self._link
+        if id(client) in self._closing or link is None or link.client is not client:
+            log.debug(tr("Verbreken van een eerdere Bluetooth-verbinding genegeerd"))
+            return
         log.warning(tr("Bluetooth-verbinding met %s verbroken"), short_address(self._address))
         self._link = None
         if self.on_disconnect:
             self.on_disconnect()
+
+    async def _close(self, link: BleLink) -> None:
+        """Close a link we no longer use; its disconnect report is ignored."""
+        key = id(link.client)
+        self._closing.add(key)
+        try:
+            await link.close()
+        finally:
+            # the report may still come after close() returns
+            asyncio.get_running_loop().call_later(5.0, self._closing.discard, key)
 
     async def _open(self, address: str) -> BleLink:
         target: Any = address
@@ -132,7 +152,7 @@ class D11sBackend(PrinterBackend):
             await link.open()
             model = proto.text(await link.request(proto.Q_MODEL))
         except BaseException:
-            await link.close()
+            await self._close(link)
             raise
         log.info(tr("Verbonden met %s (%s)"), short_address(address), model)
         return link
@@ -160,9 +180,14 @@ class D11sBackend(PrinterBackend):
                                         n=self._attempts, error=problem))
 
     async def disconnect(self) -> None:
-        link, self._link = self._link, None
-        if link is not None:
-            await link.close()
+        """Close the connection.  A print job in progress finishes its current
+        label first (the job lock), so the printer is never left mid-job."""
+        if self._link is None:
+            return
+        async with self._job_lock:
+            link, self._link = self._link, None
+            if link is not None:
+                await self._close(link)
 
     def _require(self) -> BleLink:
         if self._link is None or not self._link.is_connected:

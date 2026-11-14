@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Any
 
 from etiknivo.i18n import language, tr
-from etiknivo.model import SCHEMA_VERSION, Label, PictureKind
+from etiknivo.model import SCHEMA_VERSION, Label, PictureKind, as_dict, as_float, as_str
 from etiknivo.rendering.symbols import suggest_symbol
 from etiknivo.storage.atomic import atomic_write_text
 
@@ -47,9 +47,14 @@ def labels_from_document(doc: Any) -> list[Label]:
             raise LibraryError(tr("Ongeldig label op positie {n}", n=i))
         try:
             labels.append(Label.from_dict(item))
-        except (ValueError, TypeError, KeyError) as exc:
+        except (ValueError, TypeError, KeyError, AttributeError) as exc:
             raise LibraryError(tr("Ongeldig label op positie {n}: {error}", n=i, error=exc)) from exc
     return labels
+
+
+def document_schema(doc: Any) -> int:
+    """The schema version a library document says it has (1 when absent)."""
+    return int(as_float(doc.get("schema"), 1.0)) if isinstance(doc, dict) else 1
 
 
 class Library:
@@ -60,6 +65,10 @@ class Library:
         self._labels: list[Label] = []
         #: the pictogram chosen per category ("" = none on purpose)
         self.category_symbols: dict[str, str] = {}
+        #: schema of the loaded file when a newer Etiknivo wrote it (else 0):
+        #: fields this version does not know are lost on saving, so the first
+        #: save keeps a copy of that file (see :meth:`save`)
+        self.newer_schema = 0
 
     # -- collection API --------------------------------------------------------
 
@@ -147,16 +156,31 @@ class Library:
         except (OSError, ValueError) as exc:
             raise LibraryError(tr("Bibliotheek kon niet worden gelezen: {error}", error=exc)) from exc
         self._labels = labels_from_document(doc)
-        symbols = doc.get("category_symbols") if isinstance(doc, dict) else None
-        self.category_symbols = ({str(k): str(v) for k, v in symbols.items()}
-                                 if isinstance(symbols, dict) else {})
-        version = doc.get("category_symbols_version", 1) if isinstance(doc, dict) else 1
+        schema = document_schema(doc)
+        self.newer_schema = schema if schema > SCHEMA_VERSION else 0
+        if self.newer_schema:
+            log.warning(tr("Bibliotheek is gemaakt met een nieuwere versie van Etiknivo "
+                           "(schema %d, deze versie kent %d)"), schema, SCHEMA_VERSION)
+        meta = as_dict(doc)
+        self.category_symbols = {str(k): as_str(v)
+                                 for k, v in as_dict(meta.get("category_symbols")).items()}
+        version = as_float(meta.get("category_symbols_version"), 1.0)
         if version < CATEGORY_SYMBOLS_VERSION:
             # before version 2 every category without a suggestion was saved
             # as "none", which would hide the symbols added since
             self.category_symbols = {k: v for k, v in self.category_symbols.items() if v}
 
+    def newer_copy_path(self) -> Path:
+        """Where the file of a newer Etiknivo is kept before the first save."""
+        return self.path.with_name(f"{self.path.stem}.schema-{self.newer_schema}"
+                                   f"{self.path.suffix}")
+
     def save(self) -> None:
+        if self.newer_schema and self.path.exists() and not self.newer_copy_path().exists():
+            # keep the newer version's file as it was: this version drops what it does not know
+            shutil.copy2(self.path, self.newer_copy_path())
+            log.warning(tr("Kopie van de bibliotheek van de nieuwere versie bewaard: %s"),
+                        self.newer_copy_path().name)
         if self.path.exists():
             try:
                 shutil.copy2(self.path, self.path.with_suffix(self.path.suffix + ".bak"))

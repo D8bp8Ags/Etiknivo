@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import base64
+import functools
 import io
 from pathlib import Path
 
@@ -37,14 +38,30 @@ def encode(img: Image.Image) -> str:
     return base64.b64encode(buf.getvalue()).decode("ascii")
 
 
+#: Largest stored image accepted (pixels per side).  Etiknivo stores at most
+#: :data:`MAX_SIDE`; a much larger image in a library file was not made by
+#: Etiknivo and is refused rather than decoded (memory, decompression bombs).
+MAX_DECODE_SIDE = 4096
+
+
 def decode(data: str) -> Image.Image | None:
+    """The stored image, or None when there is none or it cannot be used.
+    Decoded images are cached: every render of the label needs it."""
     if not data:
         return None
+    img = _decode(data)
+    return img.copy() if img is not None else None
+
+
+@functools.lru_cache(maxsize=64)
+def _decode(data: str) -> Image.Image | None:
     try:
         img = Image.open(io.BytesIO(base64.b64decode(data)))
+        if max(img.size) > MAX_DECODE_SIDE:
+            return None
         img.load()
         return img.convert("L")
-    except (ValueError, OSError):
+    except (ValueError, OSError, Image.DecompressionBombError):
         return None
 
 
@@ -54,5 +71,5 @@ def load_file(path: Path) -> str:
         with Image.open(path) as img:
             img.load()
             return encode(img)
-    except (OSError, ValueError) as exc:
+    except (OSError, ValueError, Image.DecompressionBombError) as exc:
         raise ImageError(str(exc)) from exc

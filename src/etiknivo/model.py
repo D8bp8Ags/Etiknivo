@@ -13,16 +13,22 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+import math
 import re
 import uuid
-from dataclasses import asdict, dataclass, field, fields
+from dataclasses import asdict, dataclass, field
 from datetime import UTC, date, datetime
 from enum import StrEnum
-from typing import Any
+from typing import Any, TypeVar
 
 from etiknivo.i18n import N_, format_date, tr
 
-SCHEMA_VERSION = 1
+#: Version of the library file.  2 (Etiknivo 0.2): line, style, code and
+#: picture fields added since 0.1.0 (``same_size_in_category``, ``valign`` and
+#: ``size`` of the QR code and the pictogram); ``format`` is no longer used.
+SCHEMA_VERSION = 2
+
+E = TypeVar("E", bound=StrEnum)
 
 #: Slot indices.  Slot 0 is the small top line (usually the category),
 #: slot 1 the large main line, slot 2 the specification line.
@@ -103,6 +109,77 @@ class LayoutPreset(StrEnum):
 LINE_COUNT_PRESETS = {1: LayoutPreset.SINGLE, 2: LayoutPreset.MAIN_SPEC,
                       3: LayoutPreset.CATEGORY_MAIN_SPEC}
 
+# -- reading stored values ------------------------------------------------------
+#
+# Library files are usually written by Etiknivo, but they can also be edited by
+# hand or made by another program.  Values of the wrong type or outside the
+# range the editor allows fall back to the default instead of breaking the
+# whole library (see ``labels_from_document``).
+
+_TRUE = {"true", "1", "yes", "ja", "on", "waar"}
+_FALSE = {"false", "0", "no", "nee", "off", "onwaar", ""}
+
+#: ranges the editor allows; values read from a file are clamped to them
+FONT_SIZE_RANGE = (3.0, 60.0)
+MARGIN_H_RANGE = (0.0, 10.0)
+MARGIN_V_RANGE = (0.0, 5.0)
+LINE_SPACING_RANGE = (-3.0, 5.0)
+
+
+def as_dict(value: Any) -> dict[str, Any]:
+    """*value* when it is a dict, else an empty one."""
+    return value if isinstance(value, dict) else {}
+
+
+def as_bool(value: Any, default: bool) -> bool:
+    """A stored yes/no: real booleans, numbers and the usual words."""
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, int | float):
+        return bool(value)
+    if isinstance(value, str):
+        word = value.strip().casefold()
+        if word in _TRUE:
+            return True
+        if word in _FALSE:
+            return False
+    return default
+
+
+def as_float(value: Any, default: float, lo: float | None = None,
+             hi: float | None = None) -> float:
+    """A stored number, clamped to *lo*..*hi*; *default* when it is no number."""
+    if isinstance(value, bool):
+        return default
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return default
+    if math.isnan(number) or math.isinf(number):
+        return default
+    if lo is not None:
+        number = max(lo, number)
+    if hi is not None:
+        number = min(hi, number)
+    return number
+
+
+def as_str(value: Any, default: str = "") -> str:
+    """A stored text; numbers become text, anything else gives *default*."""
+    if isinstance(value, str):
+        return value
+    if isinstance(value, int | float) and not isinstance(value, bool):
+        return str(value)
+    return default
+
+
+def as_enum(cls: type[E], value: Any, default: E) -> E:
+    try:
+        return cls(value)
+    except (TypeError, ValueError):
+        return default
+
+
 def _now() -> str:
     return datetime.now(UTC).isoformat(timespec="seconds")
 
@@ -120,26 +197,33 @@ class TextLine:
     align: HAlign = HAlign.CENTER
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> TextLine:
-        known = {f.name for f in fields(cls)}
-        kwargs = {k: v for k, v in data.items() if k in known}
-        if "align" in kwargs:
-            kwargs["align"] = HAlign(kwargs["align"])
-        if "font_size_pt" in kwargs:
-            kwargs["font_size_pt"] = float(kwargs["font_size_pt"])
-        return cls(**kwargs)
+    def from_dict(cls, data: Any) -> TextLine:
+        data, d = as_dict(data), cls()
+        return cls(
+            text=as_str(data.get("text"), d.text),
+            enabled=as_bool(data.get("enabled"), d.enabled),
+            font_family=as_str(data.get("font_family"), d.font_family).strip() or d.font_family,
+            font_size_pt=as_float(data.get("font_size_pt"), d.font_size_pt, *FONT_SIZE_RANGE),
+            bold=as_bool(data.get("bold"), d.bold),
+            italic=as_bool(data.get("italic"), d.italic),
+            align=as_enum(HAlign, data.get("align"), d.align),
+        )
 
 
 @dataclass
 class LabelFormat:
-    """Physical label size.  Width runs along the roll (feed direction)."""
+    """Physical label size, as stored by Etiknivo 0.1.  **Not used**: every
+    label is laid out for the label roll chosen in the printer settings
+    (``Settings.label_size_mm``).  Still read and written so files stay
+    readable by older versions."""
 
     width_mm: float = 30.0
     height_mm: float = 14.0
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> LabelFormat:
-        return cls(float(data.get("width_mm", 30.0)), float(data.get("height_mm", 14.0)))
+    def from_dict(cls, data: Any) -> LabelFormat:
+        data = as_dict(data)
+        return cls(as_float(data.get("width_mm"), 30.0), as_float(data.get("height_mm"), 14.0))
 
 
 @dataclass
@@ -163,15 +247,23 @@ class LabelStyle:
     invert: bool = False
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> LabelStyle:
-        known = {f.name for f in fields(cls)}
-        kwargs = {k: v for k, v in data.items() if k in known}
-        if "valign" in kwargs:
-            kwargs["valign"] = VAlign(kwargs["valign"])
-        if "rotation" in kwargs:
-            rot = int(kwargs["rotation"]) % 360
-            kwargs["rotation"] = rot if rot in (0, 90, 180, 270) else 0
-        return cls(**kwargs)
+    def from_dict(cls, data: Any) -> LabelStyle:
+        data, d = as_dict(data), cls()
+        rot = int(as_float(data.get("rotation"), 0.0)) % 360
+        return cls(
+            valign=as_enum(VAlign, data.get("valign"), d.valign),
+            line_spacing_mm=as_float(data.get("line_spacing_mm"), d.line_spacing_mm,
+                                     *LINE_SPACING_RANGE),
+            margin_h_mm=as_float(data.get("margin_h_mm"), d.margin_h_mm, *MARGIN_H_RANGE),
+            margin_v_mm=as_float(data.get("margin_v_mm"), d.margin_v_mm, *MARGIN_V_RANGE),
+            autofit=as_bool(data.get("autofit"), d.autofit),
+            same_size_in_category=as_bool(data.get("same_size_in_category"),
+                                          d.same_size_in_category),
+            rotation=rot if rot in (0, 90, 180, 270) else 0,
+            border=as_bool(data.get("border"), d.border),
+            separators=as_bool(data.get("separators"), d.separators),
+            invert=as_bool(data.get("invert"), d.invert),
+        )
 
 
 class CodeKind(StrEnum):
@@ -200,13 +292,10 @@ class LabelCode:
     size: CodeSize = CodeSize.MEDIUM  # QR code only
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> LabelCode:
-        c = cls()
-        try:
-            c.kind = CodeKind(data.get("kind", CodeKind.NONE))
-        except ValueError:
-            c.kind = CodeKind.NONE
-        c.text = str(data.get("text", c.text))
+    def from_dict(cls, data: Any) -> LabelCode:
+        data, c = as_dict(data), cls()
+        c.kind = as_enum(CodeKind, data.get("kind"), CodeKind.NONE)
+        c.text = as_str(data.get("text"), c.text)
         c.side = HAlign.RIGHT if data.get("side") == HAlign.RIGHT else HAlign.LEFT
         c.valign = _valign(data.get("valign"))
         c.size = _size(data.get("size"))
@@ -214,17 +303,11 @@ class LabelCode:
 
 
 def _valign(value: Any) -> VAlign:
-    try:
-        return VAlign(value)
-    except ValueError:
-        return VAlign.CENTER
+    return as_enum(VAlign, value, VAlign.CENTER)
 
 
 def _size(value: Any) -> CodeSize:
-    try:
-        return CodeSize(value)
-    except ValueError:
-        return CodeSize.MEDIUM
+    return as_enum(CodeSize, value, CodeSize.MEDIUM)
 
 
 class PictureKind(StrEnum):
@@ -247,14 +330,11 @@ class LabelPicture:
     size: CodeSize = CodeSize.MEDIUM
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> LabelPicture:
-        p = cls()
-        try:
-            p.kind = PictureKind(data.get("kind", PictureKind.NONE))
-        except ValueError:
-            p.kind = PictureKind.NONE
-        p.symbol = str(data.get("symbol", p.symbol))
-        p.image_png = str(data.get("image_png", ""))
+    def from_dict(cls, data: Any) -> LabelPicture:
+        data, p = as_dict(data), cls()
+        p.kind = as_enum(PictureKind, data.get("kind"), PictureKind.NONE)
+        p.symbol = as_str(data.get("symbol"), p.symbol)
+        p.image_png = as_str(data.get("image_png"))
         p.side = HAlign.RIGHT if data.get("side") == HAlign.RIGHT else HAlign.LEFT
         p.valign = _valign(data.get("valign"))
         p.size = _size(data.get("size"))
@@ -331,15 +411,24 @@ class LabelElement:
         self.h_mm = round(max(ELEMENT_MIN_MM, h_mm), 6)
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> LabelElement:
-        known = {f.name for f in fields(cls)}
-        kwargs = {k: v for k, v in data.items() if k in known}
-        kwargs["kind"] = ElementKind(kwargs.get("kind", ElementKind.TEXT))
-        kwargs["align"] = HAlign(kwargs.get("align", HAlign.CENTER))
-        for k in ("x_mm", "y_mm", "w_mm", "h_mm", "font_size_pt"):
-            if k in kwargs:
-                kwargs[k] = float(kwargs[k])
-        el = cls(**kwargs)
+    def from_dict(cls, data: Any) -> LabelElement:
+        data, d = as_dict(data), cls()
+        el = cls(
+            kind=as_enum(ElementKind, data.get("kind"), ElementKind.TEXT),
+            x_mm=as_float(data.get("x_mm"), d.x_mm, -50.0, 150.0),
+            y_mm=as_float(data.get("y_mm"), d.y_mm, -50.0, 50.0),
+            w_mm=as_float(data.get("w_mm"), d.w_mm, ELEMENT_MIN_MM, 150.0),
+            h_mm=as_float(data.get("h_mm"), d.h_mm, ELEMENT_MIN_MM, 50.0),
+            text=as_str(data.get("text")),
+            font_family=as_str(data.get("font_family"), d.font_family).strip() or d.font_family,
+            font_size_pt=as_float(data.get("font_size_pt"), d.font_size_pt, *FONT_SIZE_RANGE),
+            bold=as_bool(data.get("bold"), d.bold),
+            italic=as_bool(data.get("italic"), d.italic),
+            align=as_enum(HAlign, data.get("align"), HAlign.CENTER),
+            symbol=as_str(data.get("symbol")),
+            image_png=as_str(data.get("image_png")),
+            id=as_str(data.get("id")) or d.id,
+        )
         el.resize(el.w_mm, el.h_mm)
         return el
 
@@ -359,6 +448,7 @@ class Label:
     layout: LayoutPreset = LayoutPreset.CATEGORY_MAIN_SPEC
     lines: list[TextLine] = field(default_factory=default_lines)
     style: LabelStyle = field(default_factory=LabelStyle)
+    #: not used, see :class:`LabelFormat`
     format: LabelFormat = field(default_factory=LabelFormat)
     code: LabelCode = field(default_factory=LabelCode)
     picture: LabelPicture = field(default_factory=LabelPicture)
@@ -525,31 +615,39 @@ class Label:
         return d
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> Label:
-        lines = [TextLine.from_dict(x) for x in data.get("lines", [])][:3]
+    def from_dict(cls, data: Any) -> Label:
+        """A label from its stored form.  Missing fields get their default;
+        fields of the wrong type or out of range too (see :func:`as_float`)."""
+        data = as_dict(data)
+        raw_lines = data.get("lines")
+        lines = [TextLine.from_dict(x) for x in (raw_lines if isinstance(raw_lines, list)
+                                                  else [])][:3]
         while len(lines) < 3:
             lines.append(TextLine(enabled=False))
+        raw_elements = data.get("elements")
+        raw_specs = data.get("specs")
         lbl = cls(
-            id=str(data.get("id") or uuid.uuid4().hex),
-            name=str(data.get("name", "")),
-            tray_id=str(data.get("tray_id", "")),
-            category=str(data.get("category", "")),
-            layout=LayoutPreset(data.get("layout", LayoutPreset.CUSTOM)),
+            id=as_str(data.get("id")) or uuid.uuid4().hex,
+            name=as_str(data.get("name")),
+            tray_id=as_str(data.get("tray_id")),
+            category=as_str(data.get("category")),
+            layout=as_enum(LayoutPreset, data.get("layout"), LayoutPreset.CUSTOM),
             lines=lines,
-            style=LabelStyle.from_dict(data.get("style", {})),
-            format=LabelFormat.from_dict(data.get("format", {})),
-            code=LabelCode.from_dict(data.get("code") or {}),
-            picture=LabelPicture.from_dict(data.get("picture") or {}),
-            elements=[LabelElement.from_dict(x) for x in data.get("elements") or []
+            style=LabelStyle.from_dict(data.get("style")),
+            format=LabelFormat.from_dict(data.get("format")),
+            code=LabelCode.from_dict(data.get("code")),
+            picture=LabelPicture.from_dict(data.get("picture")),
+            elements=[LabelElement.from_dict(x)
+                      for x in (raw_elements if isinstance(raw_elements, list) else [])
                       if isinstance(x, dict)],
-            elements_from=str(data.get("elements_from", "")),
-            specs={str(k): str(v) for k, v in (data.get("specs") or {}).items()},
-            notes=str(data.get("notes", "")),
+            elements_from=as_str(data.get("elements_from")),
+            specs={str(k): as_str(v) for k, v in as_dict(raw_specs).items()},
+            notes=as_str(data.get("notes")),
         )
-        if data.get("created"):
-            lbl.created = str(data["created"])
-        if data.get("modified"):
-            lbl.modified = str(data["modified"])
+        if as_str(data.get("created")):
+            lbl.created = as_str(data["created"])
+        if as_str(data.get("modified")):
+            lbl.modified = as_str(data["modified"])
         return lbl
 
     def clone(self, *, new_id: bool = True) -> Label:
@@ -562,7 +660,7 @@ class Label:
     def render_key(self) -> str:
         """Stable hash of everything that affects the rendered output."""
         d = {"lines": [asdict(x) for x in self.lines], "style": asdict(self.style),
-             "format": asdict(self.format), "code": asdict(self.code),
+             "code": asdict(self.code),
              "picture": asdict(self.picture), "layout": str(self.layout),
              "elements": [asdict(x) for x in self.elements] if self.is_free else [],
              "fields": self.field_values()}

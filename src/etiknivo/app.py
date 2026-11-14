@@ -21,11 +21,13 @@ def main(argv: list[str] | None = None) -> int:
 
     from PySide6.QtWidgets import QApplication, QMessageBox
 
-    from etiknivo.logging_setup import setup_logging
+    from etiknivo.logging_setup import install_exception_hooks, setup_logging
+    from etiknivo.privacy import redact
     from etiknivo.settings import data_dir, load_settings
     from etiknivo.storage.library import LibraryError, open_library
 
     setup_logging(logging.DEBUG if args.debug else logging.INFO)
+    install_exception_hooks()
     log = logging.getLogger("etiknivo")
 
     if sys.platform == "win32":  # own taskbar entry and icon instead of python.exe's
@@ -51,11 +53,18 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         library, seeded = open_library(data_dir() / "library.json")
-    except LibraryError as exc:
+    except Exception as exc:  # noqa: BLE001 - never crash without telling why
+        if not isinstance(exc, LibraryError):
+            log.exception(i18n.tr("Bibliotheek kon niet worden geladen"))
         QMessageBox.critical(None, APP_NAME, i18n.tr(
             "{error}\n\nDe vorige versie staat in library.json.bak in {folder}.",
-            error=exc, folder=data_dir()))
+            error=exc, folder=redact(str(data_dir()))))
         return 1
+    if library.newer_schema:
+        QMessageBox.warning(None, APP_NAME, i18n.tr(
+            "Deze bibliotheek is gemaakt met een nieuwere versie van {app}. Instellingen "
+            "die deze versie niet kent, gaan verloren bij opslaan; het originele bestand "
+            "wordt bewaard als {copy}.", app=APP_NAME, copy=library.newer_copy_path().name))
     if seeded:
         log.info(i18n.tr("Eerste start: %d voorbeeldlabels aangemaakt"), len(library))
 

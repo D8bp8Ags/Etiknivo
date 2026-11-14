@@ -148,7 +148,7 @@ PyInstaller builds for the processor of the Mac you build on: on Apple Silicon t
 
 1. Set the same version number in `src/etiknivo/__init__.py` and `pyproject.toml` (for example `0.2.0`) and run `uv lock`.
 2. Add a new section with the date to `CHANGELOG.md`.
-3. Run `uv run pytest` and `uvx ruff check .`, commit and push to `main`.
+3. Run `uv run pytest`, `uvx ruff check .` and `uvx mypy` (type check of everything except the GUI), commit and push to `main`.
 4. Build the app on a Mac from that commit:
 
    ```bash

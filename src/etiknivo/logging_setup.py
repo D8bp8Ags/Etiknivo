@@ -5,6 +5,7 @@ so a shared log shows ``~`` instead of the home folder."""
 from __future__ import annotations
 
 import logging
+import sys
 import threading
 from collections import deque
 from collections.abc import Callable
@@ -13,6 +14,7 @@ from datetime import datetime
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
+from etiknivo.i18n import tr
 from etiknivo.privacy import RedactingFormatter, redact
 from etiknivo.settings import log_dir
 
@@ -111,3 +113,36 @@ def setup_logging(level: int = logging.INFO) -> Path:
         plog.setLevel(logging.INFO)
     memory_log()
     return directory
+
+
+#: called with a short text after an unexpected error was logged, e.g. to tell
+#: the user in the GUI; must be safe to call from any thread
+error_listener: Callable[[str], None] | None = None
+
+
+def install_exception_hooks() -> None:
+    """Log every exception nobody caught: in Qt slots (which PySide only
+    prints to stderr) and in background threads.  In a built app stderr is
+    invisible, so without this such errors would leave no trace."""
+    log = logging.getLogger("etiknivo")
+
+    def report(exc_type, exc, tb, where: str) -> None:  # type: ignore[no-untyped-def]
+        if issubclass(exc_type, KeyboardInterrupt):
+            sys.__excepthook__(exc_type, exc, tb)
+            return
+        log.critical(tr("Onverwachte fout (%s): %s"), where, exc, exc_info=(exc_type, exc, tb))
+        if error_listener is not None:
+            try:
+                error_listener(f"{exc_type.__name__}: {exc}")
+            except Exception:  # noqa: BLE001 - the hook itself must never fail
+                pass
+
+    sys.excepthook = lambda t, e, tb: report(t, e, tb, "hoofdthread")
+
+    def thread_hook(args: threading.ExceptHookArgs) -> None:
+        if args.exc_type is SystemExit:
+            return
+        name = args.thread.name if args.thread is not None else "?"
+        report(args.exc_type, args.exc_value, args.exc_traceback, f"thread {name}")
+
+    threading.excepthook = thread_hook

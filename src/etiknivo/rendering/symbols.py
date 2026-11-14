@@ -288,10 +288,6 @@ SYMBOL_CATEGORIES: tuple[tuple[str, tuple[str, ...]], ...] = (
 )
 
 
-def symbol_names() -> list[str]:
-    return list(SYMBOLS)
-
-
 @functools.cache
 def ink_box(key: str) -> tuple[float, float, float, float]:
     """The part of the square that symbol *key* inks, as fractions (0 to 1)

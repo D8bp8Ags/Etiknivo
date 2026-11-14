@@ -5,6 +5,10 @@ complete snapshot instead of individual commands.  That keeps undo correct
 for every kind of change (editing, new, duplicate, delete, import) without
 each action having to know how to reverse itself.
 
+A snapshot keeps every label as its own JSON text, and a label that did not
+change shares the text of the step before (see :class:`_Pool`), so a step
+costs memory only for what changed, also with images in the labels.
+
 Rapid edits to the same label (typing, spinning a size) are merged into one
 step, so Ctrl+Z undoes a word or a setting, not a single character.
 """
@@ -17,35 +21,63 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 from etiknivo.model import Label
-from etiknivo.storage.library import labels_from_document, labels_to_document
+from etiknivo.storage.library import labels_from_document
 
 MERGE_SECONDS = 1.2
 MAX_STEPS = 200
 
 
+class _Pool:
+    """Hands out one shared string object per distinct label JSON text, so
+    unchanged labels cost no memory per undo step.  Texts no snapshot uses
+    any more are dropped from time to time."""
+
+    def __init__(self) -> None:
+        self._texts: dict[str, str] = {}
+
+    def get(self, text: str) -> str:
+        return self._texts.setdefault(text, text)
+
+    def prune(self, alive: list[Snapshot]) -> None:
+        keep = {t for snap in alive for t in snap.label_texts}
+        self._texts = {t: t for t in self._texts if t in keep}
+
+
+_pool = _Pool()
+
+
 @dataclass(frozen=True)
 class Snapshot:
-    labels_json: str
+    #: per label its JSON text (shared between snapshots, see :class:`_Pool`)
+    label_texts: tuple[str, ...]
     selection: tuple[str, ...]
     draft_json: str = ""  # unsaved edits of the open label ("" when there are none)
+    #: the pictogram chosen per category (``Library.category_symbols``)
+    symbols_json: str = "{}"
 
     @classmethod
     def take(cls, labels: list[Label], selection: list[str],
-             draft: Label | None = None) -> Snapshot:
-        doc = labels_to_document(labels)
+             draft: Label | None = None,
+             category_symbols: dict[str, str] | None = None) -> Snapshot:
+        texts = tuple(_pool.get(json.dumps(lbl.to_dict(), ensure_ascii=False, sort_keys=True))
+                      for lbl in labels)
         draft_json = json.dumps(draft.to_dict(), ensure_ascii=False, sort_keys=True) \
             if draft is not None else ""
-        return cls(json.dumps(doc, ensure_ascii=False, sort_keys=True), tuple(selection),
-                   draft_json)
+        return cls(texts, tuple(selection), draft_json,
+                   json.dumps(category_symbols or {}, ensure_ascii=False, sort_keys=True))
 
     def labels(self) -> list[Label]:
-        return labels_from_document(json.loads(self.labels_json))
+        return labels_from_document([json.loads(t) for t in self.label_texts])
+
+    def category_symbols(self) -> dict[str, str]:
+        return dict(json.loads(self.symbols_json))
 
     def draft(self) -> Label | None:
         return Label.from_dict(json.loads(self.draft_json)) if self.draft_json else None
 
     def same_content(self, other: Snapshot) -> bool:
-        return (self.labels_json, self.draft_json) == (other.labels_json, other.draft_json)
+        return ((self.label_texts, self.draft_json, self.symbols_json)
+                == (other.label_texts, other.draft_json, other.symbols_json))
 
 
 class History:
@@ -58,6 +90,7 @@ class History:
         self._current: Snapshot | None = None
         self._merge_key: str | None = None
         self._merge_time = 0.0
+        self._records = 0
 
     def reset(self, state: Snapshot) -> None:
         """Start over from *state* (e.g. after loading a back-up)."""
@@ -87,6 +120,9 @@ class History:
         self._current = state
         self._merge_key = merge_key
         self._merge_time = now
+        self._records += 1
+        if self._records % 50 == 0:
+            _pool.prune([*self._undo, *self._redo, self._current])
 
     def can_undo(self) -> bool:
         return bool(self._undo)

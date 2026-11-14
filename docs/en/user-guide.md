@@ -186,9 +186,10 @@ First you see a preview with exactly what will be printed. Set the number of cop
 
 After **Print**, the labels go to the **queue** (the *Queue* button at the top right, or View → Print queue). The queue prints them one by one and shows the progress of each job:
 
-- **Stop** pauses after the current label; **Resume** continues.
-- If something goes wrong (cover open, out of paper, connection lost), the queue stops. Fix the problem and click **Retry**.
-- **Cancel** removes waiting jobs; **Clear done** tidies up finished ones.
+- **Stop** pauses after the current label. The job stays in the queue; **Resume** continues with the next copy, so what has already printed is not printed again. If you send new labels to the printer while the queue is paused, it stays paused until you click **Resume**.
+- If something goes wrong (cover open, out of paper, connection lost), the queue stops. Fix the problem and click **Retry**: the job continues from the copy that did not print.
+- **Cancel** removes waiting jobs; the job that is printing at that moment carries on (use **Stop** for that). **Clear done** tidies up finished ones.
+- **Disconnect** while printing first asks whether you want to stop; the printer then finishes the current label.
 
 Set the default number of copies and the default density on the *Printer* tab. Small text is often easier to read on *Light* or *Normal* than on *Dark*.
 
@@ -323,7 +324,9 @@ B02,Capacitor,10 µF,Electrolytic · 25 V,,
 ,,Just a name,,,single
 ```
 
-The column names are the same in both languages, so an export from the English app can be read by the Dutch one and the other way round. Dutch column names work too (`lade`, `categorie`, `hoofdtekst`, `specificatie`, `notities`). Optional columns: `top` (a different top line), `name`, `layout` (`single`, `main_spec`, `category_main_spec`, `custom`), `specs` (`Voltage=50 V; Tolerance=10%`).
+The column names are the same in both languages, so an export from the English app can be read by the Dutch one and the other way round. Dutch column names work too (`lade`, `categorie`, `hoofdtekst`, `specificatie`, `notities`). Optional columns: `top` (a different top line), `name`, `layout` (`single`, `main_spec`, `category_main_spec`, `custom`), `lines` (which lines show: top, main, bottom as three digits, for example `011`; Dutch name `regels`), `specs` (`Voltage=50 V; Tolerance=10%`).
+
+If a specification itself contains `;`, `=` or `\`, put a `\` in front of it: `Pins=1\;2\;3` becomes *Pins* with the value *1;2;3*. An export does this for you, so an exported file reads back in without loss.
 
 ## Language and theme
 
@@ -341,6 +344,12 @@ The column names are the same in both languages, so an export from the English a
 **The printer isn't found.** Check that the printer is switched on and not connected to your phone; a Bluetooth printer usually talks to only one device at a time. In System Settings → Privacy & Security → Bluetooth, check that Etiknivo (or your terminal) has access. Briefly switch off *Show label printers only* to see whether the printer is visible at all. On Windows and Linux: see [Installing per system](development.md#installing-per-system).
 
 **The connection drops.** Click **Connect** again; resume an interrupted queue with **Retry**. If you switch the printer off and on, connect again.
+
+**The library was made with a newer version.** If you open a library saved by a newer Etiknivo, the app says so. The first time you save, the original file is first kept as `library.schema-N.json` in the data folder, so you lose nothing.
+
+**"Unexpected error" appears.** The error is in the log with all details (**Help → Show log**). Include it when you report a problem.
+
+**Hebrew or Arabic text is the wrong way round.** Right-to-left text is drawn left to right, without joined letters. The app warns about this under *Note*.
 
 **The print is crooked or too far to one side.** See [Calibrating](#calibrating).
 

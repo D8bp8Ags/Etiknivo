@@ -6,7 +6,7 @@ import html
 from collections.abc import Callable
 from pathlib import Path
 
-from PySide6.QtCore import QSettings, QSize, Qt, Signal
+from PySide6.QtCore import QEvent, QObject, QSettings, QSize, Qt, Signal
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -136,10 +136,6 @@ class LineEditor(QWidget):
             self.align.addItem(tr(t), a)
         self.fitted = QLabel()
         self.fitted.setObjectName("hint")
-        self.note = QLabel()
-        self.note.setObjectName("hint")
-        self.note.setWordWrap(True)
-        self.note.hide()
 
         self.details = QWidget()
         form = QFormLayout(self.details)
@@ -163,7 +159,6 @@ class LineEditor(QWidget):
         grid.addWidget(self.check, 0, 0)
         grid.addLayout(row, 0, 1)
         grid.addWidget(self.fitted, 1, 1)
-        grid.addWidget(self.note, 2, 1)
         grid.addWidget(self.details, 3, 0, 1, 2)
         grid.setColumnStretch(1, 1)
         self.fitted.hide()
@@ -190,10 +185,6 @@ class LineEditor(QWidget):
     def setChecked(self, on: bool) -> None:  # noqa: N802
         self.check.setChecked(on)
         self._enable(on)
-
-    def set_note(self, text: str) -> None:
-        self.note.setText(text)
-        self.note.setVisible(bool(text))
 
     def set_fitted(self, text: str) -> None:
         self.fitted.setText(text)
@@ -426,6 +417,7 @@ class PropertiesPanel(QScrollArea):
 
         lay.addStretch(1)
         self.setWidget(body)
+        body.installEventFilter(self)
 
         self.name.textEdited.connect(lambda: self._apply(True))
         self.tray.textEdited.connect(lambda: self._apply(True))
@@ -452,6 +444,12 @@ class PropertiesPanel(QScrollArea):
         self.specs.changed.connect(lambda: self._apply(False))
         self.notes.textChanged.connect(lambda: self._apply(False))
         self.setEnabled(False)
+
+    def eventFilter(self, obj: QObject, event: QEvent) -> bool:  # noqa: N802 - Qt API
+        # the minimum width below follows the body: tell the layout when it changes
+        if obj is self.widget() and event.type() == QEvent.Type.LayoutRequest:
+            self.updateGeometry()
+        return super().eventFilter(obj, event)
 
     def minimumSizeHint(self) -> QSize:  # noqa: N802 - Qt API
         # as narrow as the fields allow, plus room for the vertical scroll bar

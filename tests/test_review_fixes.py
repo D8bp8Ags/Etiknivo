@@ -381,3 +381,39 @@ def test_column_widths_from_an_older_version_do_not_hide_new_columns(qtbot) -> N
     qtbot.wait(20)
     rect = table.visualItemRect(table.item(0, 7))
     assert table.indexAt(rect.center()).column() == 7
+
+
+# -- code audit 2026-11 ----------------------------------------------------------------------
+
+
+def test_save_redraws_the_other_labels_of_the_category(window, monkeypatch) -> None:  # noqa: ANN001
+    """Audit F-05: with the same font size per category, saving one label can
+    change the others, so their thumbnails are drawn again."""
+    first = next(lbl for lbl in window.library.labels if lbl.category == "ESP32-S3")
+    window.set_current(first.id)
+    cat = window.current.category
+    peers = {lbl.id for lbl in window.library.labels if lbl.category == cat}
+    assert len(peers) > 1
+    drawn: list[str] = []
+    panel = window.library_panel
+    orig = panel._fill_item
+    monkeypatch.setattr(panel, "_fill_item", lambda it, lbl: (drawn.append(lbl.id), orig(it, lbl)))
+    editor = window.properties.lines[1]
+    editor.text.setText("Een veel langere hoofdtekst")
+    editor.text.textEdited.emit("Een veel langere hoofdtekst")
+    assert window.is_dirty()
+    window.save_current()
+    assert peers <= set(drawn)
+
+
+def test_new_jobs_do_not_resume_a_stopped_queue(window) -> None:  # noqa: ANN001
+    """Audit F-04: a queue the user stopped with jobs waiting stays stopped."""
+    from etiknivo.printing.queue import JobSnapshot, JobStatus, QueueSnapshot
+
+    waiting = JobSnapshot(1, "", "A", 3, 1, 1, JobStatus.PENDING, "")
+    calls: list[str] = []
+    window.bridge.manager.queue_call = lambda name, *a: calls.append(name)
+    window._resume_queue_if_idle(QueueSnapshot((waiting,), paused=True, running=False))
+    assert calls == [] and "Hervat" in window.statusBar().currentMessage()
+    window._resume_queue_if_idle(QueueSnapshot((), paused=True, running=False))
+    assert calls == ["resume"]

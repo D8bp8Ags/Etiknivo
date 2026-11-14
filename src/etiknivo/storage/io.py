@@ -5,25 +5,25 @@ from __future__ import annotations
 import csv
 import io
 import json
+import re
 import zipfile
 from collections.abc import Iterable
 from datetime import datetime
 from pathlib import Path
 
 from etiknivo.i18n import tr
-from etiknivo.model import Label, LayoutPreset, make_label
+from etiknivo.model import LINE_COUNT_PRESETS, Label, LayoutPreset, make_label
 from etiknivo.storage.atomic import atomic_write_bytes, atomic_write_text
 from etiknivo.storage.library import LibraryError, labels_from_document, labels_to_document
 
 #: Column names accepted by the CSV importer (case-insensitive, with aliases).
-CSV_COLUMNS = ("tray_id", "category", "main", "spec", "top", "name", "layout", "notes", "specs")
 _ALIASES = {
     "id": "tray_id", "lade": "tray_id", "lade-id": "tray_id", "lade_id": "tray_id", "tray": "tray_id",
     "categorie": "category",
     "hoofdtekst": "main", "naam_op_label": "main", "tekst": "main",
     "specificatie": "spec", "specificaties": "spec", "specification": "spec",
     "bovenregel": "top", "naam": "name", "notities": "notes", "opmerkingen": "notes",
-    "technische_specificaties": "specs",
+    "technische_specificaties": "specs", "regels": "lines",
 }
 
 
@@ -50,15 +50,61 @@ def _norm(col: str) -> str:
     return _ALIASES.get(c, c)
 
 
+def _split_escaped(text: str, sep: str, limit: int = -1) -> list[str]:
+    """*text* split at *sep*, except where a backslash escapes it.  Escapes
+    stay in the parts; :func:`_unescape` removes them."""
+    parts, cur, i = [], [], 0
+    while i < len(text):
+        ch = text[i]
+        if ch == "\\" and i + 1 < len(text):
+            cur.append(text[i:i + 2])
+            i += 2
+            continue
+        if ch == sep and limit != 0:
+            parts.append("".join(cur))
+            cur, limit = [], limit - 1
+        else:
+            cur.append(ch)
+        i += 1
+    parts.append("".join(cur))
+    return parts
+
+
+def _unescape(text: str) -> str:
+    """``\\;``, ``\\=`` and ``\\\\`` back to ``;``, ``=`` and ``\\``; any other
+    backslash stays (older files have no escapes)."""
+    return re.sub(r"\\([;=\\])", r"\1", text)
+
+
+def _escape(text: str) -> str:
+    return re.sub(r"([;=\\])", r"\\\1", text)
+
+
 def _parse_specs(value: str) -> dict[str, str]:
-    """Parse ``"Spanning=50 V; Tolerantie=10%"`` into a dict."""
+    """Parse ``"Spanning=50 V; Tolerantie=10%"`` into a dict.  A ``;`` or ``=``
+    inside a name or value is written as ``\\;`` or ``\\=``."""
     out: dict[str, str] = {}
-    for part in value.split(";"):
-        if "=" in part:
-            k, v = part.split("=", 1)
-            if k.strip():
-                out[k.strip()] = v.strip()
+    for part in _split_escaped(value, ";"):
+        kv = _split_escaped(part, "=", 1)
+        if len(kv) == 2:
+            k, v = _unescape(kv[0]).strip(), _unescape(kv[1]).strip()
+            if k:
+                out[k] = v
     return out
+
+
+def format_specs(specs: dict[str, str]) -> str:
+    """The specifications as one CSV cell (the reverse of :func:`_parse_specs`)."""
+    return "; ".join(f"{_escape(k)}={_escape(v)}" for k, v in specs.items())
+
+
+def _parse_lines(value: str) -> tuple[bool, bool, bool] | None:
+    """The ``lines`` column: which of top, main and bottom line show, as
+    three digits (``011`` = main and bottom).  None when it is not that."""
+    value = value.strip()
+    if len(value) == 3 and set(value) <= {"0", "1"}:
+        return tuple(c == "1" for c in value)  # type: ignore[return-value]
+    return None
 
 
 def parse_csv_labels(text: str) -> tuple[list[Label], list[str]]:
@@ -112,6 +158,16 @@ def parse_csv_labels(text: str) -> tuple[list[Label], list[str]]:
             lbl.top.text = row["top"]
         if row.get("specs"):
             lbl.specs = _parse_specs(row["specs"])
+        if row.get("lines"):
+            shown = _parse_lines(row["lines"])
+            if shown is None:
+                errors.append(tr("Regel {n}: kolom 'lines' moet drie cijfers 0 of 1 zijn, "
+                                 "bv. 111; standaard gebruikt", n=lineno))
+            else:
+                for line, on in zip(lbl.lines, shown):
+                    line.enabled = on
+                lbl.layout = LINE_COUNT_PRESETS.get(lbl.line_count() or 0, LayoutPreset.CUSTOM) \
+                    if lbl.layout != LayoutPreset.CUSTOM else LayoutPreset.CUSTOM
         labels.append(lbl)
     return labels, errors
 
@@ -129,11 +185,12 @@ def import_csv(path: Path) -> tuple[list[Label], list[str]]:
 def labels_to_csv(labels: Iterable[Label]) -> str:
     buf = io.StringIO()
     w = csv.writer(buf, lineterminator="\n")
-    w.writerow(["tray_id", "category", "top", "main", "spec", "name", "layout", "notes", "specs"])
+    w.writerow(["tray_id", "category", "top", "main", "spec", "name", "layout", "notes", "specs",
+                "lines"])
     for lbl in labels:
-        specs = "; ".join(f"{k}={v}" for k, v in lbl.specs.items())
+        shown = "".join("1" if line.enabled else "0" for line in lbl.lines)
         w.writerow([lbl.tray_id, lbl.category, lbl.top.text, lbl.main.text, lbl.bottom.text,
-                    lbl.name, str(lbl.layout), lbl.notes, specs])
+                    lbl.name, str(lbl.layout), lbl.notes, format_specs(lbl.specs), shown])
     return buf.getvalue()
 
 

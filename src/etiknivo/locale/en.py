@@ -238,10 +238,7 @@ EN: dict[str, str] = {
     "Stop": "Stop",
     "Printen stoppen na het huidige etiket": "Stop printing after the current label",
     "Hervat": "Resume",
-    "Wachtrij hervatten": "Resume the queue",
-    "Mislukte en geannuleerde opdrachten opnieuw proberen": "Retry failed and cancelled jobs",
     "Annuleer": "Cancel",
-    "Wachtende opdrachten annuleren": "Cancel waiting jobs",
     "Wis klaar": "Clear done",
     "Afgeronde opdrachten uit de lijst halen": "Remove finished jobs from the list",
     "Dichtheid": "Density",
@@ -847,4 +844,40 @@ EN: dict[str, str] = {
     "Klik om het pictogram van deze categorie te kiezen": "Click to choose this category's pictogram",
     "Eigen pictogram": "Own pictogram",
     "Geen pictogram": "No pictogram",
+    # -- audit fixes 2026-11 ------------------------------------------------------------
+    "Deze bibliotheek is gemaakt met een nieuwere versie van {app}. Instellingen die deze "
+    "versie niet kent, gaan verloren bij opslaan; het originele bestand wordt bewaard als {copy}.":
+        "This library was made with a newer version of {app}. Settings this version does not "
+        "know are lost when saving; the original file is kept as {copy}.",
+    "Bibliotheek kon niet worden geladen": "Library could not be loaded",
+    "Onverwachte fout: {error} (zie Help → Log tonen)": "Unexpected error: {error} (see Help → Show log)",
+    "De wachtrij staat stil: klik Hervat om verder te printen":
+        "The queue is paused: click Resume to continue printing",
+    "{n} bestand(en) in deze map hebben al dezelfde naam. Overschrijven?":
+        "{n} file(s) in this folder already have the same name. Overwrite?",
+    "Overschrijven": "Overwrite",
+    "Nieuwe namen": "New names",
+    "Er wordt nog geprint. Stoppen na het huidige etiket en de verbinding verbreken?":
+        "Still printing. Stop after the current label and disconnect?",
+    "Wachtrij hervatten; een gestopte opdracht gaat verder met het volgende exemplaar":
+        "Resume the queue; a stopped job continues with the next copy",
+    "Mislukte en geannuleerde opdrachten opnieuw proberen, vanaf het exemplaar dat niet geprint is":
+        "Retry failed and cancelled jobs, from the copy that was not printed",
+    "Wachtende opdrachten annuleren; de opdracht die nu print gaat door (gebruik Stop)":
+        "Cancel waiting jobs; the job printing now carries on (use Stop)",
+    "Onverwachte fout (%s): %s": "Unexpected error (%s): %s",
+    "Verbreken van een eerdere Bluetooth-verbinding genegeerd":
+        "Ignored the disconnect of an earlier Bluetooth connection",
+    "Statuspoll mislukt door een onverwachte fout": "Status poll failed with an unexpected error",
+    "GEPAUZEERD  %s  (%d/%d)": "PAUSED  %s  (%d/%d)",
+    "Tekst van rechts naar links (zoals Hebreeuws of Arabisch) wordt van links naar rechts "
+    "getekend, zonder verbonden letters":
+        "Right-to-left text (such as Hebrew or Arabic) is drawn left to right, "
+        "without joined letters",
+    "Regel {n}: kolom 'lines' moet drie cijfers 0 of 1 zijn, bv. 111; standaard gebruikt":
+        "Row {n}: column 'lines' must be three digits 0 or 1, e.g. 111; default used",
+    "Bibliotheek is gemaakt met een nieuwere versie van Etiknivo (schema %d, deze versie kent %d)":
+        "Library was made with a newer version of Etiknivo (schema %d, this version knows %d)",
+    "Kopie van de bibliotheek van de nieuwere versie bewaard: %s":
+        "Kept a copy of the newer version's library: %s",
 }

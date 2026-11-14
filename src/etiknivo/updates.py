@@ -49,7 +49,9 @@ def is_newer(latest: str, current: str = __version__) -> bool:
         return False
 
 
-def release_from_json(data: dict) -> Release:
+def release_from_json(data: object) -> Release:
+    if not isinstance(data, dict):
+        raise UpdateError(tr("Onverwacht antwoord van GitHub"))
     tag = str(data.get("tag_name") or data.get("name") or "")
     try:
         parse_version(tag)

@@ -10,13 +10,14 @@ from __future__ import annotations
 import json
 import logging
 import os
-from dataclasses import asdict, dataclass, field, fields
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
 import platformdirs
 
 from etiknivo.i18n import tr
+from etiknivo.model import as_bool, as_dict, as_float, as_str
 from etiknivo.storage.atomic import atomic_write_text
 
 log = logging.getLogger(__name__)
@@ -56,9 +57,17 @@ class Calibration:
     supersample: int = 4
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> Calibration:
-        known = {f.name for f in fields(cls)}
-        return cls(**{k: v for k, v in data.items() if k in known})
+    def from_dict(cls, data: Any) -> Calibration:
+        """Calibration from settings.json; wrong or out-of-range values get the
+        default (the ranges are those of the calibration dialog)."""
+        data, d = as_dict(data), cls()
+        return cls(
+            offset_feed_px=int(as_float(data.get("offset_feed_px"), d.offset_feed_px, -40, 40)),
+            offset_head_px=int(as_float(data.get("offset_head_px"), d.offset_head_px, -16, 16)),
+            threshold=int(as_float(data.get("threshold"), d.threshold, 1, 255)),
+            rotate_clockwise=as_bool(data.get("rotate_clockwise"), d.rotate_clockwise),
+            supersample=int(as_float(data.get("supersample"), d.supersample, 1, 8)),
+        )
 
 
 @dataclass
@@ -83,11 +92,34 @@ class Settings:
     calibration: Calibration = field(default_factory=Calibration)
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> Settings:
-        known = {f.name for f in fields(cls)}
-        kwargs = {k: v for k, v in data.items() if k in known and k != "calibration"}
-        s = cls(**kwargs)
-        s.calibration = Calibration.from_dict(data.get("calibration", {}))
+    def from_dict(cls, data: Any) -> Settings:
+        """Settings from settings.json.  Every field is checked on its own: a
+        value of the wrong type falls back to the default, so one bad value
+        never costs the other settings (or the start of the app)."""
+        data, d = as_dict(data), cls()
+        size = data.get("label_size_mm")
+        if not (isinstance(size, list) and len(size) == 2
+                and all(as_float(v, -1.0) > 0 for v in size)):
+            size = []
+        s = cls(
+            printer_model=as_str(data.get("printer_model"), d.printer_model) or d.printer_model,
+            printer_address=as_str(data.get("printer_address"), d.printer_address),
+            label_size_mm=[as_float(v, 0.0) for v in size],
+            density=int(as_float(data.get("density"), d.density, 0, 2)),
+            default_copies=int(as_float(data.get("default_copies"), d.default_copies, 1, 99)),
+            use_mock_printer=as_bool(data.get("use_mock_printer"), d.use_mock_printer),
+            zoom=as_float(data.get("zoom"), d.zoom, 6, 40),
+            show_printable_area=as_bool(data.get("show_printable_area"), d.show_printable_area),
+            show_native_raster=as_bool(data.get("show_native_raster"), d.show_native_raster),
+            group_by_category=as_bool(data.get("group_by_category"), d.group_by_category),
+            sort_key=as_str(data.get("sort_key"), d.sort_key) or d.sort_key,
+            theme=as_str(data.get("theme"), d.theme) or d.theme,
+            accent=as_str(data.get("accent"), d.accent) or d.accent,
+            language=as_str(data.get("language"), d.language) or d.language,
+            check_updates=as_bool(data.get("check_updates"), d.check_updates),
+            last_update_check=as_str(data.get("last_update_check"), d.last_update_check),
+        )
+        s.calibration = Calibration.from_dict(data.get("calibration"))
         return s
 
     def to_dict(self) -> dict[str, Any]:
@@ -104,7 +136,7 @@ def load_settings(path: Path | None = None) -> Settings:
         return Settings()
     try:
         return Settings.from_dict(json.loads(path.read_text("utf-8")))
-    except (OSError, ValueError, TypeError) as exc:
+    except (OSError, ValueError, TypeError, AttributeError) as exc:
         log.warning(tr("Instellingen konden niet worden gelezen (%s); standaardwaarden gebruikt"), exc)
         return Settings()
 

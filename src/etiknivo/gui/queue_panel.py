@@ -66,10 +66,13 @@ class QueuePanel(QWidget):
             return b
 
         self.pause_btn = tool(tr("Stop"), tr("Printen stoppen na het huidige etiket"))
-        self.resume_btn = tool(tr("Hervat"), tr("Wachtrij hervatten"))
+        self.resume_btn = tool(tr("Hervat"), tr("Wachtrij hervatten; een gestopte opdracht gaat "
+                                                   "verder met het volgende exemplaar"))
         self.retry_btn = tool(tr("Opnieuw proberen"),
-                              tr("Mislukte en geannuleerde opdrachten opnieuw proberen"))
-        self.cancel_btn = tool(tr("Annuleer"), tr("Wachtende opdrachten annuleren"))
+                              tr("Mislukte en geannuleerde opdrachten opnieuw proberen, "
+                                 "vanaf het exemplaar dat niet geprint is"))
+        self.cancel_btn = tool(tr("Annuleer"), tr("Wachtende opdrachten annuleren; de opdracht "
+                                                     "die nu print gaat door (gebruik Stop)"))
         self.clear_btn = tool(tr("Wis klaar"), tr("Afgeronde opdrachten uit de lijst halen"))
         lay = QVBoxLayout(self)
         lay.setContentsMargins(12, 6, 12, 10)

@@ -143,7 +143,6 @@ def test_properties_panel_sets_code(qtbot) -> None:  # noqa: ANN001
     assert (lbl.code.kind, lbl.code.side) == (CodeKind.QR, HAlign.RIGHT)
     panel.code_kind.setCurrentIndex(2)  # barcode
     assert lbl.code.kind == CodeKind.CODE128
-    assert not panel.lines[SLOT_BOTTOM].note.text()
     panel.code_text.setText("")
     panel.code_field_btn.insert_field("Naam")
     assert lbl.code.text == "{Naam}"

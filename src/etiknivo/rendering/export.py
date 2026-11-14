@@ -23,10 +23,39 @@ class ExportView(StrEnum):
     RASTER = "raster"  # native printer orientation (96 × 240), calibration applied
 
 
+#: names Windows does not allow for a file, whatever the extension
+_RESERVED = {"CON", "PRN", "AUX", "NUL", *(f"COM{i}" for i in range(1, 10)),
+             *(f"LPT{i}" for i in range(1, 10))}
+
+
 def safe_filename(label: Label) -> str:
     base = f"{label.tray_id}_{label.name}" if label.tray_id else label.name
     base = re.sub(r"[^\w\-.,() ]+", "_", base, flags=re.UNICODE).strip(" ._") or label.id[:8]
-    return base[:80]
+    base = base[:80].rstrip(" .")
+    if base.split(".")[0].upper() in _RESERVED:
+        base = f"_{base}"
+    return base
+
+
+def png_paths(labels: Iterable[Label], directory: Path, keep_existing: bool = False
+              ) -> list[Path]:
+    """The file each label gets when exported to *directory*.  Names are
+    compared without case, because macOS and Windows do not tell "LED.png"
+    and "led.png" apart; with *keep_existing* files that are already there
+    are not reused either (the new file gets a number)."""
+    directory = Path(directory)
+    taken: set[str] = set()
+    if keep_existing and directory.is_dir():
+        taken = {p.name.casefold() for p in directory.iterdir()}
+    out: list[Path] = []
+    for lbl in labels:
+        name = safe_filename(lbl)
+        candidate, n = name, 2
+        while f"{candidate}.png".casefold() in taken:
+            candidate, n = f"{name}_{n}", n + 1
+        taken.add(f"{candidate}.png".casefold())
+        out.append(directory / f"{candidate}.png")
+    return out
 
 
 def export_image(engine: RenderEngine, label: Label, view: ExportView = ExportView.DESIGN,
@@ -49,20 +78,15 @@ def export_png(engine: RenderEngine, label: Label, path: Path,
 
 
 def export_pngs(engine: RenderEngine, labels: Iterable[Label], directory: Path,
-                view: ExportView = ExportView.DESIGN, scale: int = 1) -> list[Path]:
+                view: ExportView = ExportView.DESIGN, scale: int = 1,
+                keep_existing: bool = False) -> list[Path]:
+    """One PNG per label (see :func:`png_paths` for the names)."""
+    labels = list(labels)
     directory = Path(directory)
     directory.mkdir(parents=True, exist_ok=True)
-    out: list[Path] = []
-    used: set[str] = set()
-    for lbl in labels:
-        name = safe_filename(lbl)
-        candidate, n = name, 2
-        while candidate in used:
-            candidate, n = f"{name}_{n}", n + 1
-        used.add(candidate)
-        p = directory / f"{candidate}.png"
+    out = png_paths(labels, directory, keep_existing)
+    for lbl, p in zip(labels, out):
         export_png(engine, lbl, p, view, scale)
-        out.append(p)
     return out
 
 

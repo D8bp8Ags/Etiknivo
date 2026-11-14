@@ -78,7 +78,7 @@ def test_json_roundtrip_preserves_everything(tmp_path: Path) -> None:
     lib.add(lbl)
     lib.save()
     raw = json.loads((tmp_path / "l.json").read_text("utf-8"))
-    assert raw["app"] == "Etiknivo" and raw["schema"] == 1
+    assert raw["app"] == "Etiknivo" and raw["schema"] == 2
     assert "µ" in (tmp_path / "l.json").read_text("utf-8")  # human-readable, not escaped
     lib2 = Library(tmp_path / "l.json")
     lib2.load()

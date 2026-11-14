@@ -17,6 +17,7 @@ import logging
 import os
 import sys
 import threading
+from collections.abc import Callable
 from dataclasses import dataclass
 from functools import lru_cache
 from importlib import resources
@@ -128,6 +129,10 @@ class FontRegistry:
         self._faces: dict[str, list[dict]] = {}
         self._lock = threading.Lock()
         self._scanned = False
+        #: a background scan is running (see :meth:`scan_in_background`)
+        self._scanning = False
+        #: a system font was asked for during that scan and the fallback used
+        self.missed_during_scan = False
 
     # -- indexing ----------------------------------------------------------------
 
@@ -179,6 +184,23 @@ class FontRegistry:
                 log.debug(tr("Lettertypecache niet opgeslagen: %s"), exc)
         return entries
 
+    def scan_in_background(self, done: Callable[[list[str]], None]) -> None:
+        """Index the system fonts in a thread and call *done* with the family
+        names.  Until then :meth:`resolve` does not wait for the scan (which
+        takes seconds on a first start with many fonts) but uses the bundled
+        font; :attr:`missed_during_scan` says whether that happened, so the
+        caller can render again."""
+        self._scanning = True
+
+        def run() -> None:
+            try:
+                families = self.families()
+            finally:
+                self._scanning = False
+            done(families)
+
+        threading.Thread(target=run, daemon=True, name="font-scan").start()
+
     # -- queries -------------------------------------------------------------------
 
     def families(self) -> list[str]:
@@ -190,6 +212,9 @@ class FontRegistry:
         """Find the best face for *family*; fall back to bundled DejaVu Sans."""
         if family in _BUNDLED:
             return FontFace(bundled_font_path(_BUNDLED[family][(bold, italic)]), 0, family)
+        if self._scanning and not self._scanned:
+            self.missed_during_scan = True
+            return self.fallback(bold, italic)
         self._ensure_index()
         faces = self._faces.get(family)
         if not faces:

@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import logging
 import math
+import unicodedata
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field, replace
 
@@ -167,6 +168,17 @@ def raster_to_bytes(img: Image.Image) -> bytes:
 
 
 
+#: where a picture went: its box, what it shows, and the room left for the text
+_PlacedPicture = tuple[tuple[int, int, int, int], str | Image.Image,
+                       tuple[float, float, float, float]]
+
+
+def _has_rtl(text: str) -> bool:
+    """True when the text holds right-to-left letters.  Pillow's basic layout
+    has no bidi or shaping, so such text comes out in the wrong order."""
+    return any(unicodedata.bidirectional(ch) in ("R", "AL") for ch in text)
+
+
 def _warn_unknown(names: list[str], warnings: list[str]) -> None:
     for name in names:
         warnings.append(tr("Onbekend veld {{{name}}}: voeg '{name}' toe bij "
@@ -241,6 +253,12 @@ class RenderEngine:
         self._extent_cache: dict[tuple, tuple[float, float]] = {}
         self._share_cache: dict[tuple, CategoryShare] = {}
 
+    def clear_caches(self) -> None:
+        """Forget measured sizes, e.g. when fonts became available."""
+        self._own_fit.clear()
+        self._extent_cache.clear()
+        self._share_cache.clear()
+
     # -- geometry ------------------------------------------------------------------
 
     @property
@@ -284,7 +302,11 @@ class RenderEngine:
           with the same chosen size are compared.  A label that needs much
           less than the others (more than :data:`SHARED_OUTLIER_PT` under the
           median) keeps its own smaller size rather than pulling the whole
-          category down."""
+          category down.  It still gets the room of the shared size, so
+          its lines stay at the same height as on the other labels;
+        * with exactly two labels there is no meaningful median: when their
+          sizes differ by more than :data:`SHARED_OUTLIER_PT`, the larger
+          size is the shared one and the smaller label keeps its own."""
         if self.peers is None or not _shares_sizes(label):
             return None
         group = [label] + [p for p in self.peers()
@@ -311,14 +333,14 @@ class RenderEngine:
                            if slot in f and abs(m.lines[slot].font_size_pt - want) < 0.01)
             if len(sizes) < 2:
                 continue
+            if len(sizes) == 2 and sizes[1] - sizes[0] > SHARED_OUTLIER_PT:
+                # two labels far apart: neither is "the rest of the category",
+                # so each keeps its own size (the larger one is the cap)
+                caps[slot] = sizes[1]
+                continue
             median = sizes[(len(sizes) - 1) // 2]
             caps[slot] = min(s for s in sizes if s >= median - SHARED_OUTLIER_PT)
         return replace(share, sizes=tuple(sorted(caps.items())))
-
-    def size_caps(self, label: Label) -> dict[int, float] | None:
-        """The shared font size per line slot (see :meth:`category_share`)."""
-        share = self.category_share(label)
-        return dict(share.sizes) or None if share else None
 
     def _group_extents(self, group: list[Label]) -> tuple[tuple[int, float, float], ...]:
         """Per slot the highest top and lowest bottom of the ink in the
@@ -381,6 +403,7 @@ class RenderEngine:
             spacing = max(spacing, SEPARATOR_GAP_PX)  # room for the line and white around it
         code: PlacedCode | None
         stack = self._fit_stack(label, content, warnings) if is_stacked(label) else None
+        picture: _PlacedPicture | None
         if stack is not None:
             code, picture = stack
             area = picture[2]
@@ -416,7 +439,20 @@ class RenderEngine:
                     for n, p in enumerate(prepared)]
         boxes = [self._vbox(p, s, share) for p, s in zip(prepared, sizes)]
         heights = [b[3] - b[1] for b in boxes]
-        block_h = sum(heights) + spacing * max(0, len(prepared) - 1)
+        # A line that keeps its own smaller size in the category ("own") still
+        # takes the room of the shared size, so the other lines stay at the
+        # height they have on every other label of the category.
+        rooms = list(heights)
+        if share is not None:
+            for n, p in enumerate(prepared):
+                cap = share.cap(p.slot)
+                if shared[n] == "own" and cap is not None:
+                    cb = self._vbox(p, cap, share)
+                    rooms[n] = max(heights[n], cb[3] - cb[1])
+            gaps = spacing * max(0, len(prepared) - 1)
+            if sum(rooms) + gaps > avail_h + 0.5:
+                rooms = list(heights)  # no room to spare: lay out as usual
+        block_h = sum(rooms) + spacing * max(0, len(prepared) - 1)
         if style.valign == VAlign.TOP:
             y = area[1]
         elif style.valign == VAlign.BOTTOM:
@@ -428,6 +464,7 @@ class RenderEngine:
         draw = ImageDraw.Draw(hires)
         line_boxes: list[LineBox] = []
         for n, (p, size, bbox, lh) in enumerate(zip(prepared, sizes, boxes, heights)):
+            room = rooms[n]
             if n and style.separators:
                 mid = round(y - spacing / 2 - 0.5)  # one dot, centred in the gap
                 draw.rectangle((round(area[0]) * ss, mid * ss, round(area[2]) * ss - 1,
@@ -439,15 +476,16 @@ class RenderEngine:
                 x = area[2] - lw
             else:
                 x = area[0] + (avail_w - lw) / 2
+            ly = y + (room - lh) / 2  # centred in its room
             ox = _snap(x - bbox[0], area[0] - bbox[0], area[2] - bbox[2])
-            oy = _snap(y - bbox[1], area[1] - bbox[1], area[3] - bbox[3])
+            oy = _snap(ly - bbox[1], area[1] - bbox[1], area[3] - bbox[3])
             x, ink_y = ox + bbox[0], oy + bbox[1]
             self._draw_line(hires, p, size, ox, oy, ss)
             overflow = (n in cut) or (lw > avail_w + 0.5) or (x < area[0] - 0.5) \
-                or (x + lw > area[2] + 0.5) or (y < py0 - 0.5) or (y + lh > py1 + 0.5)
+                or (x + lw > area[2] + 0.5) or (ly < py0 - 0.5) or (ly + lh > py1 + 0.5)
             line_boxes.append(LineBox(p.slot, cut.get(n, p.text), x, ink_y, x + lw, ink_y + lh,
                                       size, p.line.font_size_pt, overflow, shared[n]))
-            y += lh + spacing
+            y += room + spacing
 
         if block_h > avail_h + 0.5:
             for lb in line_boxes:
@@ -471,12 +509,32 @@ class RenderEngine:
             for x0, y0, x1, y1 in code.rects:
                 draw.rectangle((x0 * ss, y0 * ss, x1 * ss - 1, y1 * ss - 1), fill=0)
 
+        picture_box = picture[0] if picture is not None else None
         if style.rotation == 180:
             hires = hires.rotate(180)
+            # the boxes turn along, so overlays (overflow marks) match the image
+            line_boxes = [replace(lb, **dict(zip(("x0", "y0", "x1", "y1"),
+                                                 self._turn_box((lb.x0, lb.y0, lb.x1, lb.y1)))))
+                          for lb in line_boxes]
+            if code is not None:
+                code = replace(code, box=self._turn_box(code.box),  # type: ignore[arg-type]
+                               rects=[self._turn_box(r) for r in code.rects],  # type: ignore[misc]
+                               text_area=self._turn_box(code.text_area))
+            if picture_box is not None:
+                picture_box = self._turn_box(picture_box)  # type: ignore[assignment]
+            area = self._turn_box(area)
+            content = self._turn_box(content)
         result = self._finish(hires, label, ss, line_boxes, warnings, content, code)
-        result.picture_box = picture[0] if picture is not None else None
+        result.picture_box = picture_box
         result.text_area = area
         return result
+
+    def _turn_box(self, box: tuple) -> tuple:  # type: ignore[type-arg]
+        """*box* (x0, y0, x1, y1) on the label turned half a turn, in design
+        dots; whole numbers stay whole."""
+        w, h = self.design_size
+        x0, y0, x1, y1 = box
+        return (w - x1, h - y1, w - x0, h - y0)
 
     def _finish(self, hires: Image.Image, label: Label, ss: int, line_boxes: list[LineBox],
                 warnings: list[str], content: tuple[float, float, float, float],
@@ -857,7 +915,7 @@ class RenderEngine:
                 matrix = codes.qr_matrix(text)
             except codes.CodeError:
                 pass
-        if matrix is None or self._picture_source(label, []) is None:
+        if text is None or matrix is None or self._picture_source(label, []) is None:
             return None
         tried: list[str] = []
         placed = self._place_stack(label, content, text, matrix,
@@ -1016,6 +1074,10 @@ class RenderEngine:
         resolved, unknown = label.resolve(line.text)
         _warn_unknown(unknown, warnings)
         text = " ".join(resolved.split("\n")).strip()
+        rtl = tr("Tekst van rechts naar links (zoals Hebreeuws of Arabisch) "
+                 "wordt van links naar rechts getekend, zonder verbonden letters")
+        if _has_rtl(text) and rtl not in warnings:
+            warnings.append(rtl)
         face = self.fonts.resolve(line.font_family, line.bold, line.italic)
         missing = missing_glyphs(face, text)
         if missing:

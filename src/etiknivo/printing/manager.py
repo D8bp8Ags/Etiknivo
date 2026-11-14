@@ -131,6 +131,9 @@ class PrinterManager:
 
     def disconnect(self) -> concurrent.futures.Future[None]:
         async def _disc() -> None:
+            if self.queue.snapshot().running:
+                # stop after the current label; the backend waits for it
+                self.queue.pause()
             await self._backend.disconnect()
             self._emit(connection=ConnectionState.DISCONNECTED, info=None, message=tr("Verbroken"))
         return self.runner.submit(_disc())
@@ -184,6 +187,11 @@ class PrinterManager:
                 log.info(tr("Statuspoll mislukt: %s"), exc)
                 if not b.connected:
                     self._lost()
+                continue
+            except asyncio.CancelledError:
+                raise
+            except Exception:  # noqa: BLE001 - one odd error must not end the polling
+                log.exception(tr("Statuspoll mislukt door een onverwachte fout"))
                 continue
             # a new object: the GUI thread may still be reading the old one
             info = replace(self.state.info or PrinterInfo(), status=status, battery=battery)

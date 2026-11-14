@@ -148,7 +148,7 @@ PyInstaller bouwt voor de processor van de Mac waarop je bouwt: op Apple Silicon
 
 1. Zet het versienummer in `src/etiknivo/__init__.py` en `pyproject.toml` gelijk (bijvoorbeeld `0.2.0`) en draai `uv lock`.
 2. Vul `CHANGELOG.md` aan met een nieuwe sectie met de datum.
-3. Draai `uv run pytest` en `uvx ruff check .`, commit en push naar `main`.
+3. Draai `uv run pytest`, `uvx ruff check .` en `uvx mypy` (typecontrole van alles behalve de GUI), commit en push naar `main`.
 4. Bouw de app op een Mac vanaf die commit:
 
    ```bash

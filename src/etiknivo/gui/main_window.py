@@ -33,7 +33,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from etiknivo import APP_NAME, __version__, updates
+from etiknivo import APP_NAME, __version__, logging_setup, updates
 from etiknivo.gui import theme
 from etiknivo.gui.bulk_edit import BulkEditDialog
 from etiknivo.gui.dialogs import (
@@ -63,7 +63,14 @@ from etiknivo.printing.queue import JobStatus, PrintJob, QueueSnapshot
 from etiknivo.printing.registry import create_backend, get_model
 from etiknivo.privacy import short_address
 from etiknivo.rendering.engine import RenderEngine
-from etiknivo.rendering.export import ExportView, export_pdf, export_pngs, export_svg, safe_filename
+from etiknivo.rendering.export import (
+    ExportView,
+    export_pdf,
+    export_pngs,
+    export_svg,
+    png_paths,
+    safe_filename,
+)
 from etiknivo.rendering.fonts import default_registry
 from etiknivo.rendering.patterns import calibration_raster, test_label
 from etiknivo.settings import Settings, data_dir, load_settings, log_dir, save_settings
@@ -88,6 +95,7 @@ def _format_key(lbl: Label) -> str:
 
 class MainWindow(QMainWindow):
     fontsLoaded = Signal(list)
+    unexpectedError = Signal(str)
     updateChecked = Signal(object, object, bool)  # Release | None, error | None, manual
 
     def __init__(self, library: Library, settings: Settings | None = None,
@@ -208,6 +216,14 @@ class MainWindow(QMainWindow):
         self.history.reset(self._snapshot())
         self._update_undo_actions()
         QApplication.instance().installEventFilter(self)
+        # errors nobody caught are logged (see logging_setup); show them too
+        self.unexpectedError.connect(self._show_unexpected_error)
+        self._error_emit = self.unexpectedError.emit
+        logging_setup.error_listener = self._error_emit
+
+    def _show_unexpected_error(self, text: str) -> None:
+        self.statusBar().showMessage(
+            tr("Onverwachte fout: {error} (zie Help → Log tonen)", error=text), 10000)
 
     # -- construction --------------------------------------------------------------------
 
@@ -442,6 +458,7 @@ class MainWindow(QMainWindow):
         self.queue_btn.setIcon(theme.icon("layers"))
         self.print_more.setIcon(theme.icon("chevron-down", size=16))
         self.print_btn.setIcon(theme.icon("printer", t.on_accent, 16))
+        self.properties.notes.refresh_theme()  # link colour follows the accent
         self.on_printer_state(self.bridge.state)
         self.update_preview()
 
@@ -629,7 +646,7 @@ class MainWindow(QMainWindow):
         self.bridge.queueChanged.connect(self.queue_panel.set_snapshot)
         self.bridge.queueChanged.connect(self._record_finished)
         self.bridge.taskFinished.connect(self.on_task_finished)
-        self.fontsLoaded.connect(self.properties.set_families)
+        self.fontsLoaded.connect(self._fonts_loaded)
         # free layout: the design view and the element list share one selection
         self.properties.area_mm = self._printable_mm
         self.properties.make_elements = self.engine.to_elements
@@ -641,8 +658,18 @@ class MainWindow(QMainWindow):
     def _load_fonts_async(self) -> None:
         reg = default_registry()
         self.properties.set_families(["DejaVu Sans", "DejaVu Sans Condensed"])
-        threading.Thread(target=lambda: self.fontsLoaded.emit(reg.families()), daemon=True,
-                         name="font-scan").start()
+        reg.scan_in_background(self.fontsLoaded.emit)
+
+    def _fonts_loaded(self, families: list[str]) -> None:
+        self.properties.set_families(families)
+        reg = default_registry()
+        if reg.missed_during_scan:  # labels with a system font were drawn in the fallback
+            reg.missed_during_scan = False
+            self.engine.clear_caches()
+            self.library_panel.invalidate_thumbnails()
+            self.library_panel.redraw()
+            self._refresh_overview()
+            self.update_preview()
 
     @staticmethod
     def _qsettings() -> QSettings:
@@ -777,8 +804,10 @@ class MainWindow(QMainWindow):
                         tr("Opgeslagen en verplaatst naar {where}", where=where), 4000)
             else:
                 self.library_panel.refresh()
+            # the labels left behind share other sizes now
+            self.library_panel.update_category(saved.category, self.current.category)
         else:
-            self.library_panel.update_label(self.current)
+            self.library_panel.update_category(self.current.category)
         self._update_dirty()
         self._record()
         self._refresh_overview()
@@ -912,7 +941,8 @@ class MainWindow(QMainWindow):
 
     def _snapshot(self) -> Snapshot:
         draft = self.current if self.is_dirty() else None
-        return Snapshot.take(self.library.labels, self.library_panel.selected_ids(), draft)
+        return Snapshot.take(self.library.labels, self.library_panel.selected_ids(), draft,
+                             self.library.category_symbols)
 
     def _record(self, merge_key: str | None = None) -> None:
         if self._applying_history or not hasattr(self, "history"):
@@ -937,6 +967,7 @@ class MainWindow(QMainWindow):
         try:
             self._render_timer.stop()
             self.library.replace_all(state.labels())
+            self.library.category_symbols = state.category_symbols()
             self.library_panel.refresh()
             self.properties.set_categories(self.library.categories())
             ids = [i for i in state.selection if self.library.get(i)]
@@ -1201,13 +1232,21 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, APP_NAME, tr("Er is geen printer verbonden."))
             return
         self.queue_dock.show()
+        before = self.bridge.queue_snapshot()
         self.bridge.track("enqueue", self.bridge.manager.enqueue(jobs))
-        self._resume_queue_if_idle()
+        self._resume_queue_if_idle(before)
 
-    def _resume_queue_if_idle(self) -> None:
-        snap = self.bridge.queue_snapshot()
-        if snap.paused and not snap.failed:
-            self.bridge.manager.queue_call("resume")
+    def _resume_queue_if_idle(self, before: QueueSnapshot) -> None:
+        """A queue that stopped with nothing left to do starts again for new
+        jobs.  One that the user stopped with jobs waiting (Stop) or that
+        stopped on an error stays stopped until Hervat or Opnieuw proberen."""
+        if not before.paused:
+            return
+        if before.pending or before.failed:
+            self.statusBar().showMessage(
+                tr("De wachtrij staat stil: klik Hervat om verder te printen"), 6000)
+            return
+        self.bridge.manager.queue_call("resume")
 
     def _resume_queue(self) -> None:
         if not self._connected():
@@ -1279,6 +1318,10 @@ class MainWindow(QMainWindow):
         self.bridge.track("connect", self.bridge.manager.connect(address or None))
 
     def _disconnect(self) -> None:
+        if self.bridge.queue_snapshot().running and QMessageBox.question(
+                self, APP_NAME, tr("Er wordt nog geprint. Stoppen na het huidige etiket en "
+                                   "de verbinding verbreken?")) != QMessageBox.StandardButton.Yes:
+            return
         self.bridge.track("disconnect", self.bridge.manager.disconnect())
 
     def _refresh(self) -> None:
@@ -1482,8 +1525,21 @@ class MainWindow(QMainWindow):
         box.exec()
         view, scale = ((ExportView.DESIGN, 4) if box.clickedButton() is design
                        else (ExportView.RASTER, 1))
+        keep = False
+        existing = [p for p in png_paths(labels, Path(directory)) if p.exists()]
+        if existing:
+            ask = QMessageBox(QMessageBox.Icon.Question, tr("PNG-export"), tr(
+                "{n} bestand(en) in deze map hebben al dezelfde naam. Overschrijven?",
+                n=len(existing)), parent=self)
+            overwrite = ask.addButton(tr("Overschrijven"), QMessageBox.ButtonRole.DestructiveRole)
+            numbered = ask.addButton(tr("Nieuwe namen"), QMessageBox.ButtonRole.AcceptRole)
+            ask.addButton(QMessageBox.StandardButton.Cancel)
+            ask.exec()
+            if ask.clickedButton() not in (overwrite, numbered):
+                return
+            keep = ask.clickedButton() is numbered
         try:
-            paths = export_pngs(self.engine, labels, Path(directory), view, scale)
+            paths = export_pngs(self.engine, labels, Path(directory), view, scale, keep)
         except OSError as exc:
             self._file_error(exc)
             return
@@ -1706,5 +1762,7 @@ class MainWindow(QMainWindow):
         qs.setValue("windowState", self.saveState())
         qs.setValue("panels", self.splitter.saveState())
         self.bridge.shutdown()
+        if logging_setup.error_listener is self._error_emit:
+            logging_setup.error_listener = None
         QApplication.instance().removeEventFilter(self)
         event.accept()

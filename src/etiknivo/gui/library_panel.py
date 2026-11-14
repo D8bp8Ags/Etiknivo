@@ -392,12 +392,25 @@ class LibraryPanel(QWidget):
         self._fill_item(it, lbl)
         return it
 
-    def update_label(self, lbl: Label) -> None:
-        """Cheap in-place update of one row (no rebuild)."""
+    def redraw(self) -> None:
+        """Draw every row again, for instance once the fonts are known."""
         for it in self._iter_items():
-            if it.data(0, ID_ROLE) == lbl.id:
+            lid = it.data(0, ID_ROLE)
+            lbl = self.library.get(lid) if lid else None
+            if lbl is not None:
                 self._fill_item(it, lbl)
-                return
+
+    def update_category(self, *categories: str) -> None:
+        """Update the rows of every label in *categories*.  With "same size
+        in the category" one label changes how the others look (shared font
+        sizes and line heights), so saving one label must redraw them all;
+        thumbnails that did not change come from the cache."""
+        wanted = set(categories)
+        for it in self._iter_items():
+            lid = it.data(0, ID_ROLE)
+            lbl = self.library.get(lid) if lid else None
+            if lbl is not None and lbl.category in wanted:
+                self._fill_item(it, lbl)
 
     # -- events -------------------------------------------------------------------------
 

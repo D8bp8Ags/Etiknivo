@@ -184,9 +184,10 @@ Je ziet eerst een voorbeeld met precies wat er geprint wordt. Per label stel je 
 
 Na **Afdrukken** gaan de labels naar de **wachtrij** (knop *Wachtrij* rechtsboven, of Weergave → Printwachtrij). De wachtrij drukt ze één voor één af en toont per opdracht de voortgang:
 
-- **Stop** pauzeert na het huidige etiket; **Hervat** gaat verder.
-- Gaat er iets mis (deksel open, papier op, verbinding weg), dan stopt de wachtrij. Los het op en klik **Opnieuw proberen**.
-- **Annuleer** haalt wachtende opdrachten weg; **Wis klaar** ruimt afgeronde op.
+- **Stop** pauzeert na het huidige etiket. De opdracht blijft in de wachtrij staan; **Hervat** gaat verder met het volgende exemplaar, dus wat al geprint is wordt niet opnieuw geprint. Stuur je nieuwe labels naar de printer terwijl de wachtrij gepauzeerd is, dan blijft hij gepauzeerd tot je **Hervat** klikt.
+- Gaat er iets mis (deksel open, papier op, verbinding weg), dan stopt de wachtrij. Los het op en klik **Opnieuw proberen**: de opdracht gaat verder bij het exemplaar dat niet geprint is.
+- **Annuleer** haalt wachtende opdrachten weg; de opdracht die op dat moment print gaat door (gebruik daarvoor **Stop**). **Wis klaar** ruimt afgeronde op.
+- **Verbreken** tijdens het printen vraagt eerst of je wilt stoppen; de printer maakt dan het huidige etiket af.
 
 Het standaard aantal exemplaren en de standaarddichtheid stel je in op het tabblad *Printer*. Kleine tekst is vaak beter leesbaar op *Licht* of *Normaal* dan op *Donker*.
 
@@ -321,7 +322,9 @@ B02,Condensator,10 µF,Elektrolytisch · 25 V,,
 ,,Alleen een naam,,,single
 ```
 
-De kolomnamen zijn in beide talen dezelfde, zodat een export uit de Engelse app ook in de Nederlandse in te lezen is en andersom. Nederlandse kolomnamen werken ook (`lade`, `categorie`, `hoofdtekst`, `specificatie`, `notities`). Optionele kolommen: `top` (afwijkende bovenregel), `name`, `layout` (`single`, `main_spec`, `category_main_spec`, `custom`), `specs` (`Spanning=50 V; Tolerantie=10%`).
+De kolomnamen zijn in beide talen dezelfde, zodat een export uit de Engelse app ook in de Nederlandse in te lezen is en andersom. Nederlandse kolomnamen werken ook (`lade`, `categorie`, `hoofdtekst`, `specificatie`, `notities`). Optionele kolommen: `top` (afwijkende bovenregel), `name`, `layout` (`single`, `main_spec`, `category_main_spec`, `custom`), `lines` (welke regels zichtbaar zijn: boven, hoofd, onder als drie cijfers, bijvoorbeeld `011`; Nederlandse naam `regels`), `specs` (`Spanning=50 V; Tolerantie=10%`).
+
+Staat er in een specificatie zelf een `;`, `=` of `\`, zet er dan een `\` voor: `Pinnen=1\;2\;3` wordt *Pinnen* met de waarde *1;2;3*. Een export doet dit vanzelf, zodat je een geëxporteerd bestand zonder verlies weer kunt inlezen.
 
 ## Taal en thema
 
@@ -339,6 +342,12 @@ De kolomnamen zijn in beide talen dezelfde, zodat een export uit de Engelse app 
 **De printer wordt niet gevonden.** Controleer of de printer aan staat en niet al met je telefoon verbonden is; een Bluetooth-printer praat meestal maar met één apparaat tegelijk. Kijk in Systeeminstellingen → Privacy en beveiliging → Bluetooth of Etiknivo (of je terminal) toegang heeft. Zet even *Alleen labelprinters tonen* uit om te zien of de printer überhaupt zichtbaar is. Op Windows en Linux: zie [Installeren per systeem](ontwikkelen.md#installeren-per-systeem).
 
 **De verbinding valt weg.** Klik **Verbinden** opnieuw; een onderbroken wachtrij hervat je met **Opnieuw proberen**. Zet je de printer uit en aan, verbind dan opnieuw.
+
+**De bibliotheek is gemaakt met een nieuwere versie.** Open je een bibliotheek die met een nieuwere Etiknivo is opgeslagen, dan meldt de app dat. Bij de eerste keer opslaan wordt het originele bestand eerst bewaard als `library.schema-N.json` in de datamap, zodat je niets kwijtraakt.
+
+**Er verschijnt "Onverwachte fout".** De fout staat met alle details in het log (**Help → Log tonen**). Stuur dat mee als je een probleem meldt.
+
+**Hebreeuwse of Arabische tekst staat verkeerd om.** Tekst van rechts naar links wordt van links naar rechts getekend, zonder verbonden letters. De app waarschuwt hiervoor bij *Let op*.
 
 **De afdruk staat scheef of te ver naar één kant.** Zie [Kalibreren](#kalibreren).
 

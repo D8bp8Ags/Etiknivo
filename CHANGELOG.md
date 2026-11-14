@@ -15,6 +15,29 @@ All notable changes to Etiknivo are listed here. Version numbers follow [Semanti
 - Lines within a category now also keep exactly the same spacing on every label. Before, a word that reached a hair lower than the rest at a small size (such as "Transparant" next to "Zwart") could move another line one dot.
 - Crisper small text: every line now starts on a whole printer dot, so the same letter prints equally thick on every line and every label (before, a stroke could print one dot wide on one label and two on the next).
 
+### Reliability
+- A damaged or hand-edited library no longer stops the app from starting: values of the wrong type or out of range fall back to their defaults, and if the library cannot be read at all the app says why and where the backup is, instead of crashing without a message.
+- The same goes for settings: a wrong value falls back to its default instead of crashing at start-up.
+- Unexpected errors now end up in the log with all details, and the app shows a short message pointing to Help → Show log.
+- A library saved by a newer Etiknivo is recognised: the app warns, and keeps a copy of the original (`library.schema-N.json`) before it saves for the first time. The library format is now version 2.
+- Bluetooth: a late "disconnected" message from an earlier connection can no longer drop a new one. Disconnect while printing asks first and waits for the current label. The status poll keeps running after an unexpected error.
+- Embedded pictures larger than 4096 pixels per side are refused with a message instead of an error.
+- The first font scan no longer blocks the window; labels are redrawn once the fonts are known.
+
+### Printing
+- Stop keeps the job in the queue: Resume continues with the next copy, and Retry continues from the copy that did not print, instead of printing every copy again. Cancel only removes waiting jobs; use Stop for the job that is printing. New labels sent while the queue is paused no longer resume it on their own.
+
+### Designing labels
+- After Save, the thumbnails of the other labels in the same category are refreshed too (with the same font size per category they can change).
+- With the same font size per category, a category of only two labels no longer pulls one label down to the size of a much longer text. A label that keeps its own smaller size now keeps its lines at the same height as the other labels.
+- At 180° rotation, the frames that show text not fitting now sit in the right place in the preview.
+- Right-to-left text (Hebrew, Arabic) gives a warning: it is drawn left to right.
+- Undo now also restores category pictograms, and uses much less memory with a large library.
+
+### Import and export
+- CSV: specifications containing `;` or `=` survive an export and import (they are escaped with `\`). A new `lines` column keeps which lines show.
+- PNG export asks before overwriting files, treats names that only differ in case as the same, and avoids names Windows reserves (such as `CON`).
+
 ### Look
 - New themes under View → Theme: Paper (warm cream), Night (pure black) and High contrast, next to System, Light and Dark.
 - View → Accent colour: Blue, Green, Orange or Purple for buttons, selections and check boxes, on any theme.

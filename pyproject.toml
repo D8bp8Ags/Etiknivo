@@ -59,3 +59,16 @@ target-version = "py312"
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP"]
 ignore = ["B905", "E741"]
+
+# Type check of the parts without Qt (the GUI is not checked yet):
+#   uvx mypy
+[tool.mypy]
+python_version = "3.12"
+files = [
+    "src/etiknivo/model.py",
+    "src/etiknivo/settings.py",
+    "src/etiknivo/storage",
+    "src/etiknivo/rendering",
+    "src/etiknivo/printing",
+]
+ignore_missing_imports = true
