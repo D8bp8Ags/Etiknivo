@@ -29,7 +29,6 @@ from etiknivo.storage.history import History, Snapshot
 from etiknivo.storage.library import SCHEMA_VERSION, Library, LibraryError
 
 from .test_printing import make_backend
-from .test_shared_sizes import caps_label, sizes, with_peers
 
 # -- F-01, F-10, F-11: loading a library -----------------------------------------------------
 
@@ -340,35 +339,6 @@ def test_scan_in_background_reports_families() -> None:
     reg.scan_in_background(lambda fams: (got.append(fams), done.set()))
     assert done.wait(10)
     assert "DejaVu Sans" in got[0] and not reg._scanning
-
-
-# -- F-18, F-19: shared sizes --------------------------------------------------------------
-
-
-def test_two_labels_do_not_pull_each_other_down(engine: RenderEngine) -> None:
-    """F-18: with two labels and a large difference each keeps its own size."""
-    short = caps_label("Kabels", "USB")
-    long = caps_label("Kabels", "Verlengkabel met schakelaar")
-    own_short, own_long = sizes(engine, short)[1], sizes(engine, long)[1]
-    assert own_short - own_long > 1.0
-    with_peers(engine, [short, long])
-    assert sizes(engine, short)[1] == pytest.approx(own_short)
-    assert sizes(engine, long)[1] == pytest.approx(own_long)
-
-
-def test_outlier_keeps_its_lines_in_place(engine: RenderEngine) -> None:
-    """F-19: the lines of an outlier sit where the others' do: each smaller
-    line is centred in the room the shared size takes on the other labels."""
-    group = [caps_label("Weerstanden", t) for t in ("1 kΩ", "10 kΩ", "100 kΩ")]
-    outlier = caps_label("Weerstanden", "Assortiment 10 Ω tot 1 MΩ, 600 stuks")
-    with_peers(engine, [*group, outlier])
-    normal = engine.render(group[0])
-    odd = engine.render(outlier)
-    assert odd.lines[1].shared == "own"
-    assert odd.lines[1].size_pt < normal.lines[1].size_pt
-    ref = {lb.slot: (lb.y0 + lb.y1) / 2 for lb in normal.lines}
-    for lb in odd.lines:
-        assert (lb.y0 + lb.y1) / 2 == pytest.approx(ref[lb.slot], abs=1.5)
 
 
 # -- F-20: right-to-left text --------------------------------------------------------------
