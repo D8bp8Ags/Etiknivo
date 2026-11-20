@@ -217,8 +217,6 @@ EN: dict[str, str] = {
     "Notities": "Notes",
     "Automatisch verkleind tot {pt} pt": "Automatically reduced to {pt} pt",
     "{pt} pt, gelijk aan de rest van de categorie": "{pt} pt, same as the rest of the category",
-    "Verkleind tot {pt} pt, kleiner dan de rest van de categorie":
-        "Reduced to {pt} pt, smaller than the rest of the category",
     # -- printer panel ---------------------------------------------------------------
     "Niet verbonden": "Not connected",
     "Fout": "Error",

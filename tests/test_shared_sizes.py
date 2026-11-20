@@ -62,16 +62,20 @@ def test_switched_off_keeps_the_own_size(engine: RenderEngine) -> None:
     assert sizes(engine, a) == a_alone  # b no longer counts for a either
 
 
-def test_outlier_shrinks_alone(engine: RenderEngine) -> None:
+def test_a_long_text_takes_the_category_down(engine: RenderEngine) -> None:
+    """No exceptions: the smallest size in the category is everyone's size,
+    unless a label switches the option off."""
     short = [caps_label("Weerstanden", t) for t in ("1 kΩ", "2 kΩ", "4 kΩ")]
     long = caps_label("Weerstanden", "Precisie 1,234 kΩ")
     own_short = sizes(engine, short[0])[1]
     own_long = sizes(engine, long)[1]
     assert own_long < own_short - 1.0
     with_peers(engine, [*short, long])
+    assert sizes(engine, short[0])[1] == own_long
+    assert engine.render(short[0]).lines[1].shared == "shared"
+    long.style.same_size_in_category = False
     assert sizes(engine, short[0])[1] == own_short
-    r = engine.render(long)
-    assert r.lines[1].size_pt == own_long and r.lines[1].shared == "own"
+    assert sizes(engine, long)[1] == own_long
 
 
 def test_lines_with_a_different_chosen_size_are_not_compared(engine: RenderEngine) -> None:
@@ -98,11 +102,9 @@ def test_baselines_line_up_whatever_the_letters(engine: RenderEngine) -> None:
     same height on both labels."""
     a = caps_label("Dupont F-F", "10 cm", "Zwart", symbol="cable")
     b = caps_label("Dupont F-F", "20 cm", "Gemengd", symbol="cable")
-    alone = [lb.y0 for lb in engine.render(a).lines], [lb.y0 for lb in engine.render(b).lines]
-    assert alone[0] != alone[1]
     with_peers(engine, [a, b])
     ra, rb = engine.render(a), engine.render(b)
-    assert [lb.y0 for lb in ra.lines] == [lb.y0 for lb in rb.lines]
+    assert [lb.baseline for lb in ra.lines] == [lb.baseline for lb in rb.lines]
     assert not ra.has_overflow and not rb.has_overflow
 
 
@@ -117,7 +119,7 @@ def test_lines_keep_their_spacing_with_long_main_lines(engine: RenderEngine) -> 
         lbl.style.margin_h_mm = 1.0
     with_peers(engine, [a, b])
     ra, rb = engine.render(a), engine.render(b)
-    assert [lb.y0 for lb in ra.lines] == [lb.y0 for lb in rb.lines]
+    assert [lb.baseline for lb in ra.lines] == [lb.baseline for lb in rb.lines]
     assert not ra.has_overflow and not rb.has_overflow
 
 
@@ -158,6 +160,6 @@ def test_single_main_line_is_centred_in_a_category(engine: RenderEngine) -> None
     area = r.text_area
     assert (top, bottom) == (top0, bottom0)
     assert abs((top + bottom) / 2 - (area[1] + area[3]) / 2) <= 1
-    # the peer's line stands at the same height
+    # the peer's line stands on the same baseline
     other = engine.render(peer)
-    assert round(other.lines[0].y0) == round(r.lines[0].y0)
+    assert other.lines[0].baseline == r.lines[0].baseline

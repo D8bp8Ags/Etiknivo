@@ -349,14 +349,16 @@ def test_same_letters_print_equally_thick(engine: RenderEngine) -> None:
     assert len(shapes) == 1
 
 
-def test_long_main_line_stays_the_largest(engine: RenderEngine) -> None:
-    """A main line that must shrink takes the smaller lines down with it."""
-    lbl = make_label("A01", "Schuifpotmeters", "Toroidale weerstanden", "Mono · 75 / 88 mm")
+def test_only_the_line_that_is_too_wide_shrinks(engine: RenderEngine) -> None:
+    """A long main line gets smaller on its own; lines that fit keep their
+    chosen size, and every line stays in the middle of its own room."""
+    lbl = make_label("A01", "Schuifpotmeters", "Toroidale weerstanden", "Mono")
     r = engine.render(lbl)
     top, main, bottom = r.lines
     assert main.size_pt < main.requested_pt
-    assert top.size_pt <= main.size_pt * engine_mod.HIERARCHY_RATIO + 0.01
-    assert bottom.size_pt <= main.size_pt * engine_mod.HIERARCHY_RATIO + 0.01
+    assert top.size_pt == top.requested_pt and bottom.size_pt == bottom.requested_pt
+    short = engine.render(make_label("A01", "Schuifpotmeters", "10 kΩ", "Mono"))
+    assert (top.y0, bottom.y0) == (short.lines[0].y0, short.lines[2].y0)  # nothing moved
     assert not r.has_overflow
 
 

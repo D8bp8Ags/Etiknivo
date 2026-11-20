@@ -18,6 +18,12 @@ All notable changes to Etiknivo are listed here. Version numbers follow [Semanti
 - A label with a single line (such as only "LED") now stands in the middle of the label again when another label in its category has letters below the line (g, p, q). The room for those letters now hangs below the text instead of pushing it up; lines still stand at the same height on every label of the category.
 - Crisper small text: every line now starts on a whole printer dot, so the same letter prints equally thick on every line and every label (before, a stroke could print one dot wide on one label and two on the next).
 
+### Font size made simpler
+- Auto-fit now works like most label software: the size you choose per line is the maximum, and only a line that is too wide gets smaller. The other lines keep their size (before, the top and bottom lines shrank along so the main line stayed the largest).
+- If the lines do not fit above each other, they get smaller together.
+- Same font size within the category: per line simply the smallest size in the category, without exceptions. Switch the option off on a label to let it keep its own size.
+- Every line keeps the room of its chosen size, so lines stay at the same height on every label of a category.
+
 ### Reliability
 - A damaged or hand-edited library no longer stops the app from starting: values of the wrong type or out of range fall back to their defaults, and if the library cannot be read at all the app says why and where the backup is, instead of crashing without a message.
 - The same goes for settings: a wrong value falls back to its default instead of crashing at start-up.

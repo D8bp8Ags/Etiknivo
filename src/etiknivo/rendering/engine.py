@@ -60,9 +60,10 @@ from etiknivo.settings import Calibration
 log = logging.getLogger(__name__)
 
 MIN_FONT_PT = 4.0  # below this text is no longer legible at 203 dpi
-#: a label whose text needs this much less than the median of its category keeps
-#: its own size instead of making the whole category smaller
-SHARED_OUTLIER_PT = 1.0
+#: letters that reach as high and as low as text usually goes: a line's room
+#: above and below the baseline is measured on these, not on its own text, so
+#: lines with the same size sit at the same height whatever letters they hold
+LINE_REFERENCE = "Hdgjpqy"
 QR_MAX_MODULE_PX = 4  # 0.5 mm per module is plenty for a phone camera
 QR_MIN_MODULE_PX = 2  # smaller modules (0.125 mm) do not scan reliably
 #: largest module per QR size choice: 0.25, 0.375 and 0.5 mm
@@ -76,9 +77,6 @@ PICTURE_MAX_WIDTH = 0.5  # share of the room left for text
 #: size a pictogram takes per size choice (share of the content height); the
 #: same on every label, whatever the text: the text makes room, not the pictogram
 PICTURE_SCALE = {CodeSize.SMALL: 0.4, CodeSize.MEDIUM: 0.6, CodeSize.LARGE: 0.85}
-#: auto-fit keeps the order of the chosen sizes: a line chosen smaller than
-#: another stays at most this share of that line's size when it has to shrink
-HIERARCHY_RATIO = 0.85
 SEPARATOR_GAP_PX = 3  # minimum line gap with separators: white, line, white
 ITALIC_SHEAR = 0.2
 
@@ -96,31 +94,22 @@ class LineBox:
     size_pt: float
     requested_pt: float
     overflow: bool = False
-    #: "shared": made smaller to match the rest of the category; "own": the
-    #: category shares a larger size, but this text needs a smaller one
+    #: "shared": made smaller to match the rest of the category
     shared: str = ""
+    #: y of the baseline (design dots; 0 when not known, e.g. free layout)
+    baseline: float = 0.0
 
 
 @dataclass(frozen=True)
 class CategoryShare:
-    """What the labels of one category share so they look alike (see
-    :meth:`RenderEngine.category_share`)."""
+    """The font size per line slot that the labels of one category share
+    (see :meth:`RenderEngine.category_share`)."""
 
     #: largest font size per line slot
     sizes: tuple[tuple[int, float], ...] = ()
-    #: per line slot the room above and below the baseline, as a share of the
-    #: font size: the highest ascender and lowest descender in the category, so
-    #: every label puts its baselines in the same place ("Zwart" and "Gemengd")
-    extents: tuple[tuple[int, float, float], ...] = ()
 
     def cap(self, slot: int) -> float | None:
         return dict(self.sizes).get(slot)
-
-    def extent(self, slot: int) -> tuple[float, float] | None:
-        for s, top, bottom in self.extents:
-            if s == slot:
-                return top, bottom
-        return None
 
 
 @dataclass
@@ -253,13 +242,11 @@ class RenderEngine:
         self.peers: Callable[[], Iterable[Label]] | None = None
         self._own_fit: dict[tuple, dict[int, float]] = {}
         self._extent_cache: dict[tuple, tuple[float, float]] = {}
-        self._share_cache: dict[tuple, CategoryShare] = {}
 
     def clear_caches(self) -> None:
         """Forget measured sizes, e.g. when fonts became available."""
         self._own_fit.clear()
         self._extent_cache.clear()
-        self._share_cache.clear()
 
     # -- geometry ------------------------------------------------------------------
 
@@ -292,23 +279,14 @@ class RenderEngine:
         return self._render(label, self.category_share(label))
 
     def category_share(self, label: Label) -> CategoryShare | None:
-        """What the label shares with its category, or None when it lays out
-        its text on its own.
+        """The font sizes the label shares with its category, or None when it
+        lays out its text on its own.
 
-        Every label in the category that has auto-fit with "same size in the
-        category" on gets, so a drawer cabinet looks even:
-
-        * per line the same room above and below the baseline, so lines sit
-          at the same height whatever letters they hold;
-        * per line the smallest font size any of them needs.  Only lines
-          with the same chosen size are compared.  A label that needs much
-          less than the others (more than :data:`SHARED_OUTLIER_PT` under the
-          median) keeps its own smaller size rather than pulling the whole
-          category down.  It still gets the room of the shared size, so
-          its lines stay at the same height as on the other labels;
-        * with exactly two labels there is no meaningful median: when their
-          sizes differ by more than :data:`SHARED_OUTLIER_PT`, the larger
-          size is the shared one and the smaller label keeps its own."""
+        With auto-fit and "same size in the category" on, every line gets the
+        smallest size that line has on any label of the category (among the
+        labels where it was chosen equally large), so a drawer cabinet looks
+        even.  There are no exceptions: a label that should keep its own size
+        switches the option off."""
         if self.peers is None or not _shares_sizes(label):
             return None
         group = [label] + [p for p in self.peers()
@@ -316,72 +294,24 @@ class RenderEngine:
                            and _shares_sizes(p)]
         if len(group) < 2:
             return None
-        key = (tuple(m.render_key() for m in group), self.profile,
-               self.calibration.supersample)
-        if key not in self._share_cache:
-            if len(self._share_cache) > 2000:
-                self._share_cache.clear()
-            self._share_cache[key] = self._share_of(label, group)
-        return self._share_cache[key]
-
-    def _share_of(self, label: Label, group: list[Label]) -> CategoryShare:
-        extents = self._group_extents(group)
-        share = CategoryShare(extents=extents)
-        fits = [self._own_fit_of(m, share) for m in group]
+        fits = [self._own_sizes(m) for m in group]
         caps: dict[int, float] = {}
         for slot in fits[0]:
             want = label.lines[slot].font_size_pt
-            sizes = sorted(f[slot] for m, f in zip(group, fits)
-                           if slot in f and abs(m.lines[slot].font_size_pt - want) < 0.01)
-            if len(sizes) < 2:
-                continue
-            if len(sizes) == 2 and sizes[1] - sizes[0] > SHARED_OUTLIER_PT:
-                # two labels far apart: neither is "the rest of the category",
-                # so each keeps its own size (the larger one is the cap)
-                caps[slot] = sizes[1]
-                continue
-            median = sizes[(len(sizes) - 1) // 2]
-            caps[slot] = min(s for s in sizes if s >= median - SHARED_OUTLIER_PT)
-        return replace(share, sizes=tuple(sorted(caps.items())))
+            same = [f[slot] for m, f in zip(group, fits)
+                    if slot in f and abs(m.lines[slot].font_size_pt - want) < 0.01]
+            if len(same) > 1:
+                caps[slot] = min(same)
+        return CategoryShare(tuple(sorted(caps.items())))
 
-    def _group_extents(self, group: list[Label]) -> tuple[tuple[int, float, float], ...]:
-        """Per slot the highest top and lowest bottom of the ink in the
-        group, relative to the baseline and as a share of the font size."""
-        found: dict[int, tuple[float, float]] = {}
-        for m in group:
-            for slot, line in m.visible_lines():
-                p = self._prepare_text(m, slot, line, [])
-                if not p.text:
-                    continue
-                top, bottom = self._extent(p)
-                old = found.get(slot)
-                found[slot] = (top, bottom) if old is None else (min(old[0], top),
-                                                                  max(old[1], bottom))
-        return tuple((slot, round(t, 3), round(b, 3)) for slot, (t, b) in sorted(found.items()))
-
-    def _extent(self, p: _Prepared) -> tuple[float, float]:
-        """Ink top and bottom of a line relative to its baseline, per point."""
-        key = (p.face.path, p.face.index, p.face.synthetic_bold, p.text)
-        hit = self._extent_cache.get(key)
-        if hit is None:
-            if len(self._extent_cache) > 20000:
-                self._extent_cache.clear()
-            ref = 20.0
-            _l, t, _r, b = self._measure(p, ref)
-            hit = (t / ref, b / ref)
-            self._extent_cache[key] = hit
-        return hit
-
-    def _own_fit_of(self, label: Label, share: CategoryShare) -> dict[int, float]:
-        """The font size per slot the label gets with the category's line
-        extents but its own sizes."""
-        key = (label.render_key(), share, self.profile, self.calibration.supersample)
+    def _own_sizes(self, label: Label) -> dict[int, float]:
+        """The font size per slot the label gets on its own."""
+        key = (label.render_key(), self.profile, self.calibration.supersample)
         hit = self._own_fit.get(key)
         if hit is None:
             if len(self._own_fit) > 4000:
                 self._own_fit.clear()
-            r = self._render(label, share)
-            hit = {lb.slot: lb.size_pt for lb in r.lines}
+            hit = {lb.slot: lb.size_pt for lb in self._render(label, None).lines}
             self._own_fit[key] = hit
         return hit
 
@@ -419,19 +349,19 @@ class RenderEngine:
         avail_w = max(1.0, area[2] - area[0])
         avail_h = max(1.0, area[3] - area[1])
 
+        # Each line has a room: the height of the reference letters at its
+        # chosen size (scaled down together when the lines are too tall for
+        # the label).  The rooms depend on the chosen sizes only, so lines
+        # sit at the same height on every label with the same choices.
+        room_sizes = list(sizes)
         if style.autofit and prepared:
-            sizes = self._autofit(prepared, sizes, avail_w, avail_h, spacing, share)
+            room_sizes = self._fit_height(prepared, sizes, avail_h, spacing)
+            sizes = self._fit_width(prepared, room_sizes, avail_w)
         shared = [""] * len(prepared)
         for n, p in enumerate(prepared):
             cap = share.cap(p.slot) if share else None
-            if cap is None:
-                continue
-            if sizes[n] > cap + 0.05:
+            if cap is not None and sizes[n] > cap + 0.05:
                 sizes[n], shared[n] = cap, "shared"
-            elif sizes[n] < cap - 0.05:
-                shared[n] = "own"
-        if style.autofit:  # a shared size may have made the main line smaller
-            sizes = _keep_order(prepared, sizes)
 
         # A line that is still too wide is cut short with "…" rather than
         # printed over the code or pictogram; it still gets a warning.
@@ -439,21 +369,7 @@ class RenderEngine:
                if self._width(p, sizes[n]) > avail_w + 0.5}
         prepared = [self._shorten(p, sizes[n], avail_w) if n in cut else p
                     for n, p in enumerate(prepared)]
-        boxes = [self._vbox(p, s, share) for p, s in zip(prepared, sizes)]
-        heights = [b[3] - b[1] for b in boxes]
-        # A line that keeps its own smaller size in the category ("own") still
-        # takes the room of the shared size, so the other lines stay at the
-        # height they have on every other label of the category.
-        rooms = list(heights)
-        if share is not None:
-            for n, p in enumerate(prepared):
-                cap = share.cap(p.slot)
-                if shared[n] == "own" and cap is not None:
-                    cb = self._vbox(p, cap, share)
-                    rooms[n] = max(heights[n], cb[3] - cb[1])
-            gaps = spacing * max(0, len(prepared) - 1)
-            if sum(rooms) + gaps > avail_h + 0.5:
-                rooms = list(heights)  # no room to spare: lay out as usual
+        rooms = [self._room(p, s) for p, s in zip(prepared, room_sizes)]
         block_h = sum(rooms) + spacing * max(0, len(prepared) - 1)
         if style.valign == VAlign.TOP:
             y = area[1]
@@ -461,20 +377,19 @@ class RenderEngine:
             y = area[3] - block_h
         else:
             y = area[1] + (avail_h - block_h) / 2
-            if share is not None and prepared and block_h <= avail_h:
-                y = self._optical_top(boxes[-1], heights[-1], rooms[-1], block_h, area)
+            if prepared and block_h <= avail_h:
+                t, b = self._reference(prepared[-1], sizes[-1])
+                below = rooms[-1] - (rooms[-1] - (b - t)) / 2 + t  # last baseline to block bottom
+                y = self._optical_top(below, block_h, area)
 
         hires = Image.new("L", (w * ss, h * ss), 255)
         draw = ImageDraw.Draw(hires)
         line_boxes: list[LineBox] = []
         separator_ys: list[int] = []
-        for n, (p, size, bbox, lh) in enumerate(zip(prepared, sizes, boxes, heights)):
+        for n, (p, size) in enumerate(zip(prepared, sizes)):
             room = rooms[n]
-            if n and style.separators:
-                mid = round(y - spacing / 2 - 0.5)  # one dot, centred in the gap
-                separator_ys.append(mid)
-                draw.rectangle((round(area[0]) * ss, mid * ss, round(area[2]) * ss - 1,
-                                (mid + 1) * ss - 1), fill=0)
+            bbox = self._measure(p, size)
+            lh = bbox[3] - bbox[1]
             lw = bbox[2] - bbox[0]
             if p.line.align == HAlign.LEFT:
                 x = area[0]
@@ -482,17 +397,27 @@ class RenderEngine:
                 x = area[2] - lw
             else:
                 x = area[0] + (avail_w - lw) / 2
-            ly = y + (room - lh) / 2  # centred in its room
+            # the reference letters centred in the room: a smaller line stays
+            # in the middle of its room, the others do not move
+            top, bottom = self._reference(p, size)
+            base = y + (room - (bottom - top)) / 2 - top
+            ly = base + bbox[1]
             ox = _snap(x - bbox[0], area[0] - bbox[0], area[2] - bbox[2])
-            oy = _snap(ly - bbox[1], area[1] - bbox[1], area[3] - bbox[3])
+            oy = _snap(base, area[1] - bbox[1], area[3] - bbox[3])
             x, ink_y = ox + bbox[0], oy + bbox[1]
             self._draw_line(hires, p, size, ox, oy, ss)
             overflow = (n in cut) or (lw > avail_w + 0.5) or (x < area[0] - 0.5) \
                 or (x + lw > area[2] + 0.5) or (ly < py0 - 0.5) or (ly + lh > py1 + 0.5)
             line_boxes.append(LineBox(p.slot, cut.get(n, p.text), x, ink_y, x + lw, ink_y + lh,
-                                      size, p.line.font_size_pt, overflow, shared[n]))
+                                      size, p.line.font_size_pt, overflow, shared[n], oy))
             y += room + spacing
 
+        if style.separators:
+            for above, below in zip(line_boxes, line_boxes[1:]):
+                mid = round((above.y1 + below.y0) / 2 - 0.5)  # one dot, centred in the gap
+                separator_ys.append(mid)
+                draw.rectangle((round(area[0]) * ss, mid * ss, round(area[2]) * ss - 1,
+                                (mid + 1) * ss - 1), fill=0)
         if block_h > avail_h + 0.5:
             for lb in line_boxes:
                 if lb.y0 < area[1] - 0.5 or lb.y1 > area[3] + 0.5:
@@ -1141,40 +1066,36 @@ class RenderEngine:
         runs.append((font.getlength(p.text[:start]) + shift, p.text[start:]))
         return runs
 
-    def _vbox(self, p: _Prepared, size_pt: float, share: CategoryShare | None
-              ) -> tuple[float, float, float, float]:
-        """Ink box of a line.  In a category its height is the category's
-        tallest line in that slot, so baselines line up from label to label.
+    def _reference(self, p: _Prepared, size_pt: float) -> tuple[float, float]:
+        """Top and bottom of :data:`LINE_REFERENCE` in the line's font,
+        relative to the baseline, in dots."""
+        key = (p.face.path, p.face.index, p.face.synthetic_bold)
+        hit = self._extent_cache.get(key)
+        if hit is None:
+            ref = 20.0
+            _l, t, _r, b = self._measure(replace(p, text=LINE_REFERENCE), ref)
+            hit = (t / ref, b / ref)
+            self._extent_cache[key] = hit
+        return hit[0] * size_pt, hit[1] * size_pt
 
-        The category's extents alone set that height, not this line's own
-        ink: the own ink is measured on the supersampled grid and can stick
-        out a fraction of a dot past the shared extents ("Transparant" goes
-        a hair lower than the category's descender at a small size).  That
-        hair made the block a hair taller, moved its centre and, after
-        rounding to whole dots, put the other lines one dot apart."""
-        l, t, r, b = self._measure(p, size_pt)
-        ext = share.extent(p.slot) if share else None
-        if ext is not None:
-            t, b = ext[0] * size_pt, ext[1] * size_pt
-        return l, t, r, b
+    def _room(self, p: _Prepared, size_pt: float) -> float:
+        """Height a line takes in the block at *size_pt*."""
+        top, bottom = self._reference(p, size_pt)
+        return bottom - top
 
     @staticmethod
-    def _optical_top(last: tuple[float, float, float, float], last_h: float, last_room: float,
-                     block_h: float, area: tuple[float, float, float, float]) -> float:
-        """Top of a centred text block in a category.
+    def _optical_top(below: float, block_h: float,
+                     area: tuple[float, float, float, float]) -> float:
+        """Top of a vertically centred text block.
 
-        The category's extents give every line the room of the deepest
-        descender in the category, so a label with only "LED" keeps empty
-        room under its letters for the "g" or "p" of another label; centring
-        that room put "LED" visibly above the middle.  The block is centred
-        from its top down to the baseline of its last line instead (what the
-        eye takes as the text), and the descender room hangs below.  That
-        position depends only on the shared extents and sizes, so the lines
-        still stand at the same height on every label of the category.  The
-        block never leaves the text area."""
-        # under the last baseline: the descender share of the line's room
-        # (an outlier's smaller line has the room of the shared size)
-        below = last_room * max(0.0, last[3]) / max(1e-6, last_h)
+        Every line has the room of the reference letters, descenders
+        included, so a label with only "LED" keeps empty room under its
+        letters; centring that room put "LED" visibly above the middle.  The
+        block is centred from its top down to the baseline of its last line
+        instead (what the eye takes as the text), and the descender room
+        (*below*) hangs below.  That position depends only on the chosen
+        sizes, so the lines still stand at the same height on every label of
+        a category.  The block never leaves the text area."""
         y = area[1] + (area[3] - area[1] - (block_h - below)) / 2
         return min(max(y, area[1]), area[3] - block_h)
 
@@ -1192,28 +1113,28 @@ class RenderEngine:
                 return short
         return replace(p, text="…")
 
-    def _autofit(self, prepared: list[_Prepared], sizes: list[float], avail_w: float,
-                 avail_h: float, spacing: float,
-                 share: CategoryShare | None = None) -> list[float]:
+    def _fit_height(self, prepared: list[_Prepared], sizes: list[float], avail_h: float,
+                    spacing: float) -> list[float]:
+        """The chosen sizes, all scaled down by the same factor when the
+        lines do not fit above each other."""
+        gaps = spacing * max(0, len(prepared) - 1)
+        total = sum(self._room(p, s) for p, s in zip(prepared, sizes))
+        if total + gaps <= avail_h or total <= 0:
+            return list(sizes)
+        factor = max(0.0, avail_h - gaps) / total
+        return [max(MIN_FONT_PT, s * factor) for s in sizes]
+
+    def _fit_width(self, prepared: list[_Prepared], sizes: list[float],
+                   avail_w: float) -> list[float]:
+        """Each line that is too wide made smaller on its own, the others
+        keep their size."""
         sizes = list(sizes)
-        # 1. each line independently narrow enough
         for i, p in enumerate(prepared):
             for _ in range(12):
-                l, _t, r, _b = self._measure(p, sizes[i])
-                width = r - l
+                width = self._width(p, sizes[i])
                 if width <= avail_w or sizes[i] <= MIN_FONT_PT:
                     break
                 sizes[i] = max(MIN_FONT_PT, sizes[i] * min(0.98, avail_w / width))
-        sizes = _keep_order(prepared, sizes)
-        # 2. whole block low enough: scale all lines together
-        for _ in range(20):
-            boxes = [self._vbox(p, s, share) for p, s in zip(prepared, sizes)]
-            total = sum(b[3] - b[1] for b in boxes) + spacing * (len(prepared) - 1)
-            if total <= avail_h or all(s <= MIN_FONT_PT for s in sizes):
-                break
-            factor = min(0.98, max(0.5, (avail_h - spacing * (len(prepared) - 1))
-                                   / max(1e-6, total - spacing * (len(prepared) - 1))))
-            sizes = [max(MIN_FONT_PT, s * factor) for s in sizes]
         return sizes
 
     def _draw_line(self, canvas: Image.Image, p: _Prepared, size_pt: float, x: float, y: float,
@@ -1246,21 +1167,6 @@ class RenderEngine:
                                  (1, ITALIC_SHEAR, -ITALIC_SHEAR * hgt, 0, 1, 0),
                                  resample=Image.Resampling.BILINEAR)
         canvas.paste(0, (int(x * ss + l - 1), int(y * ss + t - 1)), sheared)
-
-
-def _keep_order(prepared: list[_Prepared], sizes: list[float]) -> list[float]:
-    """Sizes in which a line chosen smaller than another one stays smaller
-    after shrinking: a long main line that has to shrink takes the category
-    and specification lines down with it (at most :data:`HIERARCHY_RATIO` of
-    its size), so the main line stays the largest."""
-    out = list(sizes)
-    for i, p in enumerate(prepared):
-        for j, q in enumerate(prepared):
-            want_i, want_j = p.line.font_size_pt, q.line.font_size_pt
-            if want_i < want_j - 0.01 and sizes[j] < want_j - 0.01:
-                limit = sizes[j] * max(HIERARCHY_RATIO, want_i / want_j)
-                out[i] = max(MIN_FONT_PT, min(out[i], limit))
-    return out
 
 
 def _shares_sizes(label: Label) -> bool:

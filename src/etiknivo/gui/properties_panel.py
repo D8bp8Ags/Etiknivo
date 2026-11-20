@@ -586,9 +586,6 @@ class PropertiesPanel(QScrollArea):
             if fitted and fitted[2] == "shared":
                 le.set_fitted(tr("{pt} pt, gelijk aan de rest van de categorie",
                                  pt=f"{fitted[0]:.1f}"))
-            elif fitted and fitted[2] == "own":
-                le.set_fitted(tr("Verkleind tot {pt} pt, kleiner dan de rest van de categorie",
-                                 pt=f"{fitted[0]:.1f}"))
             elif fitted and fitted[0] < fitted[1] - 0.05:
                 le.set_fitted(tr("Automatisch verkleind tot {pt} pt", pt=f"{fitted[0]:.1f}"))
             else:
