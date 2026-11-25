@@ -320,7 +320,8 @@ class MainWindow(QMainWindow):
         more.addSeparator()
         more.addAction(tr("Testlabel afdrukken"), self.print_test_label)
         more.addAction(tr("Kalibratietest afdrukken"), self.print_calibration)
-        more.addAction(tr("Randentest afdrukken"), self.print_edge_test)
+        more.addAction(tr("Randentest afdrukken"), lambda: self.print_edge_test())
+        more.addAction(tr("Randentest afdrukken (2 mm langer)"), self.print_long_edge_test)
         self.print_more.setMenu(more)
         holder = QWidget()
         hl = QHBoxLayout(holder)
@@ -530,7 +531,8 @@ class MainWindow(QMainWindow):
         m.addSeparator()
         act(m, tr("Testlabel afdrukken"), self.print_test_label)
         act(m, tr("Kalibratietest afdrukken"), self.print_calibration)
-        act(m, tr("Randentest afdrukken"), self.print_edge_test)
+        act(m, tr("Randentest afdrukken"), lambda: self.print_edge_test())
+        act(m, tr("Randentest afdrukken (2 mm langer)"), self.print_long_edge_test)
         act(m, tr("Kalibratie-instellingen…"), self.calibration_settings)
 
         m = mb.addMenu(tr("&Weergave"))
@@ -630,7 +632,7 @@ class MainWindow(QMainWindow):
         pp.refreshRequested.connect(self._refresh)
         pp.testLabelRequested.connect(self.print_test_label)
         pp.calibrationRequested.connect(self.print_calibration)
-        pp.edgeTestRequested.connect(self.print_edge_test)
+        pp.edgeTestRequested.connect(lambda: self.print_edge_test())
         pp.calibrationSettingsRequested.connect(self.calibration_settings)
         pp.mockToggled.connect(self.set_mock)
         pp.modelChanged.connect(self.set_printer_model)
@@ -1301,10 +1303,16 @@ class MainWindow(QMainWindow):
         self._submit([PrintJob("calibration", tr("Kalibratietest"), raster, 1,
                                self.printer_panel.density.currentIndex())])
 
-    def print_edge_test(self) -> None:
+    def print_long_edge_test(self) -> None:
+        """Edge test with a raster 2 mm longer than the label: shows whether the
+        printer prints past the end of a label-length raster."""
+        self.print_edge_test(extra_mm=2)
+
+    def print_edge_test(self, extra_mm: float = 0) -> None:
         if not self._guard():
             return
-        _band, raster = edge_test_raster(self.engine)
+        extra = round(extra_mm * self.profile.dots_per_mm)
+        _band, raster = edge_test_raster(self.engine, extra)
         self._submit([PrintJob("calibration", tr("Randentest"), raster, 1,
                                self.printer_panel.density.currentIndex())])
 
