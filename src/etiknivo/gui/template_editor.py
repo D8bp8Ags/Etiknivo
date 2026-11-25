@@ -1,5 +1,6 @@
-"""Window for the user's own templates: make one (empty or as a copy of a
-ready-made one), place and size its parts, rename and delete it.
+"""Window for the user's own templates: make one (empty or from an existing
+one, after a name), place and size its parts, rename and delete it.  The
+ready-made templates are listed too, to look at and duplicate.
 
 A template is edited like a label in the free layout, on a sample label, so
 what you see is what a label gets.  Its texts use the part fields
@@ -19,6 +20,7 @@ from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QApplication,
     QDialog,
+    QDialogButtonBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -36,7 +38,13 @@ from PySide6.QtWidgets import (
 
 from etiknivo.gui.element_panel import ElementPanel, new_element
 from etiknivo.gui.preview import DesignView
-from etiknivo.gui.properties_panel import custom_template_icon
+from etiknivo.gui.properties_panel import (
+    _custom_sample,
+    _template_sample,
+    custom_template_icon,
+    template_icon,
+)
+from etiknivo.gui.qt_util import pil_to_pixmap
 from etiknivo.i18n import tr
 from etiknivo.model import (
     PICTOGRAM_FIELD,
@@ -45,6 +53,7 @@ from etiknivo.model import (
     ElementKind,
     HAlign,
     Label,
+    LabelElement,
     LabelTemplate,
     LayoutPreset,
     PictureKind,
@@ -113,13 +122,15 @@ class TemplateEditor(QDialog):
         self.engine = RenderEngine(engine.profile, engine.calibration, engine.fonts)
         self.work: UserTemplate | None = None
         self.dirty = False
-        #: the template being edited is new and not saved yet: it is in the
-        #: library only once saved, and goes away unchanged when you move on
-        self.draft = False
+        #: the ready-made template shown (to look at only), else None
+        self.builtin: LabelTemplate | None = None
         self.sample = sample_label()
         self._loading = False
         #: asks what to do with unsaved changes: "save", "discard" or "cancel"
         self.ask_unsaved = self._ask_box
+        #: asks the name and starting point of a new template: (name, start key)
+        #: or None; the start key is "" (empty), "builtin:<value>" or an own id
+        self.ask_new = self._ask_new
         #: undo history of the template being edited: its states as JSON, the
         #: state shown now at ``_at``; the saved state, to know what is unsaved
         self._states: list[str] = []
@@ -134,17 +145,8 @@ class TemplateEditor(QDialog):
         self.list = QListWidget()
         self.list.setIconSize(QSize(72, 34))
         self.list.setMinimumWidth(220)
-        self.new_btn = QToolButton()
-        self.new_btn.setText(tr("Nieuw") + " ▾")
-        self.new_btn.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
-        menu = QMenu(self.new_btn)
-        menu.addAction(tr("Leeg sjabloon"), self.new_empty)
-        menu.addSection(tr("Kopie van een kant-en-klaar sjabloon"))
-        for tpl, (name, _desc) in TEMPLATE_INFO.items():
-            if tpl != LabelTemplate.NONE:
-                menu.addAction(tr(name), lambda t=tpl: self.new_from(t))
-        self.new_btn.setMenu(menu)
-        self.dup_btn = QPushButton(tr("Dupliceren"))
+        self.new_btn = QPushButton(tr("Nieuw…"))
+        self.dup_btn = QPushButton(tr("Dupliceren…"))
         self.del_btn = QPushButton(tr("Verwijderen"))
         buttons = QHBoxLayout()
         buttons.setSpacing(4)
@@ -154,11 +156,10 @@ class TemplateEditor(QDialog):
         left = QWidget()
         ll = QVBoxLayout(left)
         ll.setContentsMargins(0, 0, 0, 0)
-        ll.addWidget(QLabel(tr("Je eigen sjablonen")))
         ll.addWidget(self.list, 1)
         ll.addLayout(buttons)
-        intro = QLabel(tr("De kant-en-klare sjablonen veranderen niet: maak met Nieuw een "
-                          "kopie om op voort te bouwen."))
+        intro = QLabel(tr("De kant-en-klare sjablonen kun je bekijken maar niet "
+                          "veranderen: maak er met Dupliceren een eigen versie van."))
         intro.setWordWrap(True)
         intro.setObjectName("hint")
         ll.addWidget(intro)
@@ -175,6 +176,11 @@ class TemplateEditor(QDialog):
         for n, (title, *_rest) in enumerate(PARTS):
             parts.addAction(tr(title), lambda n=n: self.add_part(n))
         self.parts_btn.setMenu(parts)
+        self.readonly_note = QLabel(tr(
+            "Kant-en-klaar sjabloon: alleen bekijken. Klik op Dupliceren om er een eigen "
+            "versie van te maken die je kunt aanpassen."))
+        self.readonly_note.setWordWrap(True)
+        self.readonly_note.setObjectName("hint")
         self.warnings = QLabel()
         self.warnings.setWordWrap(True)
         self.warnings.setObjectName("hint")
@@ -209,6 +215,7 @@ class TemplateEditor(QDialog):
         tools.addWidget(self.parts_btn)
         tools.addStretch(1)
         ml.addLayout(tools)
+        ml.addWidget(self.readonly_note)
         ml.addWidget(self.warnings)
         ml.addWidget(help_)
         ml.addStretch(1)
@@ -250,6 +257,7 @@ class TemplateEditor(QDialog):
         lay.addLayout(bottom)
         self.resize(1180, 620)
 
+        self.new_btn.clicked.connect(self.new_template)
         self.list.currentRowChanged.connect(self._row_changed)
         self.dup_btn.clicked.connect(self.duplicate)
         self.del_btn.clicked.connect(self.delete)
@@ -270,7 +278,7 @@ class TemplateEditor(QDialog):
         # Ctrl+Z goes to the template's history instead (as in the main window)
         QApplication.instance().installEventFilter(self)
         self._fill_list()
-        self.list.setCurrentRow(0 if self.list.count() else -1)
+        self._select_first()
         self._show()
 
     # -- the list -----------------------------------------------------------------------
@@ -279,48 +287,82 @@ class TemplateEditor(QDialog):
         return sorted(self.library.templates, key=lambda t: t.name.casefold())
 
     def _fill_list(self, select_id: str = "") -> None:
+        """Your own templates, then the ready-made ones (to look at)."""
         self._loading = True
         self.list.clear()
         row = -1
-        own = self._own()
-        if self.draft and self.work is not None:
-            own.insert(0, self.work)
-        for n, tpl in enumerate(own):
-            name = tpl.name or tr("Naamloos sjabloon")
-            if self.draft and tpl is self.work:
-                name = tr("{name} (nog niet opgeslagen)", name=name)
-            item = QListWidgetItem(custom_template_icon(tpl), name)
+
+        def header(text: str) -> None:
+            item = QListWidgetItem(text)
+            item.setFlags(Qt.ItemFlag.NoItemFlags)
+            font = item.font()
+            font.setBold(True)
+            item.setFont(font)
+            self.list.addItem(item)
+
+        header(tr("Je eigen sjablonen"))
+        for tpl in self._own():
+            item = QListWidgetItem(custom_template_icon(tpl), tpl.name or tr("Naamloos sjabloon"))
             item.setData(Qt.ItemDataRole.UserRole, tpl.id)
-            if self.draft and tpl is self.work:
-                font = item.font()
-                font.setItalic(True)
-                item.setFont(font)
             self.list.addItem(item)
             if tpl.id == select_id:
-                row = n
+                row = self.list.count() - 1
+        if not self.library.templates:
+            empty = QListWidgetItem(tr("Nog geen: klik op Nieuw…"))
+            empty.setFlags(Qt.ItemFlag.NoItemFlags)
+            self.list.addItem(empty)
+        header(tr("Kant-en-klaar"))
+        for tpl, (name, _desc) in TEMPLATE_INFO.items():
+            if tpl == LabelTemplate.NONE:
+                continue
+            key = f"builtin:{tpl.value}"
+            item = QListWidgetItem(template_icon(tpl), tr(name))
+            item.setData(Qt.ItemDataRole.UserRole, key)
+            self.list.addItem(item)
+            if key == select_id:
+                row = self.list.count() - 1
         self.list.setCurrentRow(row)
         self._loading = False
+
+    def _select_first(self) -> None:
+        """The first own template, else the first ready-made one."""
+        for row in range(self.list.count()):
+            if self.list.item(row).data(Qt.ItemDataRole.UserRole):
+                self.list.setCurrentRow(row)
+                return
+
+    def _current_key(self) -> str:
+        if self.builtin is not None:
+            return f"builtin:{self.builtin.value}"
+        return self.work.id if self.work is not None else ""
 
     def _row_changed(self, row: int) -> None:
         if self._loading:
             return
         item = self.list.item(row)
-        tpl_id = item.data(Qt.ItemDataRole.UserRole) if item is not None else ""
-        if self.work is not None and tpl_id == self.work.id:
+        key = item.data(Qt.ItemDataRole.UserRole) if item is not None else ""
+        if not key or key == self._current_key():
             return
-        was_draft = self.draft
         if not self._may_leave():
-            self._select_in_list(self.work.id if self.work else "")
+            self._select_in_list(self._current_key())
             return
-        tpl = next((t for t in self.library.templates if t.id == tpl_id), None)
-        self._edit(tpl)
-        if was_draft and not self.draft:  # the unsaved one leaves the list
-            self._fill_list(tpl_id)
+        self._open(key)
 
-    def _select_in_list(self, tpl_id: str) -> None:
+    def _open(self, key: str) -> None:
+        """Show the template *key* names: an own one to edit, a ready-made
+        one to look at."""
+        if key.startswith("builtin:"):
+            tpl = LabelTemplate(key.split(":", 1)[1])
+            self._edit(template_from_builtin(tpl, self.engine.area_mm))
+            self.builtin = tpl
+            self._show()
+        else:
+            self._edit(next((t for t in self.library.templates if t.id == key), None))
+
+    def _select_in_list(self, key: str) -> None:
         self._loading = True
         for row in range(self.list.count()):
-            if self.list.item(row).data(Qt.ItemDataRole.UserRole) == tpl_id:
+            if self.list.item(row).data(Qt.ItemDataRole.UserRole) == key:
                 self.list.setCurrentRow(row)
                 break
         self._loading = False
@@ -330,6 +372,7 @@ class TemplateEditor(QDialog):
     def _edit(self, tpl: UserTemplate | None, dirty: bool = False) -> None:
         """Start editing a working copy of *tpl*, drawn on the current roll."""
         self.work = scaled(tpl, self.engine.area_mm) if tpl is not None else None
+        self.builtin = None
         state = self._state()
         self._states, self._at = ([state], 0) if self.work is not None else ([], -1)
         # a new template is unsaved until it is saved; an existing one as stored
@@ -395,34 +438,64 @@ class TemplateEditor(QDialog):
                 return True
         return super().eventFilter(obj, event)
 
-    def _start_new(self, tpl: UserTemplate) -> None:
+    def _template_for(self, key: str) -> UserTemplate:
+        """A new own template, from the start *key* names."""
+        w, h = self.engine.area_mm
+        if key.startswith("builtin:"):
+            return template_from_builtin(LabelTemplate(key.split(":", 1)[1]), (w, h))
+        src = next((t for t in self.library.templates if t.id == key), None)
+        if src is None:
+            return UserTemplate(width_mm=w, height_mm=h)
+        tpl = scaled(src, (w, h))
+        tpl.id = UserTemplate().id
+        for el in tpl.elements:
+            el.id = LabelElement().id
+        return tpl
+
+    def _create(self, name: str, key: str) -> None:
+        """Make the template and keep it: it is in your list from now on."""
+        tpl = self._template_for(key)
+        tpl.name = name.strip() or tr("Naamloos sjabloon")
+        self.library.set_templates([*self.library.templates, tpl])
+        self.templatesChanged.emit()
+        self._fill_list(tpl.id)
+        self._edit(tpl)
+        self.name.setFocus()
+
+    def new_template(self) -> None:
+        """Nieuw…: ask a name and what to start from; only OK makes it."""
         if not self._may_leave():
             return
-        # not saved yet: it joins your templates when you save it, and choosing
-        # another template without changing it just lets it go (no question)
-        self._edit(tpl)
-        self.draft = True
-        self._fill_list(tpl.id)
-        self._render()
-        self.name.setFocus()
-        self.name.selectAll()
-
-    def new_empty(self) -> None:
-        w, h = self.engine.area_mm
-        self._start_new(UserTemplate(name=tr("Nieuw sjabloon"), width_mm=w, height_mm=h))
-
-    def new_from(self, template: LabelTemplate) -> None:
-        tpl = template_from_builtin(template, self.engine.area_mm)
-        tpl.name = tr("{name} (eigen)", name=tr(TEMPLATE_INFO[template][0]))
-        self._start_new(tpl)
+        answer = self.ask_new(tr("Nieuw sjabloon"), self._current_key())
+        if answer is not None:
+            self._create(*answer)
 
     def duplicate(self) -> None:
-        if self.work is None:
+        """A copy of the template shown (own or ready-made), after a name."""
+        if self.work is None or not self._may_leave():
             return
-        tpl = copy.deepcopy(self.work)
-        tpl.id = UserTemplate().id
-        tpl.name = tr("{name} (kopie)", name=self.name.text().strip() or tpl.name)
-        self._start_new(tpl)
+        name = tr(TEMPLATE_INFO[self.builtin][0]) if self.builtin is not None \
+            else (self.name.text().strip() or self.work.name)
+        answer = self.ask_new(tr("{name} (kopie)", name=name), self._current_key())
+        if answer is not None:
+            self._create(*answer)
+
+    def new_empty(self, name: str = "") -> None:
+        """A new empty template, without asking."""
+        if self._may_leave():
+            self._create(name or tr("Nieuw sjabloon"), "")
+
+    def new_from(self, template: LabelTemplate, name: str = "") -> None:
+        """A new copy of a ready-made template, without asking."""
+        if self._may_leave():
+            self._create(name or tr("{name} (eigen)", name=tr(TEMPLATE_INFO[template][0])),
+                         f"builtin:{template.value}")
+
+    def _ask_new(self, name: str, start: str) -> tuple[str, str] | None:
+        dlg = NewTemplateDialog(self.library, name, start, self)
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return None
+        return dlg.result_name(), dlg.result_start()
 
     def add_part(self, n: int) -> None:
         """Place one of the label's parts, with the field that fills it."""
@@ -452,10 +525,13 @@ class TemplateEditor(QDialog):
 
     def _show(self) -> None:
         on = self.work is not None
-        for w in (self.name, self.view, self.parts_btn, self.elements, self.dup_btn,
-                  self.del_btn):
-            w.setEnabled(on)
-        self.name.setText(self.work.name if on else "")
+        editable = on and self.builtin is None
+        for w in (self.name, self.view, self.parts_btn, self.elements, self.del_btn):
+            w.setEnabled(editable)
+        self.dup_btn.setEnabled(on)
+        self.readonly_note.setVisible(on and not editable)
+        self.name.setText(tr(TEMPLATE_INFO[self.builtin][0]) if self.builtin is not None
+                          else self.work.name if on else "")
         self.sample.elements = self.work.elements if on else []
         self.elements.set_label(self.sample if on else None)
         self._fit_right()
@@ -472,12 +548,12 @@ class TemplateEditor(QDialog):
         self.view.set_label(self.sample)
         if self.work is None:
             self.view.set_result(None)
-            self.warnings.setText(tr("Maak met Nieuw een eigen sjabloon."))
+            self.warnings.setText(tr("Maak met Nieuw… een eigen sjabloon."))
         else:
             r = self.engine.render(self.sample)
             self.view.set_result(r)
             self.warnings.setText("\n".join(dict.fromkeys(r.warnings)))
-        self.save_btn.setEnabled(self.work is not None and (self.dirty or self.draft))
+        self.save_btn.setEnabled(self.work is not None and self.builtin is None and self.dirty)
         self._update_undo()
 
     def _changed(self, kind: str = "edit") -> None:
@@ -499,14 +575,14 @@ class TemplateEditor(QDialog):
     # -- saving -------------------------------------------------------------------------
 
     def save(self) -> bool:
-        if self.work is None:
+        if self.work is None or self.builtin is not None:
             return True
         self.work.name = self.name.text().strip() or tr("Naamloos sjabloon")
         self.name.setText(self.work.name)
         saved = copy.deepcopy(self.work)
         others = [t for t in self.library.templates if t.id != saved.id]
         self.library.set_templates([*others, saved])
-        self.dirty = self.draft = False
+        self.dirty = False
         # the name as saved belongs to this step; undo after saving still works
         self._states[self._at] = self._saved_state = self._state()
         self._fill_list(saved.id)
@@ -520,7 +596,7 @@ class TemplateEditor(QDialog):
 
     def delete(self) -> None:
         """Delete the template; labels with it go back to the lines under each other."""
-        if self.work is None:
+        if self.work is None or self.builtin is not None:
             return
         tpl_id = self.work.id
         known = any(t.id == tpl_id for t in self.library.templates)
@@ -535,26 +611,23 @@ class TemplateEditor(QDialog):
             apply_template(lbl, LabelTemplate.NONE)
             lbl.touch()
         self.library.set_templates([t for t in self.library.templates if t.id != tpl_id])
-        self.work, self.dirty, self.draft = None, False, False
+        self.work, self.dirty = None, False
         self._fill_list()
-        self.list.setCurrentRow(0 if self.list.count() else -1)
-        if self.list.count() == 0:
+        self._select_first()
+        if self.work is None:
             self._show()
         if known:
             self.templatesChanged.emit()
 
     def _may_leave(self) -> bool:
         """Before another template or closing: save or drop unsaved changes."""
-        if self.work is None:
-            return True
-        if not self.dirty:
-            self.draft = False  # a new one you did not change is not kept
+        if self.work is None or not self.dirty:
             return True
         answer = self.ask_unsaved(self.name.text().strip())
         if answer == "save":
             return self.save()
         if answer == "discard":
-            self.dirty = self.draft = False
+            self.dirty = False
             return True
         return False
 
@@ -579,3 +652,102 @@ class TemplateEditor(QDialog):
             event.accept()
         else:
             event.ignore()
+
+
+class NewTemplateDialog(QDialog):
+    """Name and starting point of a new template, with a preview of the
+    start.  Nothing is made until OK."""
+
+    def __init__(self, library: Library, name: str, start: str = "",
+                 parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setWindowTitle(tr("Nieuw sjabloon"))
+        self.name = QLineEdit(name)
+        self.name.selectAll()
+        self.starts = QListWidget()
+        self.starts.setIconSize(QSize(72, 34))
+        self.preview = QLabel()
+        self.preview.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.preview.setMinimumSize(300, 140)
+
+        def add(icon, text: str, key: str | None) -> None:  # noqa: ANN001
+            item = QListWidgetItem(icon, text) if icon is not None else QListWidgetItem(text)
+            if key is None:  # a heading
+                item.setFlags(Qt.ItemFlag.NoItemFlags)
+                font = item.font()
+                font.setBold(True)
+                item.setFont(font)
+            else:
+                item.setData(Qt.ItemDataRole.UserRole, key)
+            self.starts.addItem(item)
+
+        add(None, tr("Leeg sjabloon"), "")
+        own = sorted(library.templates, key=lambda t: t.name.casefold())
+        if own:
+            add(None, tr("Je eigen sjablonen"), None)
+            for tpl in own:
+                add(custom_template_icon(tpl), tpl.name or tr("Naamloos sjabloon"), tpl.id)
+        add(None, tr("Kant-en-klaar"), None)
+        for tpl_kind, (title, _desc) in TEMPLATE_INFO.items():
+            if tpl_kind != LabelTemplate.NONE:
+                add(template_icon(tpl_kind), tr(title), f"builtin:{tpl_kind.value}")
+        self._library = library
+        self.starts.currentRowChanged.connect(self._show_preview)
+
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok
+                                   | QDialogButtonBox.StandardButton.Cancel)
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        self.ok_btn = buttons.button(QDialogButtonBox.StandardButton.Ok)
+        self.name.textChanged.connect(
+            lambda text: self.ok_btn.setEnabled(bool(text.strip())))
+
+        form = QHBoxLayout()
+        form.addWidget(QLabel(tr("Naam")))
+        form.addWidget(self.name, 1)
+        right = QVBoxLayout()
+        right.addWidget(QLabel(tr("Voorbeeld")))
+        right.addWidget(self.preview, 1)
+        body = QHBoxLayout()
+        left = QVBoxLayout()
+        left.addWidget(QLabel(tr("Beginnen met")))
+        left.addWidget(self.starts, 1)
+        body.addLayout(left, 1)
+        body.addLayout(right, 1)
+        lay = QVBoxLayout(self)
+        lay.addLayout(form)
+        lay.addLayout(body, 1)
+        lay.addWidget(buttons)
+        self.resize(680, 440)
+        self._select(start)
+
+    def _select(self, key: str) -> None:
+        for row in range(self.starts.count()):
+            item = self.starts.item(row)
+            if item.flags() & Qt.ItemFlag.ItemIsEnabled and \
+                    item.data(Qt.ItemDataRole.UserRole) == key:
+                self.starts.setCurrentRow(row)
+                return
+        self.starts.setCurrentRow(0)
+
+    def result_name(self) -> str:
+        return self.name.text().strip()
+
+    def result_start(self) -> str:
+        item = self.starts.currentItem()
+        key = item.data(Qt.ItemDataRole.UserRole) if item is not None else ""
+        return key or ""
+
+    def _show_preview(self, _row: int) -> None:
+        key = self.result_start()
+        if key.startswith("builtin:"):
+            img = _template_sample(LabelTemplate(key.split(":", 1)[1]))
+        else:
+            tpl = next((t for t in self._library.templates if t.id == key), None)
+            if tpl is None:
+                self.preview.setText(tr("Een leeg etiket: voeg zelf onderdelen toe."))
+                return
+            img = _custom_sample(tpl)
+        k = max(1, min(300 // max(img.width, 1), 140 // max(img.height, 1)))
+        img = img.resize((img.width * k, img.height * k))
+        self.preview.setPixmap(pil_to_pixmap(img))

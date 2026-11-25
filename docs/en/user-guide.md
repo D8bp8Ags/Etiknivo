@@ -202,15 +202,21 @@ If none of the templates fits exactly, make a template of your own. Under *Templ
 
 ![The Own templates window](../img/en/template-editor.png)
 
-- **New** makes an empty template, or a copy of a ready-made template to build on. You can look through all the templates this way: nothing is kept until you click **Save**. Pick another template without changing anything and the new one goes away without a question. The ready-made templates themselves do not change.
+- The list on the left shows **your own templates** first and the **ready-made** ones below them. Click a ready-made template to look at it; it cannot be changed, and nothing is created.
+- **New…** asks for a name and what to start from: an empty template, one of your own or a ready-made one, with a preview beside it. The new template only exists after **OK**; **Cancel** leaves nothing behind.
+
+  ![A new template: name and start](../img/en/template-new.png)
+
+- **Duplicate…** works the same, starting from the template shown. This is how you make a version of a ready-made template that you can change.
 - **Undo** and **Redo** (Ctrl+Z and Ctrl+Shift+Z, or Cmd on the Mac) work in the window, also right after saving. Ctrl+S saves.
 - You edit the template like the free layout: drag a part to move it, and drag its bottom-right corner to make it larger or smaller. On the right are the exact sizes, the font and the font size.
 - While you drag, a part lines up with the edges and centres of the other parts and of the printable area. A pink line shows what it lines up with. Hold Alt (Option on the Mac) to drag freely. This works in the free layout too.
 - **Add part** places a part of the label: top line, main line, bottom line, tray ID, QR code, the text under the QR code or the label's pictogram.
 - A text shows what each label has through fields: `{Top line}`, `{Main line}`, `{Bottom line}`, `{Tray}`, `{Code}`, `{Tray row}` and `{Tray number}` (the A and the 17 of A17), and `{Cell 1}` to `{Cell 6}` (the parts of the bottom line between `|`). If you type a line in capitals, such as `{TOP LINE}`, it shows in capitals on the label. You can mix them with plain text too, such as `Tray {Tray}`.
 - A text with exactly one line gets that line's look. You then change it per label as usual, just as with the ready-made templates.
-- **Save** keeps the template in your library. It then appears at the bottom of the template chooser, with a preview, and in the *Template* column of *Edit labels*. If you change a template later, every label that uses it changes along.
-- **Duplicate** makes a copy. To rename a template, change its name and save. **Delete** asks first; labels with that template go back to *Lines under each other*.
+- **Save as template…** (menu *Label*) makes an own template from the label that is open: its lines, tray ID, code and pictogram become fields, so other labels get their own text in it.
+- **Save** keeps your changes to the template. It then appears at the bottom of the template chooser, with a preview, and in the *Template* column of *Edit labels*. If you change a template later, every label that uses it changes along.
+- To rename a template, change its name and save. **Delete** asks first; labels with that template go back to *Lines under each other*.
 - The QR code, the text under it, the tray ID and the pictogram can be switched off per label, as with the ready-made templates. In an own template their box then stays empty; the rest does not move.
 - An own template scales along on another label roll. It goes into the backup and into *Export → Library (JSON)*, and comes back when you import.
 

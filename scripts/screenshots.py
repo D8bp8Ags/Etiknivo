@@ -86,7 +86,7 @@ def window_shots(app: QApplication, out: Path, theme: str, suffix: str) -> None:
     win.close()
 
 
-def template_shots(app: QApplication, out: Path, names: tuple[str, str, str]) -> None:
+def template_shots(app: QApplication, out: Path, names: tuple[str, str, str, str]) -> None:
     """The template chooser opened beside the inspector, and one label of each
     template as it prints."""
     from PySide6.QtCore import QPoint
@@ -125,6 +125,7 @@ def template_shots(app: QApplication, out: Path, names: tuple[str, str, str]) ->
     box.hidePopup()
     shot.save(str(out / names[0]))
     editor_shot(app, win, out / names[2])
+    new_shot(app, win, out / names[3])
     win._ask_unsaved = lambda _lbl: "discard"  # type: ignore[method-assign]
     win.close()
 
@@ -175,9 +176,7 @@ def editor_shot(app: QApplication, win: mw.MainWindow, path: Path) -> None:
     dlg.resize(1250, 640)
     dlg.show()
     dlg.new_from(LabelTemplate.ICON)
-    dlg.save()
     dlg.new_from(LabelTemplate.HEADER)
-    dlg.save()
     dlg.add_part(6)  # the label's pictogram
     el = dlg.work.elements[-1]
     el.move_to(0.0, 3.25)
@@ -199,6 +198,21 @@ def editor_shot(app: QApplication, win: mw.MainWindow, path: Path) -> None:
     win.library.set_templates([])  # the shots after this show the ready-made ones
 
 
+def new_shot(app: QApplication, win: mw.MainWindow, path: Path) -> None:
+    """The question a new template starts with: its name and where it starts."""
+    from etiknivo.gui.template_editor import NewTemplateDialog
+    from etiknivo.model import LabelTemplate
+
+    dlg = NewTemplateDialog(win.library, i18n.tr("Nieuw sjabloon"),
+                            f"builtin:{LabelTemplate.BAR_CALM.value}", win)
+    dlg.show()
+    for _ in range(10):
+        app.processEvents()
+        time.sleep(0.02)
+    dlg.grab().save(str(path))
+    dlg.close()
+
+
 def main(lang: str = "nl", only: str = "") -> None:
     i18n.set_language(lang)
     out = Path(__file__).resolve().parent.parent / "docs" / "img" / lang
@@ -210,9 +224,11 @@ def main(lang: str = "nl", only: str = "") -> None:
         window_shots(app, out, "light", "")
         window_shots(app, out, "dark", "-dark")
     template_shots(app, out,
-                   ("sjablonen.png", "sjabloon-resultaat.png", "sjablooneditor.png")
+                   ("sjablonen.png", "sjabloon-resultaat.png", "sjablooneditor.png",
+                    "sjabloon-nieuw.png")
                    if lang == "nl" else
-                   ("templates.png", "template-result.png", "template-editor.png"))
+                   ("templates.png", "template-result.png", "template-editor.png",
+                    "template-new.png"))
 
 
 if __name__ == "__main__":

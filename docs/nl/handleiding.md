@@ -200,15 +200,21 @@ Past geen van de sjablonen precies, maak dan je eigen sjabloon. Klik onder *Sjab
 
 ![Het venster Eigen sjablonen](../img/nl/sjablooneditor.png)
 
-- **Nieuw** maakt een leeg sjabloon of een kopie van een kant-en-klaar sjabloon om op voort te bouwen. Je kunt zo rustig alle sjablonen bekijken: er wordt pas iets bewaard als je op **Opslaan** klikt. Kies je een ander sjabloon zonder iets te veranderen, dan verdwijnt het nieuwe weer zonder vraag. De kant-en-klare sjablonen zelf veranderen niet.
+- De lijst links toont eerst **je eigen sjablonen** en daaronder de **kant-en-klare**. Klik op een kant-en-klaar sjabloon om het te bekijken; veranderen kan niet, en er wordt niets aangemaakt.
+- **Nieuw…** vraagt een naam en waarmee je begint: een leeg sjabloon, een van je eigen sjablonen of een kant-en-klaar sjabloon, met een voorbeeld ernaast. Pas na **OK** bestaat het nieuwe sjabloon; **Annuleren** laat niets achter.
+
+  ![Een nieuw sjabloon: naam en begin](../img/nl/sjabloon-nieuw.png)
+
+- **Dupliceren…** werkt hetzelfde, met het getoonde sjabloon als begin. Zo maak je van een kant-en-klaar sjabloon een eigen versie die je kunt aanpassen.
 - **Ongedaan maken** en **Opnieuw** (Ctrl+Z en Ctrl+Shift+Z, of Cmd op de Mac) werken in het venster, ook vlak na het opslaan. Ctrl+S slaat op.
 - Je bewerkt het sjabloon zoals de vrije layout: sleep een onderdeel om het te verplaatsen en sleep het hoekje rechtsonder om het groter of kleiner te maken. Rechts staan de precieze maten, het lettertype en de grootte.
 - Tijdens het slepen lijnt een onderdeel uit aan de randen en het midden van de andere onderdelen en van het printbare gebied. Een roze lijn laat zien waaraan. Houd Alt (Option op de Mac) ingedrukt om vrij te slepen. Dit werkt ook in de vrije layout.
 - **Onderdeel toevoegen** zet een deel van het label neer: bovenregel, hoofdregel, onderregel, lade-ID, QR-code, de tekst onder de QR-code of het pictogram van het label.
 - Een tekst toont wat elk label heeft via velden: `{Bovenregel}`, `{Hoofdregel}`, `{Onderregel}`, `{Lade}`, `{Code}`, `{Laderij}` en `{Ladenummer}` (de A en de 17 van A17), en `{Cel 1}` tot `{Cel 6}` (de delen van de onderregel tussen `|`). Typ je een regel in hoofdletters, zoals `{BOVENREGEL}`, dan staat hij in hoofdletters op het etiket. Je kunt ze ook mengen met gewone tekst, zoals `Lade {Lade}`.
 - Een tekst met precies één regel krijgt de opmaak van die regel. Per label pas je die dan gewoon aan, net als bij de kant-en-klare sjablonen.
-- **Opslaan** bewaart het sjabloon in je bibliotheek. Het staat daarna onderaan de sjabloonkiezer, met een voorbeeld, en ook in de kolom *Sjabloon* van *Labels bewerken*. Verander je een sjabloon later, dan veranderen alle labels die het gebruiken mee.
-- **Dupliceren** maakt een kopie. Je hernoemt een sjabloon door de naam te wijzigen en op te slaan. **Verwijderen** vraagt eerst om bevestiging; labels met dat sjabloon krijgen weer *Regels onder elkaar*.
+- **Opslaan als sjabloon…** (menu *Label*) maakt een eigen sjabloon van het label dat open staat: de regels, het lade-ID, de code en het pictogram worden velden, zodat andere labels er hun eigen tekst in krijgen.
+- **Opslaan** bewaart je wijzigingen in het sjabloon. Het staat daarna onderaan de sjabloonkiezer, met een voorbeeld, en ook in de kolom *Sjabloon* van *Labels bewerken*. Verander je een sjabloon later, dan veranderen alle labels die het gebruiken mee.
+- Je hernoemt een sjabloon door de naam te wijzigen en op te slaan. **Verwijderen** vraagt eerst om bevestiging; labels met dat sjabloon krijgen weer *Regels onder elkaar*.
 - QR-code, tekst onder de QR-code, lade-ID en pictogram zet je per label uit, zoals bij de kant-en-klare sjablonen. In een eigen sjabloon blijft hun vak dan leeg; de rest schuift niet op.
 - Een eigen sjabloon schaalt mee op een andere etiketrol. Het gaat mee in de back-up en in *Exporteren → Bibliotheek (JSON)*, en komt bij importeren weer terug.
 

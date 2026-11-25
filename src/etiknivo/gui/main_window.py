@@ -82,7 +82,7 @@ from etiknivo.rendering.export import (
 )
 from etiknivo.rendering.fonts import default_registry
 from etiknivo.rendering.patterns import calibration_raster, edge_test_raster, test_label
-from etiknivo.rendering.templates import apply_template
+from etiknivo.rendering.templates import apply_template, template_from_label
 from etiknivo.settings import Settings, data_dir, load_settings, log_dir, save_settings
 from etiknivo.storage import io as lio
 from etiknivo.storage.history import History, Snapshot
@@ -524,6 +524,7 @@ class MainWindow(QMainWindow):
         self.act_copy_format = act(m, tr("Opmaak overnemen…"), self.copy_format)
         act(m, tr("Pictogrammen…"), self.choose_pictograms)
         act(m, tr("Eigen sjablonen…"), self.edit_templates)
+        self.act_save_template = act(m, tr("Opslaan als sjabloon…"), self.save_as_template)
 
         m = mb.addMenu(tr("&Afdrukken"))
         self.act_print = act(m, tr("Huidig label…"), self.print_current, QKeySequence.StandardKey.Print)
@@ -1133,6 +1134,25 @@ class MainWindow(QMainWindow):
         dlg.templatesChanged.connect(self._templates_changed)
         self._template_editor = dlg  # for tests
         dlg.exec()
+
+    def save_as_template(self, name: str | None = None) -> None:
+        """Make an own template that looks like the current label: its texts,
+        code and pictogram become fields, so other labels fill it with theirs."""
+        lbl = self.current
+        if lbl is None:
+            return
+        if name is None:
+            name, ok = QInputDialog.getText(
+                self, tr("Opslaan als sjabloon"), tr("Naam van het sjabloon:"),
+                text=lbl.name)
+            if not ok:
+                return
+        tpl = template_from_label(lbl, self.engine, name.strip())
+        self.library.set_templates([*self.library.templates, tpl])
+        self._templates_changed()  # stored with the library
+        self.statusBar().showMessage(
+            tr("Sjabloon '{name}' opgeslagen: kies het onder Sjabloon of pas het aan in "
+               "Eigen sjablonen.", name=tpl.name), 6000)
 
     def _templates_changed(self) -> None:
         """Own templates saved or deleted: every label with one looks new."""
