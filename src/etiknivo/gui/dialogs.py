@@ -702,7 +702,7 @@ class AboutDialog(QDialog):
             (tr("Printkop"), f"{p.printhead_px} dots · {p.dpi} dpi"),
             (tr("Etiket"), tr("{w} × {h} mm, veilig gebied {sw} × {sh} mm",
                               w=f"{p.label_width_mm:g}", h=f"{p.label_height_mm:g}",
-                              sw=f"{p.label_width_mm - 2 * p.feed_margin_mm:g}",
+                              sw=f"{p.safe_length_mm:g}",
                               sh=f"{p.printable_across_px / p.dots_per_mm:g}")),
         ])
         link = f"color:{t.accent}; text-decoration:none"

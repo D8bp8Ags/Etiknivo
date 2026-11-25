@@ -26,13 +26,13 @@ def with_peers(engine: RenderEngine, labels: list[Label]) -> RenderEngine:
 
 
 def test_without_peers_every_label_sizes_on_its_own(engine: RenderEngine) -> None:
-    a = caps_label("Condensatoren", "100 nF", symbol="capacitor")
+    a = caps_label("Condensatoren", "1000 nF", symbol="capacitor")
     b = caps_label("Condensatoren", "1 nF", symbol="capacitor")
     assert sizes(engine, a)[1] < sizes(engine, b)[1]
 
 
 def test_category_shares_the_smallest_size_per_line(engine: RenderEngine) -> None:
-    a = caps_label("Condensatoren", "100 nF", symbol="capacitor")
+    a = caps_label("Condensatoren", "1000 nF", symbol="capacitor")
     b = caps_label("Condensatoren", "1 nF", symbol="capacitor")
     c = caps_label("Condensatoren", "10 µF")
     own = {lbl.id: sizes(engine, lbl) for lbl in (a, b, c)}

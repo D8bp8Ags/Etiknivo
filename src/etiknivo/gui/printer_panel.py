@@ -173,7 +173,8 @@ class PrinterPanel(QWidget):
     def apply_theme(self) -> None:
         for btn, name in ((self.scan_btn, "bluetooth"), (self.connect_btn, "plug"),
                           (self.disconnect_btn, "unplug"), (self.refresh_btn, "refresh-cw"),
-                          (self.test_btn, "printer"), (self.cal_btn, "ruler"), (self.edge_btn, "square-dashed"),
+                          (self.test_btn, "printer"), (self.cal_btn, "ruler"),
+                          (self.edge_btn, "square-dashed"),
                           (self.cal_settings_btn, "sliders-horizontal")):
             btn.setIcon(theme.icon(name, size=16))
         if hasattr(self, "_state"):

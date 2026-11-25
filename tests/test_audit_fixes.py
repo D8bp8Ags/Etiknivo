@@ -276,7 +276,9 @@ def test_boxes_turn_along_at_180_degrees(engine: RenderEngine) -> None:
     upright = engine.render(lbl)
     lbl.style.rotation = 180
     turned = engine.render(lbl)
-    h, w = turned.mono.height, turned.mono.width
+    # half a turn about the centre of the printable area (its margins differ)
+    px0, py0, px1, py1 = engine.printable_box
+    w, h = px0 + px1, py0 + py1
     for a, b in zip(upright.lines, turned.lines):
         assert b.x0 == pytest.approx(w - a.x1, abs=1.5)
         assert b.y0 == pytest.approx(h - a.y1, abs=1.5)

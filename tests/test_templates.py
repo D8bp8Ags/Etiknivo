@@ -87,8 +87,8 @@ def test_invert_element_turns_over_what_is_under_it(engine: RenderEngine) -> Non
     normal = engine.render(lbl).mono
     lbl.elements = [LabelElement(ElementKind.INVERT, 0, 0, 26, 4), text]  # order does not matter
     turned = engine.render(lbl).mono
-    px0, py0, px1, _ = engine.printable_box
-    box = (px0, py0, px1, py0 + 32)
+    px0, py0, _px1, _ = engine.printable_box
+    box = (px0, py0, px0 + 26 * 8, py0 + 32)  # the 26 × 4 mm inverted element
     area = (box[2] - box[0]) * (box[3] - box[1])
     assert ink(turned, box) == pytest.approx(area - ink(normal, box), rel=0.01)
     assert Label.from_dict(lbl.to_dict()).elements[0].kind == ElementKind.INVERT
