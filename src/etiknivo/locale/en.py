@@ -624,7 +624,26 @@ EN: dict[str, str] = {
     "CSV-bestand is leeg": "CSV file is empty",
     "CSV-bestand bevat geen kopregel": "CSV file has no header row",
     "{name} (kopie)": "{name} (copy)",
-    "{name} (nog niet opgeslagen)": "{name} (not saved yet)",
+    "Opslaan als sjabloon…": "Save as template…",
+    "Opslaan als sjabloon": "Save as template",
+    "Naam van het sjabloon:": "Name of the template:",
+    "Sjabloon '{name}' opgeslagen: kies het onder Sjabloon of pas het aan in Eigen sjablonen.":
+        "Template '{name}' saved: pick it under Template or change it in Own templates.",
+    "Nieuw…": "New…",
+    "Dupliceren…": "Duplicate…",
+    "De kant-en-klare sjablonen kun je bekijken maar niet veranderen: maak er met "
+    "Dupliceren een eigen versie van.":
+        "You can look at the ready-made templates but not change them: make a version of "
+        "your own with Duplicate.",
+    "Kant-en-klaar sjabloon: alleen bekijken. Klik op Dupliceren om er een eigen versie van "
+    "te maken die je kunt aanpassen.":
+        "Ready-made template: to look at only. Click Duplicate to make a version of your own "
+        "that you can change.",
+    "Kant-en-klaar": "Ready-made",
+    "Nog geen: klik op Nieuw…": "None yet: click New…",
+    "Maak met Nieuw… een eigen sjabloon.": "Make a template of your own with New….",
+    "Beginnen met": "Start from",
+    "Een leeg etiket: voeg zelf onderdelen toe.": "An empty label: add the parts yourself.",
     # -- specifications table and narrow inspector -------------------------------------
     "Stijl": "Style",
     "Een specificatie heeft een naam en een waarde, bv. Spanning en 50 V. Zet {Spanning} in "
@@ -985,10 +1004,6 @@ EN: dict[str, str] = {
     "Sjabloon '{name}' verwijderen?": "Delete template '{name}'?",
     "Eigen sjablonen": "Own templates",
     "Leeg sjabloon": "Empty template",
-    "Kopie van een kant-en-klaar sjabloon": "Copy of a ready-made template",
-    "De kant-en-klare sjablonen veranderen niet: maak met Nieuw een kopie om op voort te "
-    "bouwen.":
-        "The ready-made templates do not change: use New to make a copy to build on.",
     "Naam van het sjabloon": "Name of the template",
     "Teksten met {Bovenregel}, {Hoofdregel}, {Onderregel}, {Lade} of {Code} tonen wat het "
     "label heeft; in hoofdletters ({BOVENREGEL}) staat de regel in hoofdletters. {Cel 1} tot "
@@ -1001,10 +1016,8 @@ EN: dict[str, str] = {
         "pictogram' shows each label's pictogram. A text with exactly one line gets that "
         "line's look, which you can change per label.",
     "Wijzigingen in '{name}' opslaan?": "Save the changes to '{name}'?",
-    "Nieuw": "New",
     "Je eigen sjablonen": "Your own templates",
     "Onderdeel toevoegen": "Add part",
-    "Maak met Nieuw een eigen sjabloon.": "Use New to make a template of your own.",
     "{n} labels gebruiken het; die krijgen weer de regels onder elkaar.":
         "{n} labels use it; they go back to the lines under each other.",
     "Nieuw sjabloon": "New template",

@@ -326,11 +326,17 @@ def template_from_builtin(template: LabelTemplate, area_mm: tuple[float, float],
     lbl.picture.kind, lbl.picture.symbol = PictureKind.SYMBOL, "led"
     apply_template(lbl, template)
     items, _ = template_items(lbl, area_mm)
+    return UserTemplate(name=name or tr(TEMPLATE_INFO[template][0]), width_mm=area_mm[0],
+                        height_mm=area_mm[1], elements=_fields_for(items))
+
+
+def _fields_for(items: list[Placed]) -> list[LabelElement]:
+    """A template's elements with fields in place of the label's own texts."""
     line_field = [part_field(k) for k in ("top", "main", "bottom")]
     elements: list[LabelElement] = []
     cell = 0
     for item in items:
-        el = item.element
+        el = LabelElement(**{**item.element.__dict__})
         if el.kind in (ElementKind.SYMBOL, ElementKind.IMAGE):
             el.kind, el.symbol, el.image_png = ElementKind.SYMBOL, PICTOGRAM_FIELD, ""
         elif el.kind in (ElementKind.QR, ElementKind.BARCODE):
@@ -355,8 +361,50 @@ def template_from_builtin(template: LabelTemplate, area_mm: tuple[float, float],
                 el.text = tray_field()
         el.id = LabelElement().id
         elements.append(el)
-    return UserTemplate(name=name or tr(TEMPLATE_INFO[template][0]), width_mm=area_mm[0],
-                        height_mm=area_mm[1], elements=elements)
+    return elements
+
+
+def template_from_label(label: Label, engine: object, name: str = "") -> UserTemplate:
+    """An own template that looks like *label* does now: its texts, code and
+    pictogram become the fields that fill them from every label.  *engine* is
+    the :class:`~etiknivo.rendering.engine.RenderEngine` it is drawn with."""
+    import copy
+
+    area = engine.area_mm  # type: ignore[attr-defined]
+    name = name or label.name or tr("Naamloos sjabloon")
+    own = custom_template(label)
+    if own is not None:
+        out = copy.deepcopy(own)
+        out.id, out.name = UserTemplate().id, name
+        for el in out.elements:
+            el.id = LabelElement().id
+        return out
+    if label.uses_template:
+        items, _ = template_items(label, area)
+        return UserTemplate(name=name, width_mm=area[0], height_mm=area[1],
+                            elements=_fields_for(items))
+    lines = {ln.text: part_field(key) for key, ln in
+             reversed(list(zip(("top", "main", "bottom"), label.lines))) if ln.text.strip()}
+    elements: list[LabelElement] = []
+    for src in engine.to_elements(label):  # type: ignore[attr-defined]
+        el = LabelElement(**{**src.__dict__})
+        el.id = LabelElement().id
+        if el.kind == ElementKind.TEXT:
+            if el.text in lines:
+                el.text = lines[el.text]
+            elif label.tray_id.strip() and el.text.strip() == label.tray_id.strip():
+                el.text = tray_field()
+        elif el.kind in (ElementKind.QR, ElementKind.BARCODE):
+            if el.text == label.code.text:
+                el.text = part_field("code")
+        elif el.kind == ElementKind.SYMBOL and label.picture.kind == PictureKind.SYMBOL and \
+                el.symbol == label.picture.symbol:
+            el.symbol = PICTOGRAM_FIELD
+        elif el.kind == ElementKind.IMAGE and label.picture.kind == PictureKind.IMAGE and \
+                el.image_png == label.picture.image_png:
+            el.kind, el.symbol, el.image_png = ElementKind.SYMBOL, PICTOGRAM_FIELD, ""
+        elements.append(el)
+    return UserTemplate(name=name, width_mm=area[0], height_mm=area[1], elements=elements)
 
 
 def _custom(b: _Builder) -> None:

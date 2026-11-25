@@ -138,6 +138,16 @@ def test_templates_are_stored_in_the_library_and_exports(tmp_path) -> None:  # n
     assert Label.from_dict(again.labels[0].to_dict()).template == LabelTemplate.CUSTOM
 
 
+def _own_names(dlg) -> list[str]:  # noqa: ANN001
+    """The names under "your own templates" in the editor's list."""
+    out = []
+    for r in range(dlg.list.count()):
+        key = dlg.list.item(r).data(Qt.ItemDataRole.UserRole)
+        if key and not key.startswith("builtin:"):
+            out.append(dlg.list.item(r).text())
+    return out
+
+
 def test_editor_makes_changes_and_deletes(qtbot, window) -> None:  # noqa: ANN001, F811
     from etiknivo.gui.template_editor import TemplateEditor
 
@@ -145,30 +155,36 @@ def test_editor_makes_changes_and_deletes(qtbot, window) -> None:  # noqa: ANN00
     dlg = TemplateEditor(lib, window.engine, ["DejaVu Sans"], window)
     qtbot.addWidget(dlg)
     dlg.templatesChanged.connect(window._templates_changed)
-    assert dlg.list.count() == 0 and not dlg.name.isEnabled()
-    # looking through the ready-made ones keeps nothing and asks nothing
+    # no own ones yet: the first ready-made one is shown, to look at only
+    assert _own_names(dlg) == [] and dlg.builtin is not None
+    assert not dlg.name.isEnabled() and not dlg.del_btn.isEnabled()
+    assert dlg.dup_btn.isEnabled() and not dlg.save_btn.isEnabled()
+    # looking through the ready-made ones makes nothing and asks nothing
     dlg.ask_unsaved = lambda _name: pytest.fail("asked about an unchanged template")
     for tpl in (LabelTemplate.ICON, LabelTemplate.HEADER, LabelTemplate.QR):
-        dlg.new_from(tpl)
-        assert dlg.draft and not dlg.dirty and dlg.save_btn.isEnabled()
-        assert dlg.list.count() == 1 and lib.templates == []
-        assert "nog niet opgeslagen" in dlg.list.item(0).text()
-    dlg.new_from(LabelTemplate.ICON)
+        dlg._select_in_list(f"builtin:{tpl.value}")
+        dlg._open(f"builtin:{tpl.value}")
+        assert dlg.builtin == tpl and lib.templates == []
+    # Nieuw…: cancelled leaves nothing behind
+    dlg.ask_new = lambda _name, _start: None
+    dlg.new_template()
+    assert lib.templates == [] and _own_names(dlg) == []
+    # Nieuw… with a name and a start: kept at once, in the list
+    asked = []
+    dlg.ask_new = lambda name, start: asked.append((name, start)) or (
+        "Bakje", f"builtin:{LabelTemplate.ICON.value}")
+    dlg.new_template()
+    assert asked == [("Nieuw sjabloon", f"builtin:{LabelTemplate.QR.value}")]
+    assert [t.name for t in lib.templates] == ["Bakje"] and _own_names(dlg) == ["Bakje"]
+    assert dlg.builtin is None and dlg.name.isEnabled() and not dlg.dirty
     assert any(el.symbol == PICTOGRAM_FIELD for el in dlg.work.elements)
-    assert dlg.save()  # saving keeps it
-    assert not dlg.draft and dlg.list.count() == 1
-    assert [t.name for t in lib.templates] == ["Pictogram links (eigen)"]
-    assert dlg.list.item(0).text() == "Pictogram links (eigen)"
     dlg.confirm = lambda _text: True
-    dlg.name.setText("Bakje")
-    dlg.name.textEdited.emit("Bakje")
     n = len(dlg.work.elements)
     dlg.add_part(4)  # a QR code of the label's code
     assert len(dlg.work.elements) == n + 1
     assert dlg.work.elements[-1].kind == ElementKind.QR
     assert dlg.dirty and dlg.save_btn.isEnabled()
     assert dlg.save()
-    assert [t.name for t in lib.templates] == ["Bakje"] and dlg.list.count() == 1
     # the chooser offers it, with the ready-made ones
     box = window.properties.template
     value = f"custom:{lib.templates[0].id}"
@@ -178,20 +194,73 @@ def test_editor_makes_changes_and_deletes(qtbot, window) -> None:  # noqa: ANN00
     cur = window.current
     assert cur.template == LabelTemplate.CUSTOM and cur.code.kind == CodeKind.QR
     window.save_current()
-    # a copy, then the original is deleted: its labels go back to the lines
+    # Dupliceren asks a name too; the copy is its own template
+    dlg.ask_new = lambda name, start: (name, start)
     dlg.duplicate()
-    assert dlg.work.name == "Bakje (kopie)" and not dlg.dirty and dlg.draft
-    assert [t.name for t in lib.templates] == ["Bakje"]  # not until it is saved
-    dlg.delete()  # the unsaved copy goes without a question
-    dlg.confirm = lambda _text: True
+    assert dlg.work.name == "Bakje (kopie)" and not dlg.dirty
+    assert sorted(t.name for t in lib.templates) == ["Bakje", "Bakje (kopie)"]
+    assert len(dlg.work.elements) == n + 1
+    dlg.delete()  # the copy
     dlg._select_in_list(lib.templates[0].id)
-    dlg._edit(lib.templates[0])
+    dlg._open(lib.templates[0].id)
     assert dlg.work.name == "Bakje"
     dlg.delete()
-    assert lib.templates == [] and dlg.work is None
+    assert lib.templates == [] and dlg.builtin is not None
     assert window.current.template == LabelTemplate.NONE
     assert all(lbl.template != LabelTemplate.CUSTOM for lbl in lib.labels)
     assert box.findData(value) < 0
+    # a ready-made one duplicated becomes an own one
+    dlg._open(f"builtin:{LabelTemplate.GRID.value}")
+    dlg.duplicate()
+    assert [t.name for t in lib.templates] == ["Specificaties in vakjes (kopie)"]
+
+
+def test_new_template_dialog_shows_the_start(qtbot, window) -> None:  # noqa: ANN001, F811
+    from etiknivo.gui.template_editor import NewTemplateDialog
+
+    own = template_from_builtin(LabelTemplate.HEADER, window.engine.area_mm, "Mijn kop")
+    window.library.set_templates([own])
+    dlg = NewTemplateDialog(window.library, "Nieuw sjabloon", own.id)
+    qtbot.addWidget(dlg)
+    assert dlg.result_start() == own.id and dlg.preview.pixmap() is not None
+    assert not dlg.preview.pixmap().isNull()
+    dlg.name.setText("  ")
+    assert not dlg.ok_btn.isEnabled()
+    dlg.name.setText("Ander")
+    dlg._select("")
+    assert dlg.result_name() == "Ander" and dlg.result_start() == ""
+    dlg._select(f"builtin:{LabelTemplate.QR.value}")
+    assert dlg.result_start() == f"builtin:{LabelTemplate.QR.value}"
+
+
+def test_save_label_as_template(window, engine: RenderEngine) -> None:  # noqa: ANN001, F811
+    lbl = window.current
+    lbl.picture.kind, lbl.picture.symbol = PictureKind.SYMBOL, "led"
+    before = window.engine.render(lbl).mono
+    window.save_as_template("Van label")
+    tpl = next(t for t in window.library.templates if t.name == "Van label")
+    texts = {el.text for el in tpl.elements if el.kind == ElementKind.TEXT}
+    assert "{Hoofdregel}" in texts or "{Main line}" in texts
+    assert any(el.symbol == PICTOGRAM_FIELD for el in tpl.elements)
+    # the label in its own new template looks as it did
+    copy = lbl.clone()
+    apply_template(copy, LabelTemplate.CUSTOM, tpl.id)
+    after = window.engine.render(copy)
+    assert after.warnings == []
+
+    def ink(img) -> int:  # noqa: ANN001
+        return sum(1 for v in img.convert("L").get_flattened_data() if v == 0)
+
+    # the same parts in the same places (text may land a dot apart)
+    assert abs(ink(after.mono) - ink(before)) < 0.05 * ink(before)
+    b0 = ImageChops.invert(before.convert("L")).getbbox()
+    b1 = ImageChops.invert(after.mono.convert("L")).getbbox()
+    assert all(abs(p - q) <= 2 for p, q in zip(b0, b1))
+    # also from a label with a ready-made template
+    apply_template(lbl, LabelTemplate.BAR_CALM)
+    window.save_as_template("Balk")
+    tpl = next(t for t in window.library.templates if t.name == "Balk")
+    assert any(el.text == "{Categorie}" for el in tpl.elements)
 
 
 def test_bulk_edit_gives_labels_a_template(window, monkeypatch) -> None:  # noqa: ANN001, F811
