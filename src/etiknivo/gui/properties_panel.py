@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import functools
 import html
 from collections.abc import Callable
 from pathlib import Path
 
+from PIL import Image
 from PySide6.QtCore import QEvent, QObject, QSettings, QSize, Qt, Signal
+from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -29,6 +32,7 @@ from PySide6.QtWidgets import (
 from etiknivo.gui import theme
 from etiknivo.gui.element_panel import ElementPanel
 from etiknivo.gui.notes_edit import NotesEdit, find_links
+from etiknivo.gui.qt_util import pil_to_pixmap
 from etiknivo.gui.specs_editor import SpecsEditor
 from etiknivo.gui.widgets import (
     ALIGN_TEXT,
@@ -46,16 +50,20 @@ from etiknivo.model import (
     FIELD_RE,
     LINE_COUNT_PRESETS,
     SLOT_NAMES,
+    TEMPLATE_INFO,
     CodeKind,
     CodeSize,
     HAlign,
     Label,
     LabelStyle,
+    LabelTemplate,
     LayoutPreset,
     PictureKind,
     VAlign,
+    make_label,
 )
 from etiknivo.rendering import pictures
+from etiknivo.rendering.templates import apply_template
 from etiknivo.settings import data_dir
 
 VALIGN_TEXT = {VAlign.TOP: N_("Boven"), VAlign.CENTER: N_("Midden"), VAlign.BOTTOM: N_("Onder")}
@@ -79,6 +87,34 @@ CODE_CHOICES = (
     (CodeKind.QR, N_("QR-code")),
     (CodeKind.CODE128, N_("Barcode (Code 128) onderaan")),
 )
+
+
+@functools.cache
+def _template_sample(tpl: LabelTemplate) -> Image.Image:
+    """A sample label (LED, red, A17) in *tpl*, cropped to the printable area."""
+    from etiknivo.rendering.engine import RenderEngine
+    cells = tpl == LabelTemplate.GRID  # only the grid splits the bottom line at |
+    lbl = make_label("A17", tr("Halfgeleiders"), tr("Rood"),
+                     "Ø 3 mm | THT" if cells else "Ø 3 mm THT")
+    lbl.top.text, lbl.top.enabled = "LED", True
+    lbl.picture.kind, lbl.picture.symbol = PictureKind.SYMBOL, "led"
+    lbl.template = tpl
+    engine = RenderEngine()
+    if tpl == LabelTemplate.ZONES:
+        engine = RenderEngine(engine.profile.with_label(50.0, 14.0))
+    return engine.render(lbl).mono.crop(engine.printable_box).convert("L")
+
+
+def template_icon(tpl: LabelTemplate) -> QIcon:
+    """What a template looks like, for the chooser."""
+    img = _template_sample(tpl)
+    w, h = 144, 68
+    scale = min(w / img.width, h / img.height)
+    img = img.resize((round(img.width * scale), round(img.height * scale)),
+                     Image.Resampling.LANCZOS)
+    canvas = Image.new("L", (w, h), 255)
+    canvas.paste(img, ((w - img.width) // 2, (h - img.height) // 2))
+    return QIcon(pil_to_pixmap(canvas))
 
 
 def position_combo() -> QComboBox:
@@ -264,7 +300,18 @@ class PropertiesPanel(QScrollArea):
         f.addRow(tr("Naam"), self.name)
         f.addRow(tr("Lade-ID"), self.tray)
         f.addRow(tr("Categorie"), self.category)
+        self.template = combo()
+        self.template.setIconSize(QSize(72, 34))
+        self.template.setMinimumHeight(40)  # room for the picture of the template
+        for tpl, (name, desc) in TEMPLATE_INFO.items():
+            self.template.addItem(template_icon(tpl), tr(name), tpl.value)
+            self.template.setItemData(self.template.count() - 1, tr(desc),
+                                      Qt.ItemDataRole.ToolTipRole)
+        self.template.setToolTip(tr("Kant-en-klare indeling van de regels, het lade-ID, de "
+                                    "code en het pictogram. Met Vrij pas je daarna kleine "
+                                    "dingen aan."))
         f.addRow(tr("Layout"), mode)
+        f.addRow(tr("Sjabloon"), self.template)
         f.addRow(tr("Regels"), counts)
         self._label_form = f
         self._counts_row = counts
@@ -440,6 +487,7 @@ class PropertiesPanel(QScrollArea):
         self.category.activated.connect(self._commit_category)
         self.mode_lines.clicked.connect(lambda: self._mode_chosen(free=False))
         self.mode_free.clicked.connect(lambda: self._mode_chosen(free=True))
+        self.template.activated.connect(self._template_chosen)
         for w in (self.valign, self.rotation):
             w.currentIndexChanged.connect(lambda: self._apply(False))
         for w in (self.spacing, self.margin_h, self.margin_v):
@@ -499,6 +547,7 @@ class PropertiesPanel(QScrollArea):
             self.category.setCurrentText(label.category)
             self.mode_free.setChecked(label.is_free)
             self.mode_lines.setChecked(not label.is_free)
+            self.template.setCurrentIndex(max(0, self.template.findData(label.template.value)))
             self._show_count()
             for le, ln in zip(self.lines, label.lines):
                 le.setChecked(ln.enabled)
@@ -558,19 +607,52 @@ class PropertiesPanel(QScrollArea):
     def _update_mode(self) -> None:
         """The free layout edits elements; the others the three lines."""
         free = self.label is not None and self.label.is_free
+        tpl = self._active_template()
         self.elements.setVisible(free)
         self._label_form.setRowVisible(self._counts_row, not free)
-        self.layout_hint.setText(
-            tr("De lade-ID komt alleen op het etiket als een element {Lade} bevat. De "
-               "elementen staan los van de regels: wat je hier verandert, komt daar niet "
-               "terug.") if free else
-            tr("De lade-ID komt alleen op het etiket als een regel {Lade} bevat. Met 1, 2 of "
-               "3 zet je regels aan of uit; hun tekst en opmaak blijven bewaard."))
-        for w in (self.text_section, self.code_group, self.pic_group):
-            w.setVisible(not free)
-        for w in (self.valign, self.spacing, self.margin_h, self.margin_v, self.rotation,
-                  self.autofit, self.same_size, self.separators):
+        self._label_form.setRowVisible(self.template, not free)
+        if free:
+            hint = tr("De lade-ID komt alleen op het etiket als een element {Lade} bevat. De "
+                      "elementen staan los van de regels: wat je hier verandert, komt daar "
+                      "niet terug.")
+        elif tpl != LabelTemplate.NONE:
+            hint = tr(TEMPLATE_INFO[tpl][1]) + ". " + tr(
+                "Het sjabloon bepaalt plaats en grootte; de tekst komt uit de regels. Kies "
+                "Vrij om daarna iets te verschuiven.")
+        else:
+            hint = tr("De lade-ID komt alleen op het etiket als een regel {Lade} bevat. Met "
+                      "1, 2 of 3 zet je regels aan of uit; hun tekst en opmaak blijven bewaard.")
+        self.layout_hint.setText(hint)
+        self.text_section.setVisible(not free)
+        self.code_group.setVisible(not free and tpl in (
+            LabelTemplate.NONE, LabelTemplate.QR, LabelTemplate.ZONES))
+        self.pic_group.setVisible(not free and tpl in (
+            LabelTemplate.NONE, LabelTemplate.ICON, LabelTemplate.ZONES))
+        for w in (self.autofit, self.same_size):
             self._style_form.setRowVisible(w, not free)
+        # a template places the lines itself
+        for w in (self.valign, self.spacing, self.margin_h, self.margin_v, self.rotation,
+                  self.separators):
+            self._style_form.setRowVisible(w, not free and tpl == LabelTemplate.NONE)
+        self._update_code_hint()
+        self._update_picture_widgets()
+
+    def _active_template(self) -> LabelTemplate:
+        """The template that lays out the label now (NONE in the free layout)."""
+        lbl = self.label
+        return lbl.template if lbl is not None and lbl.uses_template else LabelTemplate.NONE
+
+    def _template_chosen(self) -> None:
+        """A template from the chooser: the label takes it at once."""
+        lbl = self.label
+        if self._loading or lbl is None:
+            return
+        tpl = LabelTemplate(self.template.currentData() or LabelTemplate.NONE.value)
+        if tpl == lbl.template:
+            return
+        apply_template(lbl, tpl)
+        self.set_label(lbl)
+        self._emit(True)
 
     def show_fitted_sizes(self, sizes: dict[int, tuple[float, float, str]]) -> None:
         """Show the auto-fit result per slot: {slot: (fitted_pt, requested_pt,
@@ -581,9 +663,13 @@ class PropertiesPanel(QScrollArea):
             idx = self.label.elements.index(el) if el is not None else -1
             self.elements.show_fitted(sizes[idx][0] if idx in sizes else None)
             return
+        templated = self.label is not None and self.label.uses_template
         for le in self.lines:
             fitted = sizes.get(le.slot)
-            if fitted and fitted[2] == "shared":
+            if templated:
+                le.set_fitted(tr("Grootte volgt het sjabloon: {pt} pt", pt=f"{fitted[0]:.1f}")
+                              if fitted else "")
+            elif fitted and fitted[2] == "shared":
                 le.set_fitted(tr("{pt} pt, gelijk aan de rest van de categorie",
                                  pt=f"{fitted[0]:.1f}"))
             elif fitted and fitted[0] < fitted[1] - 0.05:
@@ -712,8 +798,9 @@ class PropertiesPanel(QScrollArea):
         self.pic_symbol.setEnabled(kind == PictureKind.SYMBOL)
         self.pic_image_btn.setEnabled(kind == PictureKind.IMAGE)
         # only the rows that matter for the chosen kind
-        self._pic_form.setRowVisible(self.pic_pos, kind != PictureKind.NONE)
-        self._pic_form.setRowVisible(self._pic_size_box, kind != PictureKind.NONE)
+        placed = self._active_template() == LabelTemplate.NONE  # else the template places it
+        self._pic_form.setRowVisible(self.pic_pos, placed and kind != PictureKind.NONE)
+        self._pic_form.setRowVisible(self._pic_size_box, placed and kind != PictureKind.NONE)
         self._pic_form.setRowVisible(self.pic_symbol, kind == PictureKind.SYMBOL)
         self._pic_form.setRowVisible(self.pic_image_btn, kind == PictureKind.IMAGE)
         has = bool(self.label and self.label.picture.image_png)
@@ -764,6 +851,18 @@ class PropertiesPanel(QScrollArea):
         self.notes_links.setToolTip("\n".join(links))
 
     def _update_code_hint(self) -> None:
+        if self._active_template() != LabelTemplate.NONE:
+            # the template always shows a QR code with its content below it
+            self.code_text.setEnabled(True)
+            self.code_field_btn.setEnabled(True)
+            for w in (self.code_kind, self.code_pos, self._code_size_box):
+                self._code_form.setRowVisible(w, False)
+            self._code_form.setRowVisible(self._code_row, True)
+            self.code_hint.setText(tr("Het sjabloon zet een QR-code met deze inhoud op het "
+                                      "label, met de tekst leesbaar eronder."))
+            self._code_form.setRowVisible(self.code_hint, True)
+            return
+        self._code_form.setRowVisible(self.code_kind, True)
         kind = CODE_CHOICES[max(0, self.code_kind.currentIndex())][0]
         self.code_text.setEnabled(kind != CodeKind.NONE)
         self.code_field_btn.setEnabled(kind != CodeKind.NONE)

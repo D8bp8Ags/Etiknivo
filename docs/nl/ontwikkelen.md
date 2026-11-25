@@ -36,7 +36,7 @@ src/etiknivo/
 ├── logging_setup.py       app.log en print.log
 ├── privacy.py             thuismap en Bluetooth-adres afschermen in log en interface
 ├── storage/               bibliotheek (JSON), import/export (JSON, CSV, back-up)
-├── rendering/             renderengine, lettertypen, codes, export (PNG/PDF/SVG), test- en kalibratiepatronen
+├── rendering/             renderengine, sjablonen, lettertypen, codes, export (PNG/PDF/SVG), test- en kalibratiepatronen
 ├── printing/
 │   ├── profiles.py        printerprofielen: geometrie, marges, dichtheden
 │   ├── registry.py        ondersteunde modellen: welk profiel bij welke backend hoort

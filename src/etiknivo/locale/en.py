@@ -548,7 +548,7 @@ EN: dict[str, str] = {
     "Toepassen op {n} label(s)": "Apply to {n} label(s)",
     "Opmaak overnemen…": "Copy format…",
     "Opmaak overgenomen op {n} label(s)": "Format copied to {n} label(s)",
-    "Layout en lettertypen": "Layout and fonts",
+    "Layout, sjabloon en lettertypen": "Layout, template and fonts",
     "Opmaak (uitlijning, marges, rand, rotatie)": "Style (alignment, margins, border, rotation)",
     "90° (van onder naar boven lezen)": "90° (reads bottom to top)",
     "270° (van boven naar onder lezen)": "270° (reads top to bottom)",
@@ -886,4 +886,51 @@ EN: dict[str, str] = {
         "Library was made with a newer version of Etiknivo (schema %d, this version knows %d)",
     "Kopie van de bibliotheek van de nieuwere versie bewaard: %s":
         "Kept a copy of the newer version's library: %s",
+    # -- templates ---------------------------------------------------------------------
+    "Sjabloon": "Template",
+    "Halfgeleiders": "Semiconductors",
+    "Rood": "Red",
+    "Kant-en-klare indeling van de regels, het lade-ID, de code en het pictogram. Met Vrij "
+    "pas je daarna kleine dingen aan.":
+        "Ready-made arrangement of the lines, the tray ID, the code and the pictogram. "
+        "Use Free afterwards for small changes.",
+    "Het sjabloon zet een QR-code met deze inhoud op het label, met de tekst leesbaar "
+    "eronder.":
+        "The template puts a QR code with this content on the label, with the text "
+        "readable below it.",
+    "Het sjabloon bepaalt plaats en grootte; de tekst komt uit de regels. Kies Vrij om "
+    "daarna iets te verschuiven.":
+        "The template decides position and size; the text comes from the lines. Choose "
+        "Free to move something afterwards.",
+    "Grootte volgt het sjabloon: {pt} pt": "Size set by the template: {pt} pt",
+    "Regels onder elkaar": "Lines under each other",
+    "De regels onder elkaar, met pictogram en code ernaast":
+        "The lines under each other, with pictogram and code beside them",
+    "Locatie eerst": "Location first",
+    "Lade-ID groot in een kader links, de tekst ernaast":
+        "Tray ID large in a frame on the left, the text beside it",
+    "Waarde groot": "Value large",
+    "Hoofdregel zo groot mogelijk; bovenregel en lade-ID in de hoeken":
+        "Main line as large as possible; top line and tray ID in the corners",
+    "Kopbalk": "Header bar",
+    "Bovenregel en lade-ID wit op een zwarte balk":
+        "Top line and tray ID white on a black bar",
+    "Pictogram-kolom": "Pictogram column",
+    "Pictogram over de volle hoogte, een lijn, dan de tekst":
+        "Pictogram over the full height, a line, then the text",
+    "QR-vak": "QR box",
+    "QR-code met de inhoud leesbaar eronder, de tekst ernaast":
+        "QR code with its content readable below it, the text beside it",
+    "Specificatie-raster": "Specification grid",
+    "Bovenregel en hoofdregel als kop; de onderregel in vakjes, gescheiden door |":
+        "Top and main line as the heading; the bottom line in cells, separated by |",
+    "Op afstand leesbaar": "Readable from a distance",
+    "Alleen de hoofdregel groot; bovenregel en lade-ID klein eronder":
+        "Only the main line large; top line and tray ID small below it",
+    "Drie zones": "Three zones",
+    "Pictogram, tekst met kopbalk en QR-code naast elkaar; voor lange labels":
+        "Pictogram, text with a header bar and QR code side by side; for long labels",
+    "Kies een pictogram voor dit sjabloon": "Choose a pictogram for this template",
+    "Dit sjabloon heeft tekst nodig: vul de regels of de lade-ID in":
+        "This template needs text: fill in the lines or the tray ID",
 }

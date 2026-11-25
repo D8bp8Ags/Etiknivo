@@ -36,7 +36,7 @@ src/etiknivo/
 ├── logging_setup.py       app.log and print.log
 ├── privacy.py             masks the home folder and Bluetooth address in logs and the interface
 ├── storage/               library (JSON), import/export (JSON, CSV, backup)
-├── rendering/             render engine, fonts, codes, export (PNG/PDF/SVG), test and calibration patterns
+├── rendering/             render engine, templates, fonts, codes, export (PNG/PDF/SVG), test and calibration patterns
 ├── printing/
 │   ├── profiles.py        printer profiles: geometry, margins, densities
 │   ├── registry.py        supported models: which profile goes with which backend

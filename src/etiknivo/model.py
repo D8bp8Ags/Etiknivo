@@ -25,7 +25,8 @@ from etiknivo.i18n import N_, format_date, tr
 
 #: Version of the library file.  2 (Etiknivo 0.2): line, style, code and
 #: picture fields added since 0.1.0 (``same_size_in_category``, ``valign`` and
-#: ``size`` of the QR code and the pictogram); ``format`` is no longer used.
+#: ``size`` of the QR code and the pictogram, ``template`` of the label);
+#: ``format`` is no longer used.
 SCHEMA_VERSION = 2
 
 E = TypeVar("E", bound=StrEnum)
@@ -104,6 +105,48 @@ class LayoutPreset(StrEnum):
     CUSTOM = "custom"
     FREE = "free"
 
+
+class LabelTemplate(StrEnum):
+    """A ready-made arrangement of the label's parts, after how professional
+    labels are laid out (see :mod:`etiknivo.rendering.templates`).  NONE puts
+    the lines under each other as before."""
+
+    NONE = "none"
+    LOCATION = "location"
+    VALUE = "value"
+    HEADER = "header"
+    ICON = "icon"
+    QR = "qr"
+    GRID = "grid"
+    DISTANCE = "distance"
+    ZONES = "zones"
+
+
+#: (name, what it is for) per template, in the order of the chooser
+TEMPLATE_INFO: dict[LabelTemplate, tuple[str, str]] = {
+    LabelTemplate.NONE: (N_("Regels onder elkaar"),
+                         N_("De regels onder elkaar, met pictogram en code ernaast")),
+    LabelTemplate.LOCATION: (N_("Locatie eerst"),
+                             N_("Lade-ID groot in een kader links, de tekst ernaast")),
+    LabelTemplate.VALUE: (N_("Waarde groot"),
+                          N_("Hoofdregel zo groot mogelijk; bovenregel en lade-ID in de "
+                             "hoeken")),
+    LabelTemplate.HEADER: (N_("Kopbalk"),
+                           N_("Bovenregel en lade-ID wit op een zwarte balk")),
+    LabelTemplate.ICON: (N_("Pictogram-kolom"),
+                         N_("Pictogram over de volle hoogte, een lijn, dan de tekst")),
+    LabelTemplate.QR: (N_("QR-vak"),
+                       N_("QR-code met de inhoud leesbaar eronder, de tekst ernaast")),
+    LabelTemplate.GRID: (N_("Specificatie-raster"),
+                         N_("Bovenregel en hoofdregel als kop; de onderregel in vakjes, "
+                            "gescheiden door |")),
+    LabelTemplate.DISTANCE: (N_("Op afstand leesbaar"),
+                             N_("Alleen de hoofdregel groot; bovenregel en lade-ID klein "
+                                "eronder")),
+    LabelTemplate.ZONES: (N_("Drie zones"),
+                          N_("Pictogram, tekst met kopbalk en QR-code naast elkaar; voor "
+                             "lange labels")),
+}
 
 #: the layout stored for each quick choice of 1, 2 or 3 lines
 LINE_COUNT_PRESETS = {1: LayoutPreset.SINGLE, 2: LayoutPreset.MAIN_SPEC,
@@ -349,6 +392,7 @@ class ElementKind(StrEnum):
     IMAGE = "image"
     LINE = "line"
     BOX = "box"
+    INVERT = "invert"
 
 
 ELEMENT_TITLES: dict[ElementKind, str] = {
@@ -359,6 +403,7 @@ ELEMENT_TITLES: dict[ElementKind, str] = {
     ElementKind.IMAGE: N_("Afbeelding"),
     ElementKind.LINE: N_("Lijn"),
     ElementKind.BOX: N_("Kader"),
+    ElementKind.INVERT: N_("Wit op zwart"),
 }
 
 #: Smallest element side: one printer dot.
@@ -372,7 +417,8 @@ class LabelElement:
     The box is in millimetres from the top-left corner of the printable area,
     in design orientation.  Text shrinks to fit its box; codes, symbols and
     images are scaled to fit and centred; a line fills its box (a thin box is
-    a line); a frame is a one-dot outline of its box.
+    a line); a frame is a one-dot outline of its box; "white on black" turns
+    everything in its box over, drawn after the other elements.
     """
 
     kind: ElementKind = ElementKind.TEXT
@@ -452,6 +498,8 @@ class Label:
     format: LabelFormat = field(default_factory=LabelFormat)
     code: LabelCode = field(default_factory=LabelCode)
     picture: LabelPicture = field(default_factory=LabelPicture)
+    #: ready-made arrangement of the lines, used unless ``layout`` is FREE
+    template: LabelTemplate = LabelTemplate.NONE
     #: loose elements, used when ``layout`` is FREE
     elements: list[LabelElement] = field(default_factory=list)
     #: :meth:`lines_key` of the lines the elements were made from
@@ -507,6 +555,11 @@ class Label:
     @property
     def is_free(self) -> bool:
         return self.layout == LayoutPreset.FREE
+
+    @property
+    def uses_template(self) -> bool:
+        """Whether a template lays out the label (and the free layout does not)."""
+        return not self.is_free and self.template != LabelTemplate.NONE
 
     def _texts(self) -> list[str]:
         return [ln.text for ln in self.lines] + [self.code.text] + \
@@ -605,6 +658,8 @@ class Label:
         """Hash of what the free layout's elements are made from."""
         d = {"lines": [asdict(x) for x in self.lines], "code": asdict(self.code),
              "picture": asdict(self.picture)}
+        if self.template != LabelTemplate.NONE:
+            d["template"] = str(self.template)
         return hashlib.sha1(json.dumps(d, sort_keys=True, default=str).encode()).hexdigest()
 
     # -- (de)serialisation -----------------------------------------------------
@@ -612,6 +667,7 @@ class Label:
     def to_dict(self) -> dict[str, Any]:
         d = asdict(self)
         d["layout"] = str(self.layout)
+        d["template"] = str(self.template)
         return d
 
     @classmethod
@@ -633,6 +689,7 @@ class Label:
             category=as_str(data.get("category")),
             layout=as_enum(LayoutPreset, data.get("layout"), LayoutPreset.CUSTOM),
             lines=lines,
+            template=as_enum(LabelTemplate, data.get("template"), LabelTemplate.NONE),
             style=LabelStyle.from_dict(data.get("style")),
             format=LabelFormat.from_dict(data.get("format")),
             code=LabelCode.from_dict(data.get("code")),
@@ -662,6 +719,7 @@ class Label:
         d = {"lines": [asdict(x) for x in self.lines], "style": asdict(self.style),
              "code": asdict(self.code),
              "picture": asdict(self.picture), "layout": str(self.layout),
+             "template": str(self.template),
              "elements": [asdict(x) for x in self.elements] if self.is_free else [],
              "fields": self.field_values()}
         return hashlib.sha1(json.dumps(d, sort_keys=True, default=str).encode()).hexdigest()
@@ -669,7 +727,7 @@ class Label:
 
 #: Parts of a label's look that "Opmaak overnemen" can copy; the text stays.
 FORMAT_PARTS = {
-    "layout": N_("Layout en lettertypen"),
+    "layout": N_("Layout, sjabloon en lettertypen"),
     "style": N_("Opmaak (uitlijning, marges, rand, rotatie)"),
     "code": N_("QR-code of barcode"),
     "picture": N_("Pictogram"),
@@ -681,6 +739,7 @@ def copy_format(src: Label, dst: Label, parts: set[str] | list[str]) -> None:
     specifications and notes stay as they are."""
     if "layout" in parts:
         dst.layout = src.layout
+        dst.template = src.template
         for s_line, d_line in zip(src.lines, dst.lines):
             d_line.enabled = s_line.enabled
             d_line.font_family = s_line.font_family

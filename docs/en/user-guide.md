@@ -12,6 +12,7 @@ The screenshots and menu names in this guide are from the English interface. Cho
 - [Specifications and linked fields](#specifications-and-linked-fields)
 - [Pictograms and images](#pictograms-and-images)
 - [QR code and barcode](#qr-code-and-barcode)
+- [Templates: ready-made layouts](#templates-ready-made-layouts)
 - [Free layout: dragging elements](#free-layout-dragging-elements)
 - [Printing](#printing)
 - [A different label roll](#a-different-label-roll)
@@ -60,6 +61,7 @@ Click **+** in the toolbar (⌘N). You pick a category and the label opens in th
 - **Tray ID**: for example `A14`, used for sorting. It is not printed on the label, unless you put `{Tray}` in a text line.
 - **Category**: groups labels in the library. Pick an existing one or type a new one.
 - **Layout**: **Lines** or **Free**. With *Lines*, up to three text lines sit below each other, with a QR code or barcode and a pictogram next to them. With *Free*, you place separate elements wherever you like (see [Free layout](#free-layout-dragging-elements)).
+- **Template** (only with *Lines*): a ready-made arrangement, such as *Header bar* or *QR box* (see [Templates](#templates-ready-made-layouts)). *Lines under each other* is the usual arrangement.
 - **Lines** (only with *Lines*): the quick buttons **1**, **2** and **3** switch lines on or off.
 
 | Button | Lines on the label |
@@ -160,16 +162,45 @@ The shorter the content, the bigger the modules or bars and the easier it scans.
 
 Etiknivo creates QR codes and barcodes itself, without an external library or internet.
 
+## Templates: ready-made layouts
+
+![The template chooser](../img/en/templates.png)
+
+Under **Template** you pick, with one click, an arrangement like those of professional bin, warehouse and 5S labels. The template decides where everything goes and how large it is; the text still comes from your lines, the tray ID, the QR code and the pictogram. Change a line and the label changes with it. A template works on every label roll, because its boxes scale along.
+
+| Template | What it does | Why |
+|---|---|---|
+| Lines under each other | the usual arrangement, with pictogram and code beside it | |
+| Location first | tray ID large in a frame on the left, the lines left-aligned beside it | like warehouse labels: find the drawer and put it back without reading |
+| Value large | main line as large as possible, top line top left, tray ID top right | you look for the value (10 kΩ, M3), not the name |
+| Header bar | top line and tray ID white on a black bar | groups the cabinet; white on black stands in for a colour code |
+| Pictogram column | pictogram over the full height, a line, then the text | 5S: recognise before reading |
+| QR box | QR code with its content readable below it | still works when scanning fails |
+| Specification grid | top and main line as the heading, the bottom line in cells | the same property is always in the same place |
+| Readable from a distance | only the main line, as large as it fits | one word that tells the drawer apart |
+| Three zones | pictogram, text with header bar, QR code side by side | meant for long labels (40 or 50 mm) |
+
+Good to know:
+
+- **Specification grid**: separate the cells in the bottom line with `|`, for example `Ø 3 mm | THT | 20 mA | 2.0 V`. Without `|` the whole bottom line is one cell.
+- **Pictogram column** and **Three zones** pick a fitting symbol themselves when the label had no pictogram yet. With **QR box** and **Three zones** the code's content starts as `{Tray}`.
+- With *Same font size within the category* on, labels with the same template in a category get the same font size per part, so the cabinet looks calm.
+- Margins, line spacing, rotation and the line between lines do not apply to a template; *White on black* and the border do. A line's font size follows the template.
+- **Small changes**: choose **Free** afterwards. You then get exactly the template's elements, to move or resize.
+- With **Copy format → Layout** or the **Template** column in *Edit labels* you give many labels the same template at once.
+
+![A label with a template](../img/en/template-result.png)
+
 ## Free layout: dragging elements
 
 If you want more freedom than three lines below each other, choose **Free** under *Layout*. Whatever is on the label (the lines, the QR code or barcode and the pictogram) is then turned into separate **elements** in exactly the same place. So at first the label looks the same.
 
 - **Select and drag**: click an element in the design and drag it. The blue corner at the bottom right makes it bigger or smaller. Everything snaps to whole dots (0.125 mm), so what you see is exactly what is printed.
 - **Keys**: the arrow keys move the selected element 1 dot, with Shift 1 mm. Delete removes it.
-- **Add**: with **Add ▾** below the list you choose a text, QR code, barcode, symbol, image, line or frame. The ▲ and ▼ buttons decide what lies on top when elements overlap.
+- **Add**: with **Add ▾** below the list you choose a text, QR code, barcode, symbol, image, line, frame or a *white on black* area. The ▲ and ▼ buttons decide what lies on top when elements overlap.
 - **Settings**: below the list are the position and size in mm and, depending on the element, the content, font, symbol or image.
 
-Text gets as big as you set it, but shrinks if it doesn't fit its box. Codes, symbols and images are made as large as possible inside their box. A symbol fills its box right up to the edge, with no white space around it. A **line** fills its whole box, so a flat box is a stripe and a square box a black block. A **frame** is a 1-dot border around the box. Fields such as `{Tray}`, `{Date}` and `{No}` work in all text and codes.
+Text gets as big as you set it, but shrinks if it doesn't fit its box. Codes, symbols and images are made as large as possible inside their box. A symbol fills its box right up to the edge, with no white space around it. A **line** fills its whole box, so a flat box is a stripe and a square box a black block. A **frame** is a 1-dot border around the box. A **white on black** area turns over everything under it, like a template's header bar. Fields such as `{Tray}`, `{Date}` and `{No}` work in all text and codes.
 
 If you go back to *Lines*, you get your three lines back as they were. The elements are kept for when you choose *Free* again. If you changed the lines in the meantime, Etiknivo asks whether you want to **make the elements again** from the lines or **keep your earlier free layout**. Margins, line spacing and rotation don't apply in the free layout, because you place everything yourself. With **Copy format → Layout**, other labels get the same elements. Use fields such as `{Name}` and `{Tray}` in the text, and each label shows its own details.
 
@@ -246,7 +277,7 @@ A new label automatically gets the format of the label you last edited in the sa
 
 If you want a whole category to look the same, make one label look good and choose **Label → Copy format…** (or right-click in the library). Tick what should be copied:
 
-- **Layout and fonts**: which lines are visible, and font, size, bold, italic and alignment per line.
+- **Layout, template and fonts**: the template, which lines are visible, and font, size, bold, italic and alignment per line.
 - **Style**: vertical alignment, line spacing, margins, shrink to fit, rotation, border, lines between lines and white on black.
 - **QR code or barcode**: type, position and content. Fields such as `{Tray}` are filled in per label.
 - **Pictogram**: symbol or image, its position and its size.
