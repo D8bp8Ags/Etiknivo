@@ -13,6 +13,7 @@ All notable changes to Etiknivo are listed here. Version numbers follow [Semanti
 - Text is kerned: letter pairs such as "To", "AV" and "We" now stand as close as the font intends. Pillow does not do this on macOS, so Etiknivo reads the pairs from the font itself.
 - Auto-fit keeps the main line the largest: when a long main line has to shrink, the category and specification lines shrink along with it instead of ending up larger than the main line.
 - Lines within a category now also keep exactly the same spacing on every label. Before, a word that reached a hair lower than the rest at a small size (such as "Transparant" next to "Zwart") could move another line one dot.
+- A label with a single line (such as only "LED") now stands in the middle of the label again when another label in its category has letters below the line (g, p, q). The room for those letters now hangs below the text instead of pushing it up; lines still stand at the same height on every label of the category.
 - Crisper small text: every line now starts on a whole printer dot, so the same letter prints equally thick on every line and every label (before, a stroke could print one dot wide on one label and two on the next).
 
 ### Reliability
