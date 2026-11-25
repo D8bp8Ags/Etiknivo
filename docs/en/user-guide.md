@@ -201,6 +201,7 @@ If none of the templates fits exactly, make a template of your own. Under *Templ
 - **New** makes an empty template, or a copy of a ready-made template to build on, and keeps it at once. The ready-made templates themselves do not change.
 - **Undo** and **Redo** (Ctrl+Z and Ctrl+Shift+Z, or Cmd on the Mac) work in the window, also right after saving. Ctrl+S saves.
 - You edit the template like the free layout: drag a part to move it, and drag its bottom-right corner to make it larger or smaller. On the right are the exact sizes, the font and the font size.
+- While you drag, a part lines up with the edges and centres of the other parts and of the printable area. A pink line shows what it lines up with. Hold Alt (Option on the Mac) to drag freely. This works in the free layout too.
 - **Add part** places a part of the label: top line, main line, bottom line, tray ID, QR code, the text under the QR code or the label's pictogram.
 - A text shows what each label has through fields: `{Top line}`, `{Main line}`, `{Bottom line}`, `{Tray}`, `{Code}`, `{Tray row}` and `{Tray number}` (the A and the 17 of A17), and `{Cell 1}` to `{Cell 6}` (the parts of the bottom line between `|`). If you type a line in capitals, such as `{TOP LINE}`, it shows in capitals on the label. You can mix them with plain text too, such as `Tray {Tray}`.
 - A text with exactly one line gets that line's look. You then change it per label as usual, just as with the ready-made templates.
@@ -213,7 +214,7 @@ If none of the templates fits exactly, make a template of your own. Under *Templ
 
 If you want more freedom than three lines below each other, choose **Free** under *Layout*. Whatever is on the label (the lines, the QR code or barcode and the pictogram) is then turned into separate **elements** in exactly the same place. So at first the label looks the same.
 
-- **Select and drag**: click an element in the design and drag it. The blue corner at the bottom right makes it bigger or smaller. Everything snaps to whole dots (0.125 mm), so what you see is exactly what is printed.
+- **Select and drag**: click an element in the design and drag it. The blue corner at the bottom right makes it bigger or smaller. Everything snaps to whole dots (0.125 mm), so what you see is exactly what is printed. When an edge or the centre comes close to that of another element or of the printable area, the element lines up with it and a pink guide line shows. Hold Alt (Option) to drag freely.
 - **Keys**: the arrow keys move the selected element 1 dot, with Shift 1 mm. Delete removes it.
 - **Add**: with **Add ▾** below the list you choose a text, QR code, barcode, symbol, image, line, frame or a *white on black* area. ▲ and ▼ move the selected element up or down in the list. When elements overlap, what is lower in the list lies on top.
 - **Settings**: below the list are the position and size in mm and, depending on the element, the content, font, symbol or image.

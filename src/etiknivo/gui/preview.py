@@ -21,6 +21,32 @@ from etiknivo.rendering.engine import RenderEngine, RenderResult
 
 PAD = 18
 HANDLE = 7  # size of the resize handle in screen pixels
+SNAP_PX = 6  # how close (screen pixels) an edge or centre snaps to another
+
+
+def snap_targets(elements: list[LabelElement], skip: str,
+                 area_mm: tuple[float, float]) -> tuple[list[float], list[float]]:
+    """Where an element can line up (mm): the edges and centres of the other
+    elements and of the printable area, across (x) and down (y)."""
+    xs, ys = [0.0, area_mm[0] / 2, area_mm[0]], [0.0, area_mm[1] / 2, area_mm[1]]
+    for el in elements:
+        if el.id == skip:
+            continue
+        xs += [el.x_mm, el.x_mm + el.w_mm / 2, el.x_mm + el.w_mm]
+        ys += [el.y_mm, el.y_mm + el.h_mm / 2, el.y_mm + el.h_mm]
+    return xs, ys
+
+
+def snap(points: list[float], targets: list[float], reach: float) -> tuple[float, float | None]:
+    """The shift that puts one of *points* on the nearest of *targets* within
+    *reach*, and that target; (0, None) when none is that close."""
+    best: tuple[float, float | None] = (0.0, None)
+    for pt in points:
+        for tg in targets:
+            d = tg - pt
+            if abs(d) <= reach and (best[1] is None or abs(d) < abs(best[0])):
+                best = (d, tg)
+    return best
 
 
 class _BaseView(QWidget):
@@ -89,6 +115,10 @@ class DesignView(_BaseView):
         self.label: Label | None = None
         self.selected = ""
         self._drag: tuple[str, QPointF, tuple[float, float, float, float]] | None = None
+        #: lines shown while an element lines up with another: ("v", x) or ("h", y) in mm
+        self.guides: list[tuple[str, float]] = []
+        #: line up with other elements while dragging (Alt turns it off for a drag)
+        self.snapping = True
         self.setMouseTracking(True)
         self.setFocusPolicy(Qt.FocusPolicy.ClickFocus)
 
@@ -169,16 +199,53 @@ class DesignView(_BaseView):
         # whole dots: what you place is exactly what prints
         dx = round((pos.x() - start.x()) / s) / dpm
         dy = round((pos.y() - start.y()) / s) / dpm
+        self.guides = []
+        snapping = self.snapping and not event.modifiers() & Qt.KeyboardModifier.AltModifier
         if mode == "move":
-            cur.move_to(x + dx, y + dy)
+            nx, ny = x + dx, y + dy
+            if snapping:
+                nx, ny = self._snap_move(cur, nx, ny, w, h)
+            cur.move_to(nx, ny)
         else:
-            cur.resize(w + dx, h + dy)
+            nw, nh = w + dx, h + dy
+            if snapping:
+                nw, nh = self._snap_size(cur, x, y, nw, nh)
+            cur.resize(nw, nh)
         self.elementChanged.emit()
         self.update()
         return None
 
+    def _reach_mm(self) -> float:
+        return SNAP_PX / self._scale() / self.engine.profile.dots_per_mm
+
+    def _snap_move(self, el: LabelElement, x: float, y: float, w: float,
+                   h: float) -> tuple[float, float]:
+        """*x*, *y* moved so an edge or the centre lines up with another
+        element or the printable area, when it is close; shows the guides."""
+        xs, ys = snap_targets(self.label.elements, el.id, self.engine.area_mm)
+        reach = self._reach_mm()
+        sx, gx = snap([x, x + w / 2, x + w], xs, reach)
+        sy, gy = snap([y, y + h / 2, y + h], ys, reach)
+        self.guides = [*([("v", gx)] if gx is not None else []),
+                       *([("h", gy)] if gy is not None else [])]
+        return x + sx, y + sy
+
+    def _snap_size(self, el: LabelElement, x: float, y: float, w: float,
+                   h: float) -> tuple[float, float]:
+        """The right and bottom edge snap while resizing."""
+        xs, ys = snap_targets(self.label.elements, el.id, self.engine.area_mm)
+        reach = self._reach_mm()
+        sx, gx = snap([x + w], xs, reach)
+        sy, gy = snap([y + h], ys, reach)
+        self.guides = [*([("v", gx)] if gx is not None else []),
+                       *([("h", gy)] if gy is not None else [])]
+        return w + sx, h + sy
+
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:  # noqa: N802
         self._drag = None
+        if self.guides:
+            self.guides = []
+            self.update()
         return super().mouseReleaseEvent(event)
 
     def keyPressEvent(self, event: QKeyEvent) -> None:  # noqa: N802
@@ -222,6 +289,22 @@ class DesignView(_BaseView):
             else:
                 p.setPen(QPen(faint, 1, Qt.PenStyle.DotLine))
                 p.drawRect(rect)
+
+    def _paint_guides(self, p: QPainter, r: QRectF) -> None:
+        """The lines an element is lining up with while it is dragged."""
+        if not self.guides:
+            return
+        s = self._scale()
+        dpm = self.engine.profile.dots_per_mm
+        px0, py0, px1, py1 = self.engine.printable_box
+        p.setPen(QPen(QColor(230, 40, 150), 1))
+        for kind, mm in self.guides:
+            if kind == "v":
+                x = r.left() + (px0 + mm * dpm) * s
+                p.drawLine(QPointF(x, r.top()), QPointF(x, r.bottom()))
+            else:
+                y = r.top() + (py0 + mm * dpm) * s
+                p.drawLine(QPointF(r.left(), y), QPointF(r.right(), y))
 
     def _image_cache(self) -> None:
         self._qimg = pil_to_qimage(self.result.hires) if self.result else None
@@ -275,6 +358,7 @@ class DesignView(_BaseView):
                                       (lb.x1 - lb.x0) * sx, (lb.y1 - lb.y0) * sy))
         if self._free():
             self._paint_elements(p)
+            self._paint_guides(p, r)
         p.setPen(QPen(QColor(0, 0, 0, 30), 1))
         p.setBrush(Qt.BrushStyle.NoBrush)
         p.drawRoundedRect(r, self.zoom, self.zoom)

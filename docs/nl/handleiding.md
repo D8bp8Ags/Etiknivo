@@ -199,6 +199,7 @@ Past geen van de sjablonen precies, maak dan je eigen sjabloon. Klik onder *Sjab
 - **Nieuw** maakt een leeg sjabloon of een kopie van een kant-en-klaar sjabloon om op voort te bouwen, en bewaart het meteen. De kant-en-klare sjablonen zelf veranderen niet.
 - **Ongedaan maken** en **Opnieuw** (Ctrl+Z en Ctrl+Shift+Z, of Cmd op de Mac) werken in het venster, ook vlak na het opslaan. Ctrl+S slaat op.
 - Je bewerkt het sjabloon zoals de vrije layout: sleep een onderdeel om het te verplaatsen en sleep het hoekje rechtsonder om het groter of kleiner te maken. Rechts staan de precieze maten, het lettertype en de grootte.
+- Tijdens het slepen lijnt een onderdeel uit aan de randen en het midden van de andere onderdelen en van het printbare gebied. Een roze lijn laat zien waaraan. Houd Alt (Option op de Mac) ingedrukt om vrij te slepen. Dit werkt ook in de vrije layout.
 - **Onderdeel toevoegen** zet een deel van het label neer: bovenregel, hoofdregel, onderregel, lade-ID, QR-code, de tekst onder de QR-code of het pictogram van het label.
 - Een tekst toont wat elk label heeft via velden: `{Bovenregel}`, `{Hoofdregel}`, `{Onderregel}`, `{Lade}`, `{Code}`, `{Laderij}` en `{Ladenummer}` (de A en de 17 van A17), en `{Cel 1}` tot `{Cel 6}` (de delen van de onderregel tussen `|`). Typ je een regel in hoofdletters, zoals `{BOVENREGEL}`, dan staat hij in hoofdletters op het etiket. Je kunt ze ook mengen met gewone tekst, zoals `Lade {Lade}`.
 - Een tekst met precies één regel krijgt de opmaak van die regel. Per label pas je die dan gewoon aan, net als bij de kant-en-klare sjablonen.
@@ -211,7 +212,7 @@ Past geen van de sjablonen precies, maak dan je eigen sjabloon. Klik onder *Sjab
 
 Wil je meer vrijheid dan drie regels onder elkaar, kies dan bij *Layout* **Vrij**. Wat er op het etiket staat (de regels, de QR-code of barcode en het pictogram) wordt dan omgezet in losse **elementen** op precies dezelfde plek. Het etiket ziet er dus eerst hetzelfde uit.
 
-- **Selecteren en slepen**: klik een element in het ontwerp en sleep het. Het blauwe hoekje rechtsonder maakt het groter of kleiner. Alles springt per dot (0,125 mm), dus wat je ziet is precies wat er geprint wordt.
+- **Selecteren en slepen**: klik een element in het ontwerp en sleep het. Het blauwe hoekje rechtsonder maakt het groter of kleiner. Alles springt per dot (0,125 mm), dus wat je ziet is precies wat er geprint wordt. Komt een rand of het midden dicht bij die van een ander element of van het printbare gebied, dan lijnt het element daaraan uit en zie je een roze hulplijn. Met Alt (Option) ingedrukt sleep je vrij.
 - **Toetsen**: de pijltjes schuiven het geselecteerde element 1 dot, met Shift 1 mm. Delete verwijdert het.
 - **Toevoegen**: met **Toevoegen ▾** onder de lijst kies je een tekst, QR-code, barcode, symbool, afbeelding, lijn, kader of een vlak *wit op zwart*. Met ▲ en ▼ schuif je het gekozen element omhoog of omlaag in de lijst. Overlappen elementen, dan ligt wat lager in de lijst staat erbovenop.
 - **Instellen**: onder de lijst staan de plaats en grootte in mm en, afhankelijk van het element, de inhoud, het lettertype, het symbool of de afbeelding.

@@ -115,6 +115,7 @@ def test_free_layout_in_the_window(qtbot, window) -> None:  # noqa: ANN001, F811
 
     # pick and drag the first element: it moves in whole dots and stays selected
     window.update_preview()
+    dv.snapping = False  # whole dots only here; lining up has its own test
     el = lbl.elements[0]
     x, y = el.x_mm, el.y_mm
     start = dv.element_rect(el).center()
