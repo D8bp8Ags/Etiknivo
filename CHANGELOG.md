@@ -34,6 +34,7 @@ All notable changes to Etiknivo are listed here. Version numbers follow [Semanti
 - The first font scan no longer blocks the window; labels are redrawn once the fonts are known.
 
 ### Printing
+- **Print edge test** (Printer menu) prints nested frames 1 mm apart over the whole printhead band and label length, without margins or offsets. Counting the lines that come out on each side shows how much of the label the printer really reaches, to tune the printable area.
 - Stop keeps the job in the queue: Resume continues with the next copy, and Retry continues from the copy that did not print, instead of printing every copy again. Cancel only removes waiting jobs; use Stop for the job that is printing. New labels sent while the queue is paused no longer resume it on their own.
 
 ### Designing labels

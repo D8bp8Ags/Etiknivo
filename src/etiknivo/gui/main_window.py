@@ -72,7 +72,7 @@ from etiknivo.rendering.export import (
     safe_filename,
 )
 from etiknivo.rendering.fonts import default_registry
-from etiknivo.rendering.patterns import calibration_raster, test_label
+from etiknivo.rendering.patterns import calibration_raster, edge_test_raster, test_label
 from etiknivo.settings import Settings, data_dir, load_settings, log_dir, save_settings
 from etiknivo.storage import io as lio
 from etiknivo.storage.history import History, Snapshot
@@ -320,6 +320,7 @@ class MainWindow(QMainWindow):
         more.addSeparator()
         more.addAction(tr("Testlabel afdrukken"), self.print_test_label)
         more.addAction(tr("Kalibratietest afdrukken"), self.print_calibration)
+        more.addAction(tr("Randentest afdrukken"), self.print_edge_test)
         self.print_more.setMenu(more)
         holder = QWidget()
         hl = QHBoxLayout(holder)
@@ -529,6 +530,7 @@ class MainWindow(QMainWindow):
         m.addSeparator()
         act(m, tr("Testlabel afdrukken"), self.print_test_label)
         act(m, tr("Kalibratietest afdrukken"), self.print_calibration)
+        act(m, tr("Randentest afdrukken"), self.print_edge_test)
         act(m, tr("Kalibratie-instellingen…"), self.calibration_settings)
 
         m = mb.addMenu(tr("&Weergave"))
@@ -1296,6 +1298,13 @@ class MainWindow(QMainWindow):
             return
         _mono, raster = calibration_raster(self.engine)
         self._submit([PrintJob("calibration", tr("Kalibratietest"), raster, 1,
+                               self.printer_panel.density.currentIndex())])
+
+    def print_edge_test(self) -> None:
+        if not self._guard():
+            return
+        _band, raster = edge_test_raster(self.engine)
+        self._submit([PrintJob("calibration", tr("Randentest"), raster, 1,
                                self.printer_panel.density.currentIndex())])
 
     def calibration_settings(self) -> None:
