@@ -73,6 +73,8 @@ class PrintJob:
     #: one raster per copy when the copies differ (e.g. a {Nr} field);
     #: then ``raster`` is the first one and ``copies`` their number
     copy_rasters: list[Image.Image] | None = None
+    #: print in continuous-paper mode (edge-test experiment only)
+    continuous: bool = False
 
     def __post_init__(self) -> None:
         if self.copy_rasters:
@@ -288,7 +290,7 @@ class PrintQueue:
                 await backend.print_raster(job.raster, density=job.density,
                                            copies=job.copies - start,
                                            progress=lambda done, _total: progress(done),
-                                           cancel=self._cancel)
+                                           cancel=self._cancel, continuous=job.continuous)
         except PrintCancelled as exc:
             if self.paused:  # Stop: continue with the next copy on resume
                 job.status = JobStatus.PENDING

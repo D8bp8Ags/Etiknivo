@@ -37,7 +37,7 @@ All notable changes to Etiknivo are listed here. Version numbers follow [Semanti
 
 ### Printing
 - The printable area on the Fichero 5836 is now 27.5 × 12 mm instead of 26 × 12 mm. The edge test showed the printer starts 1.5 mm before the label, so the image is shifted 1.5 mm (was 1 mm) and the margins are 0.5 mm at the start and 2 mm at the end (were 2 mm at both ends). Labels can use about 1.5 mm more on the left. Half-turned labels turn about the middle of the printable area.
-- **Print edge test** (Printer menu and printer panel) prints nested frames 1 mm apart over the whole printhead band and label length, without margins or offsets. Counting the lines that come out on each side shows how much of the label the printer really reaches, to tune the printable area.
+- **Print edge test** (Printer menu and printer panel) prints nested frames 1 mm apart over the whole printhead band and label length, without margins or offsets. Counting the lines that come out on each side shows how much of the label the printer really reaches, to tune the printable area. Under *Printer → Edge test experiments* the raster can be 2 mm shorter or longer than the label, or printed in continuous-paper mode, to see how the printer places it.
 - Stop keeps the job in the queue: Resume continues with the next copy, and Retry continues from the copy that did not print, instead of printing every copy again. Cancel only removes waiting jobs; use Stop for the job that is printing. New labels sent while the queue is paused no longer resume it on their own.
 
 ### Designing labels
