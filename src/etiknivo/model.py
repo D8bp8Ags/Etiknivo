@@ -223,6 +223,20 @@ def as_enum(cls: type[E], value: Any, default: E) -> E:
         return default
 
 
+def _looks(value: Any) -> list[dict[str, Any]]:
+    """Stored line looks (see ``Label.looks_before_template``), checked."""
+    if not isinstance(value, list) or len(value) != 3:
+        return []
+    out = []
+    for item in value:
+        item = as_dict(item)
+        out.append({"font_size_pt": as_float(item.get("font_size_pt"), 8.0, *FONT_SIZE_RANGE),
+                    "bold": as_bool(item.get("bold"), False),
+                    "italic": as_bool(item.get("italic"), False),
+                    "align": as_enum(HAlign, item.get("align"), HAlign.CENTER)})
+    return out
+
+
 def _now() -> str:
     return datetime.now(UTC).isoformat(timespec="seconds")
 
@@ -503,6 +517,9 @@ class Label:
     #: what a template switched on by itself ("picture", "code"), so it can be
     #: switched off again when the label leaves that template
     template_added: list[str] = field(default_factory=list)
+    #: the lines' look (size, bold, italic, alignment) before the first
+    #: template, given back when the label returns to the lines under each other
+    looks_before_template: list[dict[str, Any]] = field(default_factory=list)
     #: loose elements, used when ``layout`` is FREE
     elements: list[LabelElement] = field(default_factory=list)
     #: :meth:`lines_key` of the lines the elements were made from
@@ -694,7 +711,9 @@ class Label:
             lines=lines,
             template=as_enum(LabelTemplate, data.get("template"), LabelTemplate.NONE),
             template_added=[x for x in (data.get("template_added") if isinstance(
-                data.get("template_added"), list) else []) if x in ("picture", "code")],
+                data.get("template_added"), list) else [])
+                if x in ("picture", "code", "code_text", "code_barcode")],
+            looks_before_template=_looks(data.get("looks_before_template")),
             style=LabelStyle.from_dict(data.get("style")),
             format=LabelFormat.from_dict(data.get("format")),
             code=LabelCode.from_dict(data.get("code")),

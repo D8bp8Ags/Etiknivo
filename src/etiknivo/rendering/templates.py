@@ -25,6 +25,8 @@ from etiknivo.model import (
     SLOT_BOTTOM,
     SLOT_MAIN,
     SLOT_TOP,
+    CodeKind,
+    CodeSize,
     ElementKind,
     HAlign,
     Label,
@@ -38,6 +40,34 @@ _TRAY_RE = re.compile(r"^\s*([A-Za-z]{1,3})[\s\-.]?(\d.*?)\s*$")
 
 #: the cells of the specification grid are separated by this character
 CELL_SEPARATOR = "|"
+
+#: how the size choice (Klein, Middel, Groot) widens a pictogram or QR column
+COLUMN_SCALE = {CodeSize.SMALL: 0.8, CodeSize.MEDIUM: 1.0, CodeSize.LARGE: 1.2}
+
+#: what a template starts the lines with: (size in pt, bold, alignment) for the
+#: top, main and bottom line.  The size is the largest; a text that does not
+#: fit its box gets smaller.
+TEMPLATE_STYLES: dict[LabelTemplate, tuple[tuple[float, bool, HAlign], ...]] = {
+    LabelTemplate.LOCATION: ((8, False, HAlign.LEFT), (16, True, HAlign.LEFT),
+                             (7, False, HAlign.LEFT)),
+    LabelTemplate.VALUE: ((7, False, HAlign.LEFT), (22, True, HAlign.CENTER),
+                          (7, False, HAlign.CENTER)),
+    LabelTemplate.HEADER: ((6.5, True, HAlign.LEFT), (15, True, HAlign.CENTER),
+                           (7, False, HAlign.CENTER)),
+    LabelTemplate.ICON: ((8, False, HAlign.LEFT), (15, True, HAlign.LEFT),
+                         (6.5, False, HAlign.LEFT)),
+    LabelTemplate.QR: ((8, False, HAlign.LEFT), (15, True, HAlign.LEFT),
+                       (6.5, False, HAlign.LEFT)),
+    LabelTemplate.GRID: ((13, True, HAlign.LEFT), (13, True, HAlign.LEFT),
+                         (7.5, False, HAlign.LEFT)),
+    LabelTemplate.DISTANCE: ((6.5, False, HAlign.LEFT), (34, True, HAlign.CENTER),
+                             (6.5, False, HAlign.LEFT)),
+    LabelTemplate.ZONES: ((6, True, HAlign.LEFT), (15, True, HAlign.LEFT),
+                          (7, False, HAlign.LEFT)),
+}
+
+#: the parts of a line's look a template sets
+_LOOK = ("font_size_pt", "bold", "italic", "align")
 
 
 @dataclass
@@ -83,13 +113,28 @@ class _Builder:
     def text(self, x: float, y: float, w: float, h: float, text: str, pt: float, *,
              bold: bool = False, align: HAlign = HAlign.LEFT, role: str = "",
              slot: int | None = None) -> None:
+        """A text in a box.  A line's text takes the line's look (its size as
+        the largest size, bold, italic, font, alignment), so the template is a
+        starting point the user can change; the template's own texts (tray ID,
+        code caption) take *pt*, *bold* and *align*."""
         if not text or w <= 0 or h <= 0:
             return
-        line = self.label.lines[slot if slot is not None else SLOT_MAIN]
-        el = LabelElement(ElementKind.TEXT, x_mm=x, y_mm=y, w_mm=w, h_mm=h, text=text,
-                          font_family=line.font_family, font_size_pt=round(pt * self.s, 1),
-                          bold=bold, italic=line.italic, align=align)
+        if slot is not None:
+            line = self.label.lines[slot]
+            el = LabelElement(ElementKind.TEXT, x_mm=x, y_mm=y, w_mm=w, h_mm=h, text=text,
+                              font_family=line.font_family, font_size_pt=line.font_size_pt,
+                              bold=line.bold, italic=line.italic, align=line.align)
+        else:
+            main = self.label.lines[SLOT_MAIN]
+            el = LabelElement(ElementKind.TEXT, x_mm=x, y_mm=y, w_mm=w, h_mm=h, text=text,
+                              font_family=main.font_family,
+                              font_size_pt=round(pt * self.s, 1), bold=bold, align=align)
         self.items.append(Placed(el, role, slot))
+
+    def column(self, base: float, part: str) -> float:
+        """Width of the pictogram or QR column: *base* scaled by its size choice."""
+        size = getattr(self.label, part).size
+        return base * COLUMN_SCALE[size]
 
     def element(self, kind: ElementKind, x: float, y: float, w: float, h: float,
                 **kw: object) -> None:
@@ -157,33 +202,87 @@ PICTURE_TEMPLATES = (LabelTemplate.ICON, LabelTemplate.ZONES)
 CODE_TEMPLATES = (LabelTemplate.QR, LabelTemplate.ZONES)
 
 
+def template_look(template: LabelTemplate) -> list[dict[str, object]]:
+    """The look a template starts the three lines with."""
+    return [{"font_size_pt": float(pt), "bold": bold, "italic": False, "align": align}
+            for pt, bold, align in TEMPLATE_STYLES[template]]
+
+
+def line_looks(label: Label) -> list[dict[str, object]]:
+    return [{key: getattr(line, key) for key in _LOOK} for line in label.lines]
+
+
+def _set_looks(label: Label, looks: list[dict[str, object]]) -> None:
+    for line, look in zip(label.lines, looks):
+        for key in _LOOK:
+            if key in look:
+                value = look[key]
+                setattr(line, key, HAlign(value) if key == "align" else value)
+
+
+def differs_from_template(label: Label) -> bool:
+    """Whether the user changed the lines' look since the template set it."""
+    if label.template not in TEMPLATE_STYLES:
+        return False
+    return line_looks(label) != template_look(label.template)
+
+
+def reset_to_template(label: Label) -> None:
+    """The lines' look back to what the template starts with."""
+    if label.template in TEMPLATE_STYLES:
+        _set_looks(label, template_look(label.template))
+        label.picture.size = label.code.size = CodeSize.MEDIUM
+
+
 def apply_template(label: Label, template: LabelTemplate) -> None:
-    """Give *label* *template*, with what that template is built around: a
-    pictogram (a fitting symbol) or the QR code's content (the tray ID).
+    """Give *label* *template*: the lines get the template's starting look
+    (size, bold, alignment), which the user can change afterwards, and the
+    label gets what the template is built around: a pictogram (a fitting
+    symbol) or a QR code of the tray ID.
 
     What a template switched on by itself is switched off again when the
     label goes to a template that does not need it (for example back to the
-    lines under each other); what the user set up stays."""
+    lines under each other); what the user set up stays.  Going back to the
+    lines under each other also gives the lines back the look they had
+    before the first template."""
     from etiknivo.rendering.symbols import suggest_symbol
 
+    if template == label.template:
+        return
+    if label.template == LabelTemplate.NONE and template != LabelTemplate.NONE:
+        label.looks_before_template = line_looks(label)
     label.template = template
-    pic = label.picture
+    if template in TEMPLATE_STYLES:
+        _set_looks(label, template_look(template))
+    elif label.looks_before_template:
+        _set_looks(label, label.looks_before_template)
+        label.looks_before_template = []
+    pic, code = label.picture, label.code
     added = label.template_added
     if "picture" in added and template not in PICTURE_TEMPLATES:
         pic.kind = PictureKind.NONE
         added.remove("picture")
     if "code" in added and template not in CODE_TEMPLATES:
-        label.code.text = ""
+        code.kind = CodeKind.NONE
         added.remove("code")
+    if "code_text" in added and template not in CODE_TEMPLATES:
+        code.text = ""
+        added.remove("code_text")
     if template in PICTURE_TEMPLATES and pic.kind == PictureKind.NONE:
         pic.kind = PictureKind.SYMBOL
         # the most specific text first: "LED" says more than "Halfgeleiders"
         pic.symbol = suggest_symbol(label.top.text, label.name, label.main.text,
                                     label.category) or pic.symbol
         added.append("picture")
-    if template in CODE_TEMPLATES and not label.code.text.strip():
-        label.code.text = tray_field()
-        added.append("code")
+    if "code_barcode" in added and template not in CODE_TEMPLATES:
+        code.kind = CodeKind.CODE128
+        added.remove("code_barcode")
+    if template in CODE_TEMPLATES and code.kind != CodeKind.QR:
+        added.append("code" if code.kind == CodeKind.NONE else "code_barcode")
+        code.kind = CodeKind.QR
+    if template in CODE_TEMPLATES and not code.text.strip():
+        code.text = tray_field()
+        added.append("code_text")
 
 
 def tray_field() -> str:
@@ -252,7 +351,7 @@ def _icon(b: _Builder) -> None:
     s, w, h = b.s, b.w, b.h
     x = 0.0
     if b.has_picture():
-        col = min(7.5 * s, w * 0.3)
+        col = min(b.column(7.5 * s, "picture"), w * 0.4)
         b.picture(0.25 * s, 1.0 * s, col - 0.5 * s, h - 2.0 * s)
         b.rule_v(col + 0.25 * s, 0.75 * s, h - 1.5 * s)
         x = col + 1.25 * s
@@ -275,7 +374,7 @@ def _text_with_tray(b: _Builder, x: float, w: float) -> None:
 
 def _qr(b: _Builder) -> None:
     s, w, h = b.s, b.w, b.h
-    col = min(h - 3.0 * s, w * 0.4)
+    col = min(b.column(h - 3.0 * s, "code"), h - 3.0 * s, w * 0.45)
     b.qr_with_text(0, col)
     x = col + 1.0 * s
     b.stack(x, 0, w - x, h, [(SLOT_TOP, 3.0, 8, False), (SLOT_MAIN, 5.25, 15, True),
@@ -325,12 +424,12 @@ def _zones(b: _Builder) -> None:
     s, w, h = b.s, b.w, b.h
     x0, x1 = 0.0, w
     if b.has_picture():
-        col = min(7.5 * s, w * 0.2)
+        col = min(b.column(7.5 * s, "picture"), w * 0.25)
         b.picture(0.25 * s, 1.0 * s, col - 0.5 * s, h - 2.0 * s)
         b.rule_v(col + 0.25 * s, 0.75 * s, h - 1.5 * s)
         x0 = col + 1.0 * s
     if b.label.code.text.strip() or b.tray:
-        col = min(h - 3.0 * s, w * 0.25)
+        col = min(b.column(h - 3.0 * s, "code"), h - 3.0 * s, w * 0.3)
         b.qr_with_text(w - col, col)
         x1 = w - col - 1.0 * s
     tw = x1 - x0
