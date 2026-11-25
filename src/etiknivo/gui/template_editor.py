@@ -113,6 +113,9 @@ class TemplateEditor(QDialog):
         self.engine = RenderEngine(engine.profile, engine.calibration, engine.fonts)
         self.work: UserTemplate | None = None
         self.dirty = False
+        #: the template being edited is new and not saved yet: it is in the
+        #: library only once saved, and goes away unchanged when you move on
+        self.draft = False
         self.sample = sample_label()
         self._loading = False
         #: asks what to do with unsaved changes: "save", "discard" or "cancel"
@@ -228,7 +231,11 @@ class TemplateEditor(QDialog):
         split.setStretchFactor(1, 1)
         split.setSizes([240, 540, 400])
         split.setChildrenCollapsible(False)
-        left.setMinimumWidth(200)
+        # the buttons keep their whole text (macOS buttons have wide padding):
+        # the column is never narrower than the row of buttons
+        for btn in (self.new_btn, self.dup_btn, self.del_btn):
+            btn.setMinimumWidth(btn.sizeHint().width())
+        left.setMinimumWidth(max(200, buttons.sizeHint().width()))
         middle.setMinimumWidth(self.view.minimumSizeHint().width())
 
         self.save_btn = QPushButton(tr("Opslaan"))
@@ -275,9 +282,19 @@ class TemplateEditor(QDialog):
         self._loading = True
         self.list.clear()
         row = -1
-        for n, tpl in enumerate(self._own()):
-            item = QListWidgetItem(custom_template_icon(tpl), tpl.name or tr("Naamloos sjabloon"))
+        own = self._own()
+        if self.draft and self.work is not None:
+            own.insert(0, self.work)
+        for n, tpl in enumerate(own):
+            name = tpl.name or tr("Naamloos sjabloon")
+            if self.draft and tpl is self.work:
+                name = tr("{name} (nog niet opgeslagen)", name=name)
+            item = QListWidgetItem(custom_template_icon(tpl), name)
             item.setData(Qt.ItemDataRole.UserRole, tpl.id)
+            if self.draft and tpl is self.work:
+                font = item.font()
+                font.setItalic(True)
+                item.setFont(font)
             self.list.addItem(item)
             if tpl.id == select_id:
                 row = n
@@ -291,11 +308,14 @@ class TemplateEditor(QDialog):
         tpl_id = item.data(Qt.ItemDataRole.UserRole) if item is not None else ""
         if self.work is not None and tpl_id == self.work.id:
             return
+        was_draft = self.draft
         if not self._may_leave():
             self._select_in_list(self.work.id if self.work else "")
             return
         tpl = next((t for t in self.library.templates if t.id == tpl_id), None)
         self._edit(tpl)
+        if was_draft and not self.draft:  # the unsaved one leaves the list
+            self._fill_list(tpl_id)
 
     def _select_in_list(self, tpl_id: str) -> None:
         self._loading = True
@@ -378,10 +398,12 @@ class TemplateEditor(QDialog):
     def _start_new(self, tpl: UserTemplate) -> None:
         if not self._may_leave():
             return
-        # saved at once: it is in the list straight away, and choosing another
-        # template does not ask about one you did not change
+        # not saved yet: it joins your templates when you save it, and choosing
+        # another template without changing it just lets it go (no question)
         self._edit(tpl)
-        self.save()
+        self.draft = True
+        self._fill_list(tpl.id)
+        self._render()
         self.name.setFocus()
         self.name.selectAll()
 
@@ -455,7 +477,7 @@ class TemplateEditor(QDialog):
             r = self.engine.render(self.sample)
             self.view.set_result(r)
             self.warnings.setText("\n".join(dict.fromkeys(r.warnings)))
-        self.save_btn.setEnabled(self.work is not None and self.dirty)
+        self.save_btn.setEnabled(self.work is not None and (self.dirty or self.draft))
         self._update_undo()
 
     def _changed(self, kind: str = "edit") -> None:
@@ -484,7 +506,7 @@ class TemplateEditor(QDialog):
         saved = copy.deepcopy(self.work)
         others = [t for t in self.library.templates if t.id != saved.id]
         self.library.set_templates([*others, saved])
-        self.dirty = False
+        self.dirty = self.draft = False
         # the name as saved belongs to this step; undo after saving still works
         self._states[self._at] = self._saved_state = self._state()
         self._fill_list(saved.id)
@@ -513,7 +535,7 @@ class TemplateEditor(QDialog):
             apply_template(lbl, LabelTemplate.NONE)
             lbl.touch()
         self.library.set_templates([t for t in self.library.templates if t.id != tpl_id])
-        self.work, self.dirty = None, False
+        self.work, self.dirty, self.draft = None, False, False
         self._fill_list()
         self.list.setCurrentRow(0 if self.list.count() else -1)
         if self.list.count() == 0:
@@ -523,13 +545,16 @@ class TemplateEditor(QDialog):
 
     def _may_leave(self) -> bool:
         """Before another template or closing: save or drop unsaved changes."""
-        if self.work is None or not self.dirty:
+        if self.work is None:
+            return True
+        if not self.dirty:
+            self.draft = False  # a new one you did not change is not kept
             return True
         answer = self.ask_unsaved(self.name.text().strip())
         if answer == "save":
             return self.save()
         if answer == "discard":
-            self.dirty = False
+            self.dirty = self.draft = False
             return True
         return False
 

@@ -1125,6 +1125,9 @@ class MainWindow(QMainWindow):
         """The window for the user's own templates."""
         from etiknivo.gui.template_editor import TemplateEditor
 
+        # unchanged copies that earlier versions kept at once from "Nieuw"
+        if self.library.drop_duplicate_templates():
+            self._templates_changed()
         dlg = TemplateEditor(self.library, self.engine,
                              getattr(self, "_families", ["DejaVu Sans"]), self)
         dlg.templatesChanged.connect(self._templates_changed)

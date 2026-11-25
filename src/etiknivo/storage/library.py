@@ -99,6 +99,32 @@ class Library:
         self._templates = list(templates)
         set_user_templates(self._templates)
 
+    def drop_duplicate_templates(self) -> int:
+        """Remove own templates that are exact copies (same name, size and
+        parts) of another one and that no label uses.  Returns how many went."""
+        used = {lbl.custom_template for lbl in self.labels if lbl.custom_template}
+
+        def content(t: UserTemplate) -> str:
+            d = t.to_dict()
+            d.pop("id", None)
+            for el in d.get("elements", []):
+                el.pop("id", None)
+            return json.dumps(d, sort_keys=True)
+
+        # the ones in use first, so a used copy is the one that stays
+        order = sorted(self._templates, key=lambda t: t.id not in used)
+        seen: set[str] = set()
+        keep: set[str] = set()
+        for t in order:
+            c = content(t)
+            if c not in seen or t.id in used:
+                seen.add(c)
+                keep.add(t.id)
+        dropped = len(self._templates) - len(keep)
+        if dropped:
+            self.set_templates([t for t in self._templates if t.id in keep])
+        return dropped
+
     def merge_templates(self, templates: Iterable[UserTemplate]) -> int:
         """Add imported templates; one with a known id replaces it.  Returns
         how many were new."""
