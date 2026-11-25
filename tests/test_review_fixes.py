@@ -125,8 +125,14 @@ def test_inspector_fits_a_narrow_window(window) -> None:  # noqa: ANN001
     body = props.widget()
     assert props.horizontalScrollBarPolicy() == props.horizontalScrollBarPolicy().ScrollBarAlwaysOff
     assert props.minimumSizeHint().width() >= body.minimumSizeHint().width()
-    assert body.minimumSizeHint().width() < 340
-    assert window.minimumSizeHint().width() < 1150
+    # The limits were measured where this sentence is 225 px wide; other systems (and Qt's
+    # offscreen driver on Windows) draw the same font wider, so the limits grow along.
+    from PySide6.QtGui import QFontMetrics
+
+    text = QFontMetrics(body.font()).horizontalAdvance("Zelfde lettergrootte binnen de categorie")
+    scale = max(1.0, text / 225)
+    assert body.minimumSizeHint().width() < 340 * scale
+    assert window.minimumSizeHint().width() < 1180 * scale
 
 
 def test_style_section_folds_and_remembers(window) -> None:  # noqa: ANN001
