@@ -59,7 +59,7 @@ def calibration_raster(engine: RenderEngine) -> tuple[Image.Image, Image.Image]:
 EDGE_TEST_FRAMES = 5
 
 
-def edge_test_raster(engine: RenderEngine) -> tuple[Image.Image, Image.Image]:
+def edge_test_raster(engine: RenderEngine, extra_px: int = 0) -> tuple[Image.Image, Image.Image]:
     """Edge test: measures how much of the raster really lands on the label.
 
     Returns ``(band, native_raster)``; *band* is the full printhead band over
@@ -70,9 +70,12 @@ def edge_test_raster(engine: RenderEngine) -> tuple[Image.Image, Image.Image]:
     are visible on each side of the printed label shows how many millimetres
     are lost there; if all are visible, the white paper outside the outer
     frame is space the printhead cannot reach.
+
+    *extra_px* makes the raster that many rows longer than the label, to see
+    whether the printer prints past the end of a label-length raster.
     """
     p = engine.profile
-    w, h, dpm = p.label_length_px, p.printhead_px, p.dots_per_mm
+    w, h, dpm = p.label_length_px + max(0, extra_px), p.printhead_px, p.dots_per_mm
     band = Image.new("1", (w, h), 1)
     d = ImageDraw.Draw(band)
     for k in range(EDGE_TEST_FRAMES):
@@ -89,5 +92,5 @@ def edge_test_raster(engine: RenderEngine) -> tuple[Image.Image, Image.Image]:
                font=font, fill=0)
     raster = band.transpose(Image.Transpose.ROTATE_270 if engine.calibration.rotate_clockwise
                             else Image.Transpose.ROTATE_90)
-    assert raster.size == p.native_raster_size, raster.size
+    assert raster.size == (h, w), raster.size
     return band, raster

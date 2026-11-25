@@ -285,6 +285,9 @@ def test_edge_test_covers_whole_band_without_offsets(engine: RenderEngine) -> No
         assert band.getpixel((x, y)) == 0, (x, y)
     assert band.getpixel((2, 48)) != 0
     assert raster.tobytes() == band.transpose(Image.Transpose.ROTATE_90).tobytes()
+    long_band, long_raster = edge_test_raster(engine, 16)
+    assert long_band.size == (256, 96) and long_raster.size == (96, 256)
+    assert long_band.getpixel((255, 48)) == 0 and long_band.getpixel((247, 48)) == 0
 
 
 def test_fields_show_specification_values(engine: RenderEngine) -> None:

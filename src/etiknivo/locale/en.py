@@ -234,6 +234,7 @@ EN: dict[str, str] = {
     "Testlabel afdrukken": "Print test label",
     "Kalibratietest afdrukken": "Print calibration test",
     "Randentest afdrukken": "Print edge test",
+    "Randentest afdrukken (2 mm langer)": "Print edge test (2 mm longer)",
     "Randentest": "Edge test",
     "▲ boven · randentest": "▲ top · edge test",
     "Printdichtheid": "Print density",
