@@ -49,6 +49,7 @@ NEW_SIZE = {
     ElementKind.IMAGE: (8.0, 8.0),
     ElementKind.LINE: (0.0, 0.125),  # full width
     ElementKind.BOX: (0.0, 0.0),  # the whole printable area
+    ElementKind.INVERT: (0.0, 3.0),  # a bar over the full width
 }
 
 

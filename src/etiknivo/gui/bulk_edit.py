@@ -25,7 +25,17 @@ from PySide6.QtWidgets import (
 from etiknivo.gui import theme
 from etiknivo.gui.qt_util import remember_size
 from etiknivo.i18n import N_, tr
-from etiknivo.model import SLOT_BOTTOM, SLOT_MAIN, SLOT_TOP, CodeSize, HAlign, Label, VAlign
+from etiknivo.model import (
+    SLOT_BOTTOM,
+    SLOT_MAIN,
+    SLOT_TOP,
+    TEMPLATE_INFO,
+    CodeSize,
+    HAlign,
+    Label,
+    VAlign,
+)
+from etiknivo.rendering.templates import apply_template
 
 #: The size choices as the table shows them, as in the properties panel
 SIZE_NAMES: tuple[tuple[CodeSize, str], ...] = (
@@ -86,6 +96,18 @@ def _set_size(part: str) -> Callable[[Label, str], None]:
     return write
 
 
+def _template_name(lbl: Label) -> str:
+    return tr(TEMPLATE_INFO[lbl.template][0])
+
+
+def _set_template(lbl: Label, text: str) -> None:
+    """Write a template name (in the current language) to the label; anything
+    else leaves it as it is."""
+    for tpl, (name, _desc) in TEMPLATE_INFO.items():
+        if text.strip().casefold() in (tr(name).casefold(), tpl.value):
+            apply_template(lbl, tpl)
+
+
 COLUMNS: tuple[Column, ...] = (
     (N_("Naam"), lambda lbl: lbl.name, _set("name")),
     (N_("Lade-ID"), lambda lbl: lbl.tray_id, _set("tray_id")),
@@ -97,10 +119,12 @@ COLUMNS: tuple[Column, ...] = (
     (N_("Pictogrampositie"), lambda lbl: _position_name(lbl.picture), _set_position("picture")),
     (N_("QR-grootte"), lambda lbl: _size_name(lbl.code.size), _set_size("code")),
     (N_("QR-positie"), lambda lbl: _position_name(lbl.code), _set_position("code")),
+    (N_("Sjabloon"), _template_name, _set_template),
 )
 CATEGORY_COLUMN = 2
 SIZE_COLUMNS = (6, 8)  # pictogram, QR code
 POSITION_COLUMNS = (7, 9)
+TEMPLATE_COLUMN = 10
 
 
 class _ChoiceDelegate(QStyledItemDelegate):
@@ -200,6 +224,8 @@ class BulkEditDialog(QDialog):
             self.table.setItemDelegateForColumn(col, _ChoiceDelegate(sizes, self.table))
         for col in POSITION_COLUMNS:
             self.table.setItemDelegateForColumn(col, _ChoiceDelegate(places, self.table))
+        self.table.setItemDelegateForColumn(TEMPLATE_COLUMN, _ChoiceDelegate(
+            [name for name, _desc in TEMPLATE_INFO.values()], self.table))
         head = self.table.horizontalHeader()
         head.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
         head.setStretchLastSection(True)

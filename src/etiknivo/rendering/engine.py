@@ -55,6 +55,7 @@ from etiknivo.rendering.fonts import (
     missing_glyphs,
     pil_font,
 )
+from etiknivo.rendering.templates import Placed, template_items
 from etiknivo.settings import Calibration
 
 log = logging.getLogger(__name__)
@@ -141,6 +142,9 @@ class RenderResult:
     element_boxes: dict[str, tuple[float, float, float, float]] = field(default_factory=dict)
     #: top dot of each line drawn between text lines (unturned labels only)
     separator_ys: list[int] = field(default_factory=list)
+    #: template: text element id -> (its ink box, the size it got)
+    element_text: dict[str, tuple[tuple[float, float, float, float], float]] = field(
+        default_factory=dict)
 
     @property
     def has_overflow(self) -> bool:
@@ -318,6 +322,8 @@ class RenderEngine:
     def _render(self, label: Label, share: CategoryShare | None) -> RenderResult:
         if label.is_free:
             return self._render_free(label)
+        if label.uses_template:
+            return self._render_template(label)
         if label.style.rotation in (90, 270):
             return self._render_turned(label, share)
         ss = max(1, int(self.calibration.supersample))
@@ -499,8 +505,75 @@ class RenderEngine:
         x0, y0 = px0 + self.mm_to_px(el.x_mm), py0 + self.mm_to_px(el.y_mm)
         return x0, y0, x0 + self.mm_to_px(el.w_mm), y0 + self.mm_to_px(el.h_mm)
 
+    @property
+    def area_mm(self) -> tuple[float, float]:
+        """Size of the printable area in mm (width, height)."""
+        px0, py0, px1, py1 = self.printable_box
+        dpm = self.profile.dots_per_mm
+        return (px1 - px0) / dpm, (py1 - py0) / dpm
+
+    def template_items(self, label: Label) -> tuple[list[Placed], list[str]]:
+        """The elements *label*'s template places, with its warnings."""
+        return template_items(label, self.area_mm)
+
     def _render_free(self, label: Label) -> RenderResult:
         """Free layout: every element in its own box."""
+        if not label.elements:
+            result = self._render_elements(label, [], {})
+            result.warnings.append(tr("Label bevat geen elementen: voeg er een toe"))
+            return result
+        return self._render_elements(label, [Placed(el) for el in label.elements], {})
+
+    def _render_template(self, label: Label) -> RenderResult:
+        """A template: its elements, with the text sizes shared per category."""
+        items, warnings = self.template_items(label)
+        result = self._render_elements(label, items, self._template_caps(label),
+                                       template=True)
+        result.warnings[:0] = warnings
+        return result
+
+    def _template_caps(self, label: Label) -> dict[str, float]:
+        """Per text role the smallest size any label of the category with the
+        same template needs, so the category looks even."""
+        if self.peers is None or not _shares_template_sizes(label):
+            return {}
+        group = [label] + [p for p in self.peers()
+                           if p.id != label.id and p.category == label.category
+                           and p.template == label.template and _shares_template_sizes(p)]
+        if len(group) < 2:
+            return {}
+        caps: dict[str, float] = {}
+        for member in group:
+            for role, size in self._template_fit(member).items():
+                caps[role] = min(caps.get(role, size), size)
+        return caps
+
+    def _template_fit(self, label: Label) -> dict[str, float]:
+        """Per text role the size the label's own texts fit at."""
+        key = ("template", label.render_key(), self.profile, self.calibration.supersample)
+        hit = self._own_fit.get(key)
+        if hit is None:
+            if len(self._own_fit) > 4000:
+                self._own_fit.clear()
+            hit = {}
+            items, _ = self.template_items(label)
+            for n, item in enumerate(items):
+                el = item.element
+                if el.kind != ElementKind.TEXT or not item.role:
+                    continue
+                p = self._prepare_text(label, n, el.as_line(), [])
+                if not p.text:
+                    continue
+                bx0, by0, bx1, by1 = self.element_box(el)
+                size = self._fit_in_box(p, el.font_size_pt, bx1 - bx0, by1 - by0)
+                hit[item.role] = min(hit.get(item.role, size), size)  # type: ignore[union-attr]
+            self._own_fit[key] = hit  # type: ignore[assignment]
+        return hit  # type: ignore[return-value]
+
+    def _render_elements(self, label: Label, items: list[Placed], caps: dict[str, float],
+                         template: bool = False) -> RenderResult:
+        """Every element in its own box (free layout and templates).  In a
+        template, text sits on a steady baseline and is capped per role."""
         ss = max(1, int(self.calibration.supersample))
         w, h = self.design_size
         px0, py0, px1, py1 = self.printable_box
@@ -509,14 +582,23 @@ class RenderEngine:
         warnings: list[str] = []
         line_boxes: list[LineBox] = []
         boxes: dict[str, tuple[float, float, float, float]] = {}
-        for n, el in enumerate(label.elements):
+        inverts: list[tuple[int, int, int, int]] = []
+        texts: dict[str, tuple[tuple[float, float, float, float], float]] = {}
+        for n, item in enumerate(items):
+            el = item.element
             box = self.element_box(el)
             boxes[el.id] = box
             bx0, by0, bx1, by1 = box
             # for text, symbols and images the ink counts, not the box
             if el.kind == ElementKind.TEXT:
-                lb = self._free_text(hires, label, n, el, box, ss, warnings)
+                if item.role in caps:
+                    el = replace(el, font_size_pt=min(el.font_size_pt, caps[item.role]))
+                lb = self._free_text(hires, label, n, el, box, ss, warnings, steady=template)
                 if lb is not None:
+                    texts[el.id] = ((lb.x0, lb.y0, lb.x1, lb.y1), lb.size_pt)
+                    if template:
+                        lb = replace(lb, slot=item.slot if item.slot is not None else -1 - n,
+                                     requested_pt=lb.size_pt)
                     line_boxes.append(lb)
                     bx0, by0, bx1, by1 = lb.x0, lb.y0, lb.x1, lb.y1
                 else:
@@ -532,16 +614,22 @@ class RenderEngine:
             if el.kind in (ElementKind.QR, ElementKind.BARCODE):
                 for x0, y0, x1, y1 in self._free_code(label, el, box, warnings):
                     draw.rectangle((x0 * ss, y0 * ss, x1 * ss - 1, y1 * ss - 1), fill=0)
+                continue
+            ix0, iy0 = round(bx0), round(by0)
+            ix1, iy1 = max(ix0 + 1, round(bx1)), max(iy0 + 1, round(by1))
+            if el.kind == ElementKind.INVERT:
+                inverts.append((ix0 * ss, iy0 * ss, ix1 * ss, iy1 * ss))
+            elif el.kind == ElementKind.LINE:
+                draw.rectangle((ix0 * ss, iy0 * ss, ix1 * ss - 1, iy1 * ss - 1), fill=0)
             else:
-                ix0, iy0 = round(bx0), round(by0)
-                ix1, iy1 = max(ix0 + 1, round(bx1)), max(iy0 + 1, round(by1))
-                if el.kind == ElementKind.LINE:
-                    draw.rectangle((ix0 * ss, iy0 * ss, ix1 * ss - 1, iy1 * ss - 1), fill=0)
-                else:
-                    draw.rectangle((ix0 * ss, iy0 * ss, ix1 * ss - 1, iy1 * ss - 1),
-                                   outline=0, width=ss)
-        if not label.elements:
-            warnings.append(tr("Label bevat geen elementen: voeg er een toe"))
+                draw.rectangle((ix0 * ss, iy0 * ss, ix1 * ss - 1, iy1 * ss - 1),
+                               outline=0, width=ss)
+        # white on black last, so it turns over whatever lies under it
+        for x0, y0, x1, y1 in inverts:
+            x0, y0 = max(x0, px0 * ss), max(y0, py0 * ss)
+            x1, y1 = min(x1, px1 * ss), min(y1, py1 * ss)
+            if x1 > x0 and y1 > y0:
+                hires.paste(ImageOps.invert(hires.crop((x0, y0, x1, y1))), (x0, y0))
         for lb in line_boxes:
             if lb.overflow:
                 warnings.append(tr("Tekst '{text}' past niet in zijn vak, zelfs niet bij de "
@@ -550,23 +638,32 @@ class RenderEngine:
         result = self._finish(hires, label, ss, line_boxes, warnings,
                               (px0, py0, px1, py1), None)
         result.element_boxes = boxes
+        result.element_text = texts
         return result
 
-    def _free_text(self, canvas: Image.Image, label: Label, n: int, el: LabelElement,
-                   box: tuple[float, float, float, float], ss: int,
-                   warnings: list[str]) -> LineBox | None:
-        p = self._prepare_text(label, n, el.as_line(), warnings)
-        if not p.text:
-            return None
-        bx0, by0, bx1, by1 = box
-        bw, bh = bx1 - bx0, by1 - by0
-        size = el.font_size_pt
+    def _fit_in_box(self, p: _Prepared, size: float, bw: float, bh: float) -> float:
+        """The largest size up to *size* at which *p* fits a box of bw × bh dots."""
         for _ in range(24):
             l, t, r, b = self._measure(p, size)
             tw, th = r - l, b - t
             if (tw <= bw and th <= bh) or size <= MIN_FONT_PT:
                 break
             size = max(MIN_FONT_PT, size * min(0.98, bw / max(tw, 1e-6), bh / max(th, 1e-6)))
+        return size
+
+    def _free_text(self, canvas: Image.Image, label: Label, n: int, el: LabelElement,
+                   box: tuple[float, float, float, float], ss: int,
+                   warnings: list[str], steady: bool = False) -> LineBox | None:
+        """Draw a text element in its box.  *steady* centres the capital
+        height (top of an H to the baseline) instead of the ink, so texts of
+        one size stand on the same baseline whatever letters they hold;
+        descenders hang below, still inside the box."""
+        p = self._prepare_text(label, n, el.as_line(), warnings)
+        if not p.text:
+            return None
+        bx0, by0, bx1, by1 = box
+        bw, bh = bx1 - bx0, by1 - by0
+        size = self._fit_in_box(p, el.font_size_pt, bw, bh)
         l, t, r, b = self._measure(p, size)
         tw, th = r - l, b - t
         if el.align == HAlign.LEFT:
@@ -576,6 +673,9 @@ class RenderEngine:
         else:
             x = bx0 + (bw - tw) / 2
         y = by0 + (bh - th) / 2
+        if steady:
+            _, ht, _, hb = self._measure(replace(p, text="H"), size)
+            y = by0 + (bh - (hb - ht)) / 2 - ht + t  # H centred; y is the ink top
         x = _snap(x - l, bx0 - l, bx1 - r) + l  # baseline on a whole dot, as drawn
         y = _snap(y - t, by0 - t, by1 - b) + t
         self._draw_line(canvas, p, size, x - l, y - t, ss)
@@ -660,6 +760,8 @@ class RenderEngine:
         when a label switches to the free layout."""
         if label.is_free:
             return [replace(el) for el in label.elements]
+        if label.uses_template:
+            return self._template_to_elements(label)
         flat = label.clone(new_id=False)
         flat.style.rotation = 0
         r = self.render(flat)
@@ -702,6 +804,28 @@ class RenderEngine:
                 out.append(make(ElementKind.SYMBOL, ink, symbol=pic.symbol))
             else:
                 out.append(make(ElementKind.IMAGE, r.picture_box, image_png=pic.image_png))
+        return out
+
+    def _template_to_elements(self, label: Label) -> list[LabelElement]:
+        """The template's elements as they print: each text in a box around
+        its ink at the size it got, so the free layout looks the same."""
+        r = self.render(label)
+        items, _ = self.template_items(label)
+        px0, py0 = self.printable_box[:2]
+        dpm = self.profile.dots_per_mm
+        out: list[LabelElement] = []
+        for item in items:
+            el = replace(item.element)
+            if el.kind == ElementKind.TEXT:
+                if el.id not in r.element_text:
+                    continue
+                (x0, y0, x1, y1), size = r.element_text[el.id]
+                # two dots of air, on the side the text does not lean against
+                left = {HAlign.LEFT: 0.0, HAlign.CENTER: 1.0, HAlign.RIGHT: 2.0}[el.align]
+                el.font_size_pt = round(size, 2)
+                el.move_to((x0 - left - px0) / dpm, (y0 - 1.0 - py0) / dpm)
+                el.resize((x1 - x0 + 2.0) / dpm, (y1 - y0 + 2.0) / dpm)
+            out.append(el)
         return out
 
     def _render_turned(self, label: Label, share: CategoryShare | None) -> RenderResult:
@@ -1171,8 +1295,13 @@ class RenderEngine:
 
 def _shares_sizes(label: Label) -> bool:
     """Whether the label takes part in its category's shared font sizes."""
-    return (not label.is_free and label.style.autofit
+    return (not label.is_free and not label.uses_template and label.style.autofit
             and label.style.same_size_in_category)
+
+
+def _shares_template_sizes(label: Label) -> bool:
+    """Whether the label's template texts take part in the category's sizes."""
+    return label.uses_template and label.style.autofit and label.style.same_size_in_category
 
 
 def is_stacked(label: Label) -> bool:

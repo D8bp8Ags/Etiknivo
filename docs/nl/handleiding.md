@@ -10,6 +10,7 @@ Etiknivo maakt en print etiketten op de Action Fichero 5836, standaard 30 × 14 
 - [Specificaties en gekoppelde velden](#specificaties-en-gekoppelde-velden)
 - [Pictogrammen en afbeeldingen](#pictogrammen-en-afbeeldingen)
 - [QR-code en barcode](#qr-code-en-barcode)
+- [Sjablonen: kant-en-klare layouts](#sjablonen-kant-en-klare-layouts)
 - [Vrije layout: elementen slepen](#vrije-layout-elementen-slepen)
 - [Afdrukken](#afdrukken)
 - [Een andere etiketrol](#een-andere-etiketrol)
@@ -58,6 +59,7 @@ Klik **+** in de werkbalk (⌘N). Je kiest een categorie en het label opent in d
 - **Lade-ID**: bijvoorbeeld `A14`, om op te sorteren. Komt niet op het etiket, tenzij je `{Lade}` in een tekstregel zet.
 - **Categorie**: groepeert labels in de bibliotheek. Kies een bestaande of typ een nieuwe.
 - **Layout**: **Regels** of **Vrij**. Bij *Regels* staan er tot drie tekstregels onder elkaar, met een QR-code of barcode en een pictogram ernaast. Bij *Vrij* zet je losse elementen waar je wilt (zie [Vrije layout](#vrije-layout-elementen-slepen)).
+- **Sjabloon** (alleen bij *Regels*): een kant-en-klare indeling, zoals *Kopbalk* of *QR-vak* (zie [Sjablonen](#sjablonen-kant-en-klare-layouts)). *Regels onder elkaar* is de gewone indeling.
 - **Regels** (alleen bij *Regels*): de snelknoppen **1**, **2** en **3** zetten regels aan of uit.
 
 | Knop | Regels op het etiket |
@@ -158,16 +160,45 @@ Hoe korter de inhoud, hoe groter de blokjes of streepjes en hoe makkelijker het 
 
 Etiknivo maakt QR-codes en barcodes zelf, zonder externe bibliotheek of internet.
 
+## Sjablonen: kant-en-klare layouts
+
+![De sjabloonkiezer](../img/nl/sjablonen.png)
+
+Bij **Sjabloon** kies je met één klik een indeling zoals professionele bak-, magazijn- en 5S-labels die gebruiken. Het sjabloon bepaalt waar alles staat en hoe groot het is; de tekst komt gewoon uit je regels, het lade-ID, de QR-code en het pictogram. Verander je een regel, dan verandert het etiket mee. Een sjabloon werkt op elke etiketrol, want de vakken schalen mee.
+
+| Sjabloon | Wat het doet | Waarom |
+|---|---|---|
+| Regels onder elkaar | de gewone indeling, met pictogram en code ernaast | |
+| Locatie eerst | lade-ID groot in een kader links, de regels links uitgelijnd ernaast | zoals magazijnlabels: je vindt het vak terug en zet het terug zonder te lezen |
+| Waarde groot | hoofdregel zo groot mogelijk, bovenregel linksboven, lade-ID rechtsboven | je zoekt op waarde (10 kΩ, M3), niet op naam |
+| Kopbalk | bovenregel en lade-ID wit op een zwarte balk | groepeert de kast; wit-op-zwart vervangt een kleurcode |
+| Pictogram-kolom | pictogram over de volle hoogte, een lijn, dan de tekst | 5S: herkennen vóór lezen |
+| QR-vak | QR-code met de inhoud leesbaar eronder | werkt ook als scannen niet lukt |
+| Specificatie-raster | boven- en hoofdregel als kop, de onderregel in vakjes | dezelfde eigenschap staat altijd op dezelfde plek |
+| Op afstand leesbaar | alleen de hoofdregel, zo groot als past | één woord dat het vak onderscheidt |
+| Drie zones | pictogram, tekst met kopbalk, QR-code naast elkaar | bedoeld voor lange labels (40 of 50 mm) |
+
+Goed om te weten:
+
+- **Specificatie-raster**: scheid de vakjes in de onderregel met `|`, bijvoorbeeld `Ø 3 mm | THT | 20 mA | 2,0 V`. Zonder `|` staat de hele onderregel in één vak.
+- **Pictogram-kolom** en **Drie zones** kiezen zelf een passend symbool als het label nog geen pictogram had. Bij **QR-vak** en **Drie zones** staat de inhoud van de code standaard op `{Lade}`.
+- Met *Zelfde lettergrootte binnen de categorie* aan krijgen labels met hetzelfde sjabloon in een categorie per onderdeel dezelfde lettergrootte, zodat de kast er rustig uitziet.
+- Marges, regelafstand, rotatie en de lijn tussen regels gelden niet in een sjabloon; *Wit op zwart* en de rand wel. De lettergrootte van een regel volgt het sjabloon.
+- **Kleine aanpassingen**: kies daarna **Vrij**. Je krijgt dan precies de elementen van het sjabloon, die je kunt verschuiven of vergroten.
+- Met **Opmaak overnemen → Layout** of de kolom **Sjabloon** in *Labels bewerken* geef je veel labels tegelijk hetzelfde sjabloon.
+
+![Een etiket met een sjabloon](../img/nl/sjabloon-resultaat.png)
+
 ## Vrije layout: elementen slepen
 
 Wil je meer vrijheid dan drie regels onder elkaar, kies dan bij *Layout* **Vrij**. Wat er op het etiket staat (de regels, de QR-code of barcode en het pictogram) wordt dan omgezet in losse **elementen** op precies dezelfde plek. Het etiket ziet er dus eerst hetzelfde uit.
 
 - **Selecteren en slepen**: klik een element in het ontwerp en sleep het. Het blauwe hoekje rechtsonder maakt het groter of kleiner. Alles springt per dot (0,125 mm), dus wat je ziet is precies wat er geprint wordt.
 - **Toetsen**: de pijltjes schuiven het geselecteerde element 1 dot, met Shift 1 mm. Delete verwijdert het.
-- **Toevoegen**: met **Toevoegen ▾** onder de lijst kies je een tekst, QR-code, barcode, symbool, afbeelding, lijn of kader. De knoppen ▲ en ▼ bepalen wat boven ligt als elementen elkaar overlappen.
+- **Toevoegen**: met **Toevoegen ▾** onder de lijst kies je een tekst, QR-code, barcode, symbool, afbeelding, lijn, kader of een vlak *wit op zwart*. De knoppen ▲ en ▼ bepalen wat boven ligt als elementen elkaar overlappen.
 - **Instellen**: onder de lijst staan de plaats en grootte in mm en, afhankelijk van het element, de inhoud, het lettertype, het symbool of de afbeelding.
 
-Tekst wordt zo groot als je instelt, maar krimpt als hij niet in zijn vak past. Codes, symbolen en afbeeldingen worden zo groot mogelijk in hun vak gezet. Een symbool vult zijn vak tot aan de rand, zonder witruimte eromheen. Een **lijn** vult zijn hele vak, dus een plat vak is een streep en een vierkant vak een zwart blok. Een **kader** is een rand van 1 dot om het vak. Velden zoals `{Lade}`, `{Datum}` en `{Nr}` werken in alle tekst en codes.
+Tekst wordt zo groot als je instelt, maar krimpt als hij niet in zijn vak past. Codes, symbolen en afbeeldingen worden zo groot mogelijk in hun vak gezet. Een symbool vult zijn vak tot aan de rand, zonder witruimte eromheen. Een **lijn** vult zijn hele vak, dus een plat vak is een streep en een vierkant vak een zwart blok. Een **kader** is een rand van 1 dot om het vak. Een vlak **wit op zwart** keert alles om wat eronder ligt, zoals de kopbalk van een sjabloon. Velden zoals `{Lade}`, `{Datum}` en `{Nr}` werken in alle tekst en codes.
 
 Ga je terug naar *Regels*, dan krijg je je drie regels terug zoals ze waren. De elementen blijven bewaard voor als je weer *Vrij* kiest. Heb je de regels intussen veranderd, dan vraagt Etiknivo of je de elementen **opnieuw wilt maken** uit de regels of je **vorige vrije layout wilt houden**. In de vrije layout gelden marges, regelafstand en rotatie niet, want je zet alles zelf neer. Met **Opmaak overnemen → Layout** krijgen andere labels dezelfde elementen. Gebruik velden zoals `{Naam}` en `{Lade}` in de tekst, dan toont elk label zijn eigen gegevens.
 
@@ -244,7 +275,7 @@ Een nieuw label krijgt vanzelf de opmaak van het label dat je het laatst bewerkt
 
 Wil je dat een hele categorie er hetzelfde uitziet, maak dan één label mooi en kies **Label → Opmaak overnemen…** (of rechtsklik in de bibliotheek). Vink aan wat er mee moet:
 
-- **Layout en lettertypen**: welke regels zichtbaar zijn, lettertype, grootte, vet, cursief en uitlijning per regel.
+- **Layout, sjabloon en lettertypen**: het sjabloon, welke regels zichtbaar zijn, lettertype, grootte, vet, cursief en uitlijning per regel.
 - **Opmaak**: verticale uitlijning, regelafstand, marges, automatisch passend maken, rotatie, rand, lijnen tussen regels en wit-op-zwart.
 - **QR-code of barcode**: soort, plaats en inhoud. Velden zoals `{Lade}` vullen zich per label in.
 - **Pictogram**: symbool of afbeelding, de plaats en de grootte.

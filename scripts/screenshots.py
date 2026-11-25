@@ -2,6 +2,7 @@
 
     QT_QPA_PLATFORM=offscreen uv run python scripts/screenshots.py nl
     QT_QPA_PLATFORM=offscreen uv run python scripts/screenshots.py en
+    QT_QPA_PLATFORM=offscreen uv run python scripts/screenshots.py nl templates  # only those
 
 Writes to docs/img/<language>/; the Dutch manual uses docs/img/nl, the English
 manual and the README use docs/img/en.
@@ -85,16 +86,94 @@ def window_shots(app: QApplication, out: Path, theme: str, suffix: str) -> None:
     win.close()
 
 
-def main(lang: str = "nl") -> None:
+def template_shots(app: QApplication, out: Path, names: tuple[str, str]) -> None:
+    """The template chooser opened beside the inspector, and one label of each
+    template as it prints."""
+    from PySide6.QtCore import QPoint
+    from PySide6.QtGui import QPainter
+
+    from etiknivo.model import LabelTemplate, PictureKind, make_label
+    from etiknivo.rendering.templates import apply_template
+
+    lib, _ = open_library(data_dir() / "library.json")
+    win = mw.MainWindow(lib, Settings(use_mock_printer=True, theme="light"),
+                        MockPrinterBackend(delay=0.05), poll_interval=3600)
+    win.resize(1500, 950)
+    win.show()
+
+    def pump(n: int) -> None:
+        for _ in range(n):
+            app.processEvents()
+            time.sleep(0.02)
+
+    pump(10)
+    win.library_panel.select_ids([win.library_panel.visible_ids()[3]])
+    pump(5)
+    props = win.properties
+    box = props.template
+    box.setCurrentIndex(box.findData(LabelTemplate.HEADER.value))
+    box.activated.emit(box.currentIndex())
+    pump(10)
+    box.showPopup()
+    pump(10)
+    shot = win.grab()
+    popup = box.view().window()
+    pos = popup.mapToGlobal(QPoint(0, 0)) - win.mapToGlobal(QPoint(0, 0))
+    painter = QPainter(shot)
+    painter.drawPixmap(pos, popup.grab())
+    painter.end()
+    box.hidePopup()
+    shot.save(str(out / names[0]))
+    win._ask_unsaved = lambda _lbl: "discard"  # type: ignore[method-assign]
+    win.close()
+
+    engine = RenderEngine()
+    long_engine = RenderEngine(engine.profile.with_label(50.0, 14.0))
+    lbl = make_label("A17", i18n.tr("Halfgeleiders"), i18n.tr("Rood"), "")
+    lbl.top.text, lbl.top.enabled = "LED", True
+    lbl.picture.kind, lbl.picture.symbol = PictureKind.SYMBOL, "led"
+    tiles = []
+    for tpl in LabelTemplate:
+        apply_template(lbl, tpl)
+        # only the grid splits the bottom line into cells at |
+        lbl.bottom.text = "Ø 3 mm | THT | 20 mA | 2,0 V" if tpl == LabelTemplate.GRID \
+            else "Ø 3 mm THT"
+        eng = long_engine if tpl == LabelTemplate.ZONES else engine
+        img = eng.render(lbl).mono.crop(eng.printable_box).convert("L")
+        tiles.append(img.resize((img.width * 3, img.height * 3), Image.Resampling.NEAREST))
+    gap, cols = 24, 3
+    rows = (len(tiles) + cols - 1) // cols
+    sheet = Image.new("L", (cols * (tiles[0].width + gap) + gap,
+                            rows * (tiles[0].height + gap) + gap), 235)
+    for n, tile in enumerate(tiles[:-1]):
+        x = gap + (n % cols) * (tiles[0].width + gap)
+        y = gap + (n // cols) * (tiles[0].height + gap)
+        sheet.paste(tile, (x, y))
+    last = tiles[-1]
+    y = gap + (len(tiles) - 1) // cols * (tiles[0].height + gap)
+    x = gap + ((len(tiles) - 1) % cols) * (tiles[0].width + gap)
+    if x + last.width > sheet.width - gap:  # the long label gets its own row
+        sheet2 = Image.new("L", (max(sheet.width, last.width + 2 * gap),
+                                 sheet.height + last.height + gap), 235)
+        sheet2.paste(sheet, (0, 0))
+        sheet, x, y = sheet2, gap, sheet.height
+    sheet.paste(last, (x, y))
+    sheet.save(out / names[1])
+
+
+def main(lang: str = "nl", only: str = "") -> None:
     i18n.set_language(lang)
     out = Path(__file__).resolve().parent.parent / "docs" / "img" / lang
     out.mkdir(parents=True, exist_ok=True)
-    label_sheet(out / "raaco-labels.png")
-    app = QApplication(sys.argv)
+    app = QApplication(sys.argv[:1])
     i18n.install_qt_translations(app)
-    window_shots(app, out, "light", "")
-    window_shots(app, out, "dark", "-dark")
+    if only != "templates":
+        label_sheet(out / "raaco-labels.png")
+        window_shots(app, out, "light", "")
+        window_shots(app, out, "dark", "-dark")
+    template_shots(app, out, ("sjablonen.png", "sjabloon-resultaat.png") if lang == "nl"
+                   else ("templates.png", "template-result.png"))
 
 
 if __name__ == "__main__":
-    main(sys.argv[1] if len(sys.argv) > 1 else "nl")
+    main(*sys.argv[1:3])
