@@ -66,6 +66,7 @@ from etiknivo.rendering import pictures
 from etiknivo.rendering.templates import (
     CODE_TEMPLATES,
     PICTURE_TEMPLATES,
+    TRAY_TEMPLATES,
     apply_template,
     differs_from_template,
     reset_to_template,
@@ -105,6 +106,8 @@ def _template_sample(tpl: LabelTemplate) -> Image.Image:
     lbl.top.text, lbl.top.enabled = "LED", True
     lbl.picture.kind, lbl.picture.symbol = PictureKind.SYMBOL, "led"
     lbl.template = tpl
+    if tpl in CODE_TEMPLATES:
+        lbl.code.kind = CodeKind.QR
     engine = RenderEngine()
     if tpl == LabelTemplate.ZONES:
         engine = RenderEngine(engine.profile.with_label(50.0, 14.0))
@@ -304,7 +307,14 @@ class PropertiesPanel(QScrollArea):
             btn.setToolTip(tip)
             btn.clicked.connect(lambda _c=False, n=n: self._count_chosen(n))
         f.addRow(tr("Naam"), self.name)
-        f.addRow(tr("Lade-ID"), self.tray)
+        self.tray_show = QCheckBox(tr("Op het etiket"))
+        self.tray_show.setToolTip(tr("Zet het lade-ID in het sjabloon aan of uit; de rest "
+                                     "schuift mee. Het lade-ID zelf blijft bewaard."))
+        tray_row = QHBoxLayout()
+        tray_row.setSpacing(8)
+        tray_row.addWidget(self.tray, 1)
+        tray_row.addWidget(self.tray_show)
+        f.addRow(tr("Lade-ID"), tray_row)
         f.addRow(tr("Categorie"), self.category)
         self.template = combo()
         self.template.setIconSize(QSize(72, 34))
@@ -377,6 +387,10 @@ class PropertiesPanel(QScrollArea):
         fc.addRow(tr("Plaats"), self.code_pos)
         fc.addRow(tr("Grootte"), size_box)
         fc.addRow(tr("Inhoud"), code_row)
+        self.code_caption = QCheckBox(tr("Tekst onder de QR-code"))
+        self.code_caption.setToolTip(tr("Zet de leesbare tekst onder de QR-code aan of uit; "
+                                        "zonder tekst wordt de QR-code groter."))
+        fc.addRow("", self.code_caption)
         fc.addRow(self.code_hint)
         self._code_form, self._code_row = fc, code_row
         lay.addWidget(code)
@@ -493,6 +507,8 @@ class PropertiesPanel(QScrollArea):
 
         self.name.textEdited.connect(lambda: self._apply(True))
         self.tray.textEdited.connect(lambda: self._apply(True))
+        self.tray_show.toggled.connect(lambda: self._apply(True))
+        self.code_caption.toggled.connect(lambda: self._apply(False))
         # The category is committed when editing is finished (Enter, leaving the
         # field or picking from the list), not on every keystroke: a half-typed
         # name must not create a category or move the label.
@@ -561,6 +577,7 @@ class PropertiesPanel(QScrollArea):
         try:
             self.name.setText(label.name)
             self.tray.setText(label.tray_id)
+            self.tray_show.setChecked(label.template_tray)
             self.category.setCurrentText(label.category)
             self.mode_free.setChecked(label.is_free)
             self.mode_lines.setChecked(not label.is_free)
@@ -594,6 +611,7 @@ class PropertiesPanel(QScrollArea):
             set_size(self.code_sizes, c.size)
             if self.code_text.text() != c.text:
                 self.code_text.setText(c.text)
+            self.code_caption.setChecked(c.caption)
             self._update_code_hint()
             p = label.picture
             self.pic_kind.setCurrentIndex([k for k, _ in PICTURE_KINDS].index(p.kind))
@@ -691,16 +709,24 @@ class PropertiesPanel(QScrollArea):
                                 "lijnen."),
             self.pic_pos: tr("Bij een sjabloon ligt de plaats van het pictogram vast."),
             self.code_pos: tr("Bij een sjabloon ligt de plaats van de code vast."),
-            self.code_kind: tr("Dit sjabloon gebruikt altijd een QR-code."),
         }
         for w, note in notes.items():
-            limited = on and (w is not self.code_kind or tpl in CODE_TEMPLATES)
+            limited = on
             if limited:
                 w.setEnabled(False)
-            elif w in (self.valign, self.spacing, self.rotation, self.separators,
-                       self.code_kind):
+            elif w in (self.valign, self.spacing, self.rotation, self.separators):
                 w.setEnabled(True)
             w.setToolTip(note if limited else self._tips.get(w, ""))
+        # a template draws a QR code or nothing: no barcode
+        barcode = self.code_kind.model().item(self._code_index(CodeKind.CODE128))
+        no_barcode = tpl in CODE_TEMPLATES
+        barcode.setEnabled(not no_barcode)
+        barcode.setToolTip(tr("Een sjabloon gebruikt een QR-code of geen code.")
+                           if no_barcode else "")
+        kind = CODE_CHOICES[max(0, self.code_kind.currentIndex())][0]
+        self._code_form.setRowVisible(self.code_caption,
+                                      tpl in CODE_TEMPLATES and kind == CodeKind.QR)
+        self.tray_show.setVisible(on and tpl in TRAY_TEMPLATES)
         for group, used, note in (
                 (self.code_group, CODE_TEMPLATES,
                  tr("Dit sjabloon gebruikt geen QR-code of barcode.")),
@@ -804,6 +830,7 @@ class PropertiesPanel(QScrollArea):
         lbl = self.label
         lbl.name = self.name.text()
         lbl.tray_id = self.tray.text().strip()
+        lbl.template_tray = self.tray_show.isChecked()
         s = lbl.style
         s.valign = VAlign(self.valign.currentData())
         s.line_spacing_mm = self.spacing.value()
@@ -816,12 +843,17 @@ class PropertiesPanel(QScrollArea):
         s.separators = self.separators.isChecked()
         s.invert = self.invert.isChecked()
         self._update_style_reset()
-        before = (lbl.picture.kind, lbl.picture.symbol, lbl.code.text)
+        before = (lbl.picture.kind, lbl.picture.symbol, lbl.code.text, lbl.code.kind)
         lbl.code.kind = CODE_CHOICES[max(0, self.code_kind.currentIndex())][0]
         if lbl.code.kind == CodeKind.QR:  # a barcode keeps the QR code's place for later
             lbl.code.side, lbl.code.valign = chosen_position(self.code_pos)
             lbl.code.size = chosen_size(self.code_sizes)
         lbl.code.text = self.code_text.text()
+        lbl.code.caption = self.code_caption.isChecked()
+        if lbl.code.kind != before[3]:  # the user's choice stays when the template changes
+            for flag in ("code", "code_barcode"):
+                if flag in lbl.template_added:
+                    lbl.template_added.remove(flag)
         self._update_code_hint()
         lbl.picture.kind = PICTURE_KINDS[max(0, self.pic_kind.currentIndex())][0]
         lbl.picture.side, lbl.picture.valign = chosen_position(self.pic_pos)

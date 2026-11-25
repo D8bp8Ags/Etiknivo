@@ -944,7 +944,18 @@ EN: dict[str, str] = {
         "With a template the pictogram's place is fixed.",
     "Bij een sjabloon ligt de plaats van de code vast.":
         "With a template the code's place is fixed.",
-    "Dit sjabloon gebruikt altijd een QR-code.": "This template always uses a QR code.",
+    "Op het etiket": "On the label",
+    "Zet het lade-ID in het sjabloon aan of uit; de rest schuift mee. Het lade-ID zelf "
+    "blijft bewaard.":
+        "Shows or hides the tray ID in the template; the rest moves along. The tray ID "
+        "itself is kept.",
+    "Tekst onder de QR-code": "Text under the QR code",
+    "Zet de leesbare tekst onder de QR-code aan of uit; zonder tekst wordt de QR-code "
+    "groter.":
+        "Shows or hides the readable text under the QR code; without it the QR code gets "
+        "larger.",
+    "Een sjabloon gebruikt een QR-code of geen code.":
+        "A template uses a QR code or no code.",
     "Dit sjabloon gebruikt geen QR-code of barcode.":
         "This template uses no QR code or barcode.",
     "Dit sjabloon gebruikt geen pictogram.": "This template uses no pictogram.",

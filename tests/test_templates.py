@@ -48,7 +48,7 @@ def test_every_template_renders_cleanly(engine: RenderEngine, template: LabelTem
         engine = RenderEngine(engine.profile.with_label(50.0, 14.0))
     lbl = led()
     plain = engine.render(lbl).mono
-    lbl.template = template
+    apply_template(lbl, template)
     r = engine.render(lbl)
     assert r.warnings == []
     assert ink(r.mono) > 200
@@ -320,3 +320,81 @@ def test_code_template_switches_a_qr_code_on_and_off() -> None:
     assert lbl.code.kind == CodeKind.QR
     apply_template(lbl, LabelTemplate.VALUE)
     assert lbl.code.kind == CodeKind.CODE128  # the barcode it had comes back
+
+
+def test_code_of_a_template_can_be_switched_off(engine: RenderEngine) -> None:
+    engine = RenderEngine(engine.profile.with_label(50.0, 14.0))
+    lbl = led()
+    apply_template(lbl, LabelTemplate.ZONES)
+    main = lambda r: next(lb for lb in r.lines if lb.slot == 1)  # noqa: E731
+    with_qr = engine.render(lbl)
+    assert any(lb.text == "A17" for lb in with_qr.lines)  # the QR code's caption
+    lbl.code.caption = False  # no caption: the QR code grows, the text stays
+    bare = engine.render(lbl)
+    assert not any(lb.text == "A17" for lb in bare.lines)
+    lbl.code.kind = CodeKind.NONE  # no code at all: the text gets the room
+    none = engine.render(lbl)
+    assert none.warnings == []
+    right = (none.mono.width * 3 // 4, none.mono.height // 3, none.mono.width,
+             none.mono.height)  # below the bar, that grows with it
+    assert ink(none.mono, right) < ink(bare.mono, right) / 4  # the QR code is gone
+    back = Label.from_dict(lbl.to_dict())
+    assert back.code.caption is False and back.code.kind == CodeKind.NONE
+    for tpl in (LabelTemplate.QR,):
+        lbl = led()
+        apply_template(lbl, tpl)
+        qr = engine.render(lbl)
+        lbl.code.kind = CodeKind.NONE
+        assert main(engine.render(lbl)).x0 < main(qr).x0  # the text moves to the left
+
+
+@pytest.mark.parametrize("template", [LabelTemplate.ICON, LabelTemplate.VALUE,
+                                      LabelTemplate.LOCATION, LabelTemplate.GRID])
+def test_tray_of_a_template_can_be_switched_off(engine: RenderEngine,
+                                                template: LabelTemplate) -> None:
+    lbl = led()
+    apply_template(lbl, template)
+    shown = engine.render(lbl)
+    texts = lambda r: " ".join(lb.text for lb in r.lines)  # noqa: E731
+    assert "A17" in texts(shown) or "17" in texts(shown)
+    key = lbl.render_key()
+    lbl.template_tray = False
+    assert lbl.render_key() != key
+    hidden = engine.render(lbl)
+    assert "17" not in texts(hidden) and hidden.warnings == []
+    assert lbl.tray_id == "A17"  # kept, only not on the label
+    assert Label.from_dict(lbl.to_dict()).template_tray is False
+    assert Label.from_dict({}).template_tray is True
+
+
+def test_old_labels_keep_their_lines_key() -> None:
+    lbl = led()
+    d = lbl.to_dict()
+    del d["code"]["caption"], d["template_tray"]
+    assert Label.from_dict(d).lines_key() == lbl.lines_key()
+
+
+def test_panel_switches_code_and_tray_off(qtbot, window) -> None:  # noqa: ANN001, F811
+    props = window.properties
+    box = props.template
+    box.setCurrentIndex(box.findData(LabelTemplate.QR.value))
+    box.activated.emit(box.currentIndex())
+    lbl = window.current
+    assert lbl.code.kind == CodeKind.QR
+    assert props.code_kind.isEnabled()
+    barcode = props.code_kind.model().item(props._code_index(CodeKind.CODE128))
+    assert not barcode.isEnabled()
+    assert props._code_form.isRowVisible(props.code_caption)
+    assert not props.tray_show.isVisibleTo(props)  # the QR template shows no tray ID
+    props.code_caption.setChecked(False)
+    assert lbl.code.caption is False
+    props.code_kind.setCurrentIndex(props._code_index(CodeKind.NONE))
+    assert lbl.code.kind == CodeKind.NONE and "code" not in lbl.template_added
+    box.setCurrentIndex(box.findData(LabelTemplate.ICON.value))
+    box.activated.emit(box.currentIndex())
+    assert props.tray_show.isVisibleTo(props) and props.tray_show.isChecked()
+    props.tray_show.setChecked(False)
+    assert window.current.template_tray is False
+    box.setCurrentIndex(box.findData(LabelTemplate.NONE.value))
+    box.activated.emit(box.currentIndex())
+    assert not props.tray_show.isVisibleTo(props) and barcode.isEnabled()
