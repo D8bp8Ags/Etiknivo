@@ -53,3 +53,41 @@ def calibration_raster(engine: RenderEngine) -> tuple[Image.Image, Image.Image]:
     d.text((x0 + 12, cy + 18), f"head {cal.offset_head_px:+d}", font=small, fill=0)
     d.text((cx + 6, cy - 18), "→ feed", font=small, fill=0)
     return img, engine.to_raster(img)
+
+
+#: Nested frames of the edge test, one every millimetre from the edge inwards.
+EDGE_TEST_FRAMES = 5
+
+
+def edge_test_raster(engine: RenderEngine) -> tuple[Image.Image, Image.Image]:
+    """Edge test: measures how much of the raster really lands on the label.
+
+    Returns ``(band, native_raster)``; *band* is the full printhead band over
+    the whole label length in design orientation.  Unlike the calibration
+    test it ignores the safe margins and every offset (built-in or set by the
+    user): :data:`EDGE_TEST_FRAMES` nested frames are drawn 1 mm apart from the
+    very first dot inwards, two dots thick.  Counting the frame lines that
+    are visible on each side of the printed label shows how many millimetres
+    are lost there; if all are visible, the white paper outside the outer
+    frame is space the printhead cannot reach.
+    """
+    p = engine.profile
+    w, h, dpm = p.label_length_px, p.printhead_px, p.dots_per_mm
+    band = Image.new("1", (w, h), 1)
+    d = ImageDraw.Draw(band)
+    for k in range(EDGE_TEST_FRAMES):
+        for t in (0, 1):
+            i = k * dpm + t
+            if 2 * i < min(w, h):
+                d.rectangle((i, i, w - 1 - i, h - 1 - i), outline=0)
+    inner = (EDGE_TEST_FRAMES - 1) * dpm + 2
+    font = pil_font(FontRegistry.fallback(True).path, 0, 11)
+    text = tr("▲ boven · randentest")
+    tx0, ty0, tx1, ty1 = d.textbbox((0, 0), text, font=font)
+    if tx1 - tx0 <= w - 2 * inner - 4 and ty1 - ty0 <= h - 2 * inner - 2:
+        d.text(((w - (tx1 - tx0)) // 2 - tx0, (h - (ty1 - ty0)) // 2 - ty0), text,
+               font=font, fill=0)
+    raster = band.transpose(Image.Transpose.ROTATE_270 if engine.calibration.rotate_clockwise
+                            else Image.Transpose.ROTATE_90)
+    assert raster.size == p.native_raster_size, raster.size
+    return band, raster

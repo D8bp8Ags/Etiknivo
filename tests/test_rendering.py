@@ -9,7 +9,7 @@ from etiknivo.model import HAlign, Label, LayoutPreset, make_label
 from etiknivo.rendering import engine as engine_mod
 from etiknivo.rendering.engine import RenderEngine, raster_to_bytes
 from etiknivo.rendering.fonts import FontRegistry, missing_glyphs
-from etiknivo.rendering.patterns import calibration_raster
+from etiknivo.rendering.patterns import calibration_raster, edge_test_raster
 from etiknivo.rendering.patterns import test_label as make_test_label
 from etiknivo.settings import Calibration
 from etiknivo.storage.library import seed_labels
@@ -272,6 +272,19 @@ def test_test_and_calibration_patterns(engine: RenderEngine) -> None:
     # frame of the printable band is drawn
     assert mono.getpixel((16, 8)) == 0 and mono.getpixel((223, 103)) == 0
     assert ink_bbox(mono.crop((0, 0, 16, 112))) is None
+
+
+def test_edge_test_covers_whole_band_without_offsets(engine: RenderEngine) -> None:
+    from dataclasses import replace
+
+    engine.calibration = replace(engine.calibration, offset_feed_px=5, offset_head_px=-3)
+    band, raster = edge_test_raster(engine)
+    assert band.size == (240, 96) and raster.size == (96, 240)
+    # outer frame on the very first and last dots, next frame 1 mm further in
+    for x, y in ((0, 0), (239, 95), (8, 48), (231, 48), (120, 8), (120, 87)):
+        assert band.getpixel((x, y)) == 0, (x, y)
+    assert band.getpixel((2, 48)) != 0
+    assert raster.tobytes() == band.transpose(Image.Transpose.ROTATE_90).tobytes()
 
 
 def test_fields_show_specification_values(engine: RenderEngine) -> None:
