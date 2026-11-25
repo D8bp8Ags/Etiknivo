@@ -630,6 +630,7 @@ class MainWindow(QMainWindow):
         pp.refreshRequested.connect(self._refresh)
         pp.testLabelRequested.connect(self.print_test_label)
         pp.calibrationRequested.connect(self.print_calibration)
+        pp.edgeTestRequested.connect(self.print_edge_test)
         pp.calibrationSettingsRequested.connect(self.calibration_settings)
         pp.mockToggled.connect(self.set_mock)
         pp.modelChanged.connect(self.set_printer_model)

@@ -51,6 +51,7 @@ class PrinterPanel(QWidget):
     refreshRequested = Signal()
     testLabelRequested = Signal()
     calibrationRequested = Signal()
+    edgeTestRequested = Signal()
     calibrationSettingsRequested = Signal()
     mockToggled = Signal(bool)
     modelChanged = Signal(str)  # printer model key
@@ -140,12 +141,14 @@ class PrinterPanel(QWidget):
         self.copies.setRange(1, 99)
         self.test_btn = QPushButton(tr("Testlabel afdrukken"))
         self.cal_btn = QPushButton(tr("Kalibratietest afdrukken"))
+        self.edge_btn = QPushButton(tr("Randentest afdrukken"))
         self.cal_settings_btn = QPushButton(tr("Kalibratie-instellingen…"))
         f2.addRow(tr("Etiketrol"), self.roll)
         f2.addRow(tr("Printdichtheid"), self.density)
         f2.addRow(tr("Exemplaren"), self.copies)
         f2.addRow(self.test_btn)
         f2.addRow(self.cal_btn)
+        f2.addRow(self.edge_btn)
         f2.addRow(self.cal_settings_btn)
         lay.addWidget(pr)
         lay.addStretch(1)
@@ -158,6 +161,7 @@ class PrinterPanel(QWidget):
         self.refresh_btn.clicked.connect(self.refreshRequested)
         self.test_btn.clicked.connect(self.testLabelRequested)
         self.cal_btn.clicked.connect(self.calibrationRequested)
+        self.edge_btn.clicked.connect(self.edgeTestRequested)
         self.cal_settings_btn.clicked.connect(self.calibrationSettingsRequested)
         self.mock.toggled.connect(self.mockToggled)
         self.only_printers.toggled.connect(lambda: self._fill_devices(self._last_devices))
@@ -169,7 +173,7 @@ class PrinterPanel(QWidget):
     def apply_theme(self) -> None:
         for btn, name in ((self.scan_btn, "bluetooth"), (self.connect_btn, "plug"),
                           (self.disconnect_btn, "unplug"), (self.refresh_btn, "refresh-cw"),
-                          (self.test_btn, "printer"), (self.cal_btn, "ruler"),
+                          (self.test_btn, "printer"), (self.cal_btn, "ruler"), (self.edge_btn, "square-dashed"),
                           (self.cal_settings_btn, "sliders-horizontal")):
             btn.setIcon(theme.icon(name, size=16))
         if hasattr(self, "_state"):
@@ -259,6 +263,7 @@ class PrinterPanel(QWidget):
         self.refresh_btn.setEnabled(connected)
         self.test_btn.setEnabled(connected)
         self.cal_btn.setEnabled(connected)
+        self.edge_btn.setEnabled(connected)
         info = st.info
         if info and connected:
             self.model_lbl.setText(f"{info.model} · fw {info.firmware}")
