@@ -347,6 +347,8 @@ class LabelCode:
     side: HAlign = HAlign.LEFT  # QR code: LEFT or RIGHT of the text
     valign: VAlign = VAlign.CENTER  # QR code: top, middle or bottom of its side
     size: CodeSize = CodeSize.MEDIUM  # QR code only
+    #: in a template: the content readable under the QR code
+    caption: bool = True
 
     @classmethod
     def from_dict(cls, data: Any) -> LabelCode:
@@ -356,6 +358,7 @@ class LabelCode:
         c.side = HAlign.RIGHT if data.get("side") == HAlign.RIGHT else HAlign.LEFT
         c.valign = _valign(data.get("valign"))
         c.size = _size(data.get("size"))
+        c.caption = data.get("caption") is not False
         return c
 
 
@@ -520,6 +523,8 @@ class Label:
     #: the lines' look (size, bold, italic, alignment) before the first
     #: template, given back when the label returns to the lines under each other
     looks_before_template: list[dict[str, Any]] = field(default_factory=list)
+    #: whether a template puts the tray ID on the label
+    template_tray: bool = True
     #: loose elements, used when ``layout`` is FREE
     elements: list[LabelElement] = field(default_factory=list)
     #: :meth:`lines_key` of the lines the elements were made from
@@ -676,10 +681,15 @@ class Label:
 
     def lines_key(self) -> str:
         """Hash of what the free layout's elements are made from."""
-        d = {"lines": [asdict(x) for x in self.lines], "code": asdict(self.code),
+        code = asdict(self.code)
+        if code["caption"]:  # the default: keys made before it stay the same
+            del code["caption"]
+        d = {"lines": [asdict(x) for x in self.lines], "code": code,
              "picture": asdict(self.picture)}
         if self.template != LabelTemplate.NONE:
             d["template"] = str(self.template)
+        if not self.template_tray:
+            d["template_tray"] = False
         return hashlib.sha1(json.dumps(d, sort_keys=True, default=str).encode()).hexdigest()
 
     # -- (de)serialisation -----------------------------------------------------
@@ -714,6 +724,7 @@ class Label:
                 data.get("template_added"), list) else [])
                 if x in ("picture", "code", "code_text", "code_barcode")],
             looks_before_template=_looks(data.get("looks_before_template")),
+            template_tray=data.get("template_tray") is not False,
             style=LabelStyle.from_dict(data.get("style")),
             format=LabelFormat.from_dict(data.get("format")),
             code=LabelCode.from_dict(data.get("code")),
@@ -743,7 +754,7 @@ class Label:
         d = {"lines": [asdict(x) for x in self.lines], "style": asdict(self.style),
              "code": asdict(self.code),
              "picture": asdict(self.picture), "layout": str(self.layout),
-             "template": str(self.template),
+             "template": str(self.template), "template_tray": self.template_tray,
              "elements": [asdict(x) for x in self.elements] if self.is_free else [],
              "fields": self.field_values()}
         return hashlib.sha1(json.dumps(d, sort_keys=True, default=str).encode()).hexdigest()
@@ -764,6 +775,7 @@ def copy_format(src: Label, dst: Label, parts: set[str] | list[str]) -> None:
     if "layout" in parts:
         dst.layout = src.layout
         dst.template = src.template
+        dst.template_tray = src.template_tray
         for s_line, d_line in zip(src.lines, dst.lines):
             d_line.enabled = s_line.enabled
             d_line.font_family = s_line.font_family

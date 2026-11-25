@@ -101,7 +101,15 @@ class _Builder:
 
     @property
     def tray(self) -> str:
-        return self.label.tray_id.strip()
+        """The tray ID, or "" when the user switched it off for the template."""
+        return self.label.tray_id.strip() if self.label.template_tray else ""
+
+    def has_code(self) -> bool:
+        return self.label.code.kind != CodeKind.NONE
+
+    def code_room(self) -> float:
+        """Height of the text under the QR code (0 when switched off)."""
+        return 3.0 * self.s if self.label.code.caption else 0.0
 
     def has_picture(self) -> bool:
         pic = self.label.picture
@@ -160,12 +168,13 @@ class _Builder:
         the two together are centred in the height."""
         s = self.s
         content = self.label.code.text.strip() or tray_field()
-        cap = 3.0 * s
+        cap = self.code_room()
         q = min(w, self.h - cap)
         y = (self.h - q - cap) / 2
         self.element(ElementKind.QR, x + (w - q) / 2, y, q, q, text=content)
-        self.text(x, y + q + 0.1 * s, w, cap - 0.1 * s, content, 7.5, bold=True,
-                  align=HAlign.CENTER, role="code")
+        if cap:
+            self.text(x, y + q + 0.1 * s, w, cap - 0.1 * s, content, 7.5, bold=True,
+                      align=HAlign.CENTER, role="code")
 
     def stack(self, x: float, y: float, w: float, h: float,
               rows: list[tuple[int, float, float, bool]], align: HAlign = HAlign.LEFT,
@@ -200,6 +209,9 @@ class _Builder:
 #: templates built around a pictogram, and around the QR code's content
 PICTURE_TEMPLATES = (LabelTemplate.ICON, LabelTemplate.ZONES)
 CODE_TEMPLATES = (LabelTemplate.QR, LabelTemplate.ZONES)
+#: templates that show the tray ID as a text of their own
+TRAY_TEMPLATES = tuple(t for t in LabelTemplate
+                       if t not in (LabelTemplate.NONE, *CODE_TEMPLATES))
 
 
 def template_look(template: LabelTemplate) -> list[dict[str, object]]:
@@ -374,9 +386,12 @@ def _text_with_tray(b: _Builder, x: float, w: float) -> None:
 
 def _qr(b: _Builder) -> None:
     s, w, h = b.s, b.w, b.h
-    col = min(b.column(h - 3.0 * s, "code"), h - 3.0 * s, w * 0.45)
-    b.qr_with_text(0, col)
-    x = col + 1.0 * s
+    x = 0.0
+    if b.has_code():
+        room = h - b.code_room()
+        col = min(b.column(room, "code"), room, w * 0.45)
+        b.qr_with_text(0, col)
+        x = col + 1.0 * s
     b.stack(x, 0, w - x, h, [(SLOT_TOP, 3.0, 8, False), (SLOT_MAIN, 5.25, 15, True),
                              (SLOT_BOTTOM, 3.25, 6.5, False)])
 
@@ -428,8 +443,9 @@ def _zones(b: _Builder) -> None:
         b.picture(0.25 * s, 1.0 * s, col - 0.5 * s, h - 2.0 * s)
         b.rule_v(col + 0.25 * s, 0.75 * s, h - 1.5 * s)
         x0 = col + 1.0 * s
-    if b.label.code.text.strip() or b.tray:
-        col = min(b.column(h - 3.0 * s, "code"), h - 3.0 * s, w * 0.3)
+    if b.has_code():
+        room = h - b.code_room()
+        col = min(b.column(room, "code"), room, w * 0.3)
         b.qr_with_text(w - col, col)
         x1 = w - col - 1.0 * s
     tw = x1 - x0
