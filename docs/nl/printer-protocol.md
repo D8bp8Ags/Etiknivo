@@ -62,7 +62,7 @@ De begin- en eindcommando's verschillen per printerfamilie. Andere printers op h
 
 ## Positie op het etiket
 
-Er is geen commando voor marge of verschuiving: de printer zoekt het begin van het etiket met de gap-sensor en drukt het raster vanaf daar af. Op een Fichero 5836 begint het raster ongeveer 1,5 mm vóór het etiket (gemeten met *Randentest afdrukken*), waardoor de laatste 1,5 mm van het etiket niet te bereiken is. Etiknivo verschuift het beeld daarom vast 12 dots (1,5 mm) langs de rol (`feed_offset_px` in het printerprofiel) en laat 0,5 mm leeg aan het begin en 2 mm aan het eind (`feed_margin_mm` en `feed_margin_end_mm`; veilig gebied 27,5 × 12 mm). De kalibratie van de gebruiker komt daar bovenop.
+Er is geen commando voor marge of verschuiving: de printer zoekt het begin van het etiket met de gap-sensor en drukt het raster vanaf daar af. Op een Fichero 5836 eindigt elk raster op dezelfde plek, gemiddeld 1,25 mm vóór het eind van het etiket, hoe lang het raster ook is (gemeten met *Randentest afdrukken* en de randentest-experimenten); de hele print verschuift per etiket zo'n 0,5 mm. Etiknivo verschuift het beeld daarom vast 10 dots (1,25 mm) langs de rol (`feed_offset_px` in het printerprofiel) en laat aan beide uiteinden 1,25 mm leeg (`feed_margin_mm`; veilig gebied 27,5 × 12 mm, gecentreerd). De kalibratie van de gebruiker komt daar bovenop.
 
 ## Getest op hardware
 

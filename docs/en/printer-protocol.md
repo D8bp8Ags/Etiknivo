@@ -62,7 +62,7 @@ The start and end commands differ per printer family. Other printers on the same
 
 ## Position on the label
 
-There is no command for a margin or offset: the printer finds the start of the label with the gap sensor and prints the raster from there. On a Fichero 5836 the raster starts about 1.5 mm before the label (measured with *Print edge test*), so the last 1.5 mm of the label cannot be reached. Etiknivo therefore shifts the image a fixed 12 dots (1.5 mm) along the roll (`feed_offset_px` in the printer profile) and leaves 0.5 mm empty at the start and 2 mm at the end (`feed_margin_mm` and `feed_margin_end_mm`; safe area 27.5 × 12 mm). The user's calibration is added on top of that.
+There is no command for a margin or offset: the printer finds the start of the label with the gap sensor and prints the raster from there. On a Fichero 5836 every raster ends at the same place, on average 1.25 mm before the end of the label, whatever its length (measured with *Print edge test* and the edge test experiments); the whole print moves about 0.5 mm from label to label. Etiknivo therefore shifts the image a fixed 10 dots (1.25 mm) along the roll (`feed_offset_px` in the printer profile) and leaves 1.25 mm empty at both ends (`feed_margin_mm`; safe area 27.5 × 12 mm, centred). The user's calibration is added on top of that.
 
 ## Tested on hardware
 
