@@ -6,6 +6,7 @@ All notable changes to Etiknivo are listed here. Version numbers follow [Semanti
 
 ### Designing labels
 - **Restore defaults** in the Style section puts the label's style (line spacing, margins, vertical alignment, rotation, shrink to fit and the other switches) back to the defaults in one step; undo brings it back.
+- The default vertical margin is now 0 mm instead of 0.5 mm, so new labels use the full height. Saved labels keep the margin they were saved with.
 - The pictogram now has a size (Small, Medium, Large) just like the QR code.
 - Pictogram and QR code can each go top left, middle left, bottom left, top right, middle right or bottom right. Existing labels keep their look (middle, medium).
 - QR code and pictogram can stand below each other: put them on the same side at different heights (for example top left and bottom left) and they share one column, leaving the text more width.

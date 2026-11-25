@@ -233,7 +233,7 @@ class LabelStyle:
     valign: VAlign = VAlign.CENTER
     line_spacing_mm: float = 0.5
     margin_h_mm: float = 0.0  # on top of the profile's safe end margin
-    margin_v_mm: float = 0.5
+    margin_v_mm: float = 0.0
     autofit: bool = True
     #: with auto-fit: every label in the category gets the same size per line
     #: (the smallest one any of them needs); off, each label is as large as it fits

@@ -150,6 +150,8 @@ class RenderResult:
     text_area: tuple[float, float, float, float] = (0, 0, 0, 0)  # room the lines had
     #: free layout: element id -> its box in design dots
     element_boxes: dict[str, tuple[float, float, float, float]] = field(default_factory=dict)
+    #: top dot of each line drawn between text lines (unturned labels only)
+    separator_ys: list[int] = field(default_factory=list)
 
     @property
     def has_overflow(self) -> bool:
@@ -465,10 +467,12 @@ class RenderEngine:
         hires = Image.new("L", (w * ss, h * ss), 255)
         draw = ImageDraw.Draw(hires)
         line_boxes: list[LineBox] = []
+        separator_ys: list[int] = []
         for n, (p, size, bbox, lh) in enumerate(zip(prepared, sizes, boxes, heights)):
             room = rooms[n]
             if n and style.separators:
                 mid = round(y - spacing / 2 - 0.5)  # one dot, centred in the gap
+                separator_ys.append(mid)
                 draw.rectangle((round(area[0]) * ss, mid * ss, round(area[2]) * ss - 1,
                                 (mid + 1) * ss - 1), fill=0)
             lw = bbox[2] - bbox[0]
@@ -529,6 +533,8 @@ class RenderEngine:
         result = self._finish(hires, label, ss, line_boxes, warnings, content, code)
         result.picture_box = picture_box
         result.text_area = area
+        if style.rotation == 0:
+            result.separator_ys = separator_ys
         return result
 
     def _turn_box(self, box: tuple) -> tuple:  # type: ignore[type-arg]
@@ -754,8 +760,8 @@ class RenderEngine:
                             italic=line.italic, align=line.align))
         if label.style.separators:
             ax0, _, ax1, _ = r.text_area
-            for above, below in zip(r.lines, r.lines[1:]):
-                mid = round((above.y1 + below.y0) / 2 - 0.5)
+            # exactly where the render drew them, so the label stays identical
+            for mid in r.separator_ys:
                 out.append(make(ElementKind.LINE, (round(ax0), mid, round(ax1), mid + 1)))
         if r.code is not None:
             kind = ElementKind.QR if r.code.kind == CodeKind.QR else ElementKind.BARCODE
