@@ -431,3 +431,25 @@ def test_tray_goes_out_of_the_bar_on_a_narrow_roll() -> None:
         return tray.y_mm < bar.h_mm
     assert tray_in_bar(RenderEngine())
     assert not tray_in_bar(RenderEngine(RenderEngine().profile.with_label(22.0, 14.0)))
+
+
+@pytest.mark.parametrize("template", [LabelTemplate.QR, LabelTemplate.BAR_QR])
+def test_text_under_the_qr_code_scales_with_it(engine: RenderEngine,
+                                               template: LabelTemplate) -> None:
+    def parts(size: CodeSize) -> tuple[LabelElement, LabelElement]:
+        lbl = led()
+        apply_template(lbl, template)
+        lbl.code.size = size
+        items, _ = engine.template_items(lbl)
+        qr = next(p.element for p in items if p.element.kind == ElementKind.QR)
+        cap = next(p.element for p in items if p.role == "code")
+        return qr, cap
+
+    qr_s, cap_s = parts(CodeSize.SMALL)
+    qr_m, cap_m = parts(CodeSize.MEDIUM)
+    assert qr_s.w_mm < qr_m.w_mm
+    assert cap_s.font_size_pt < cap_m.font_size_pt and cap_s.h_mm < cap_m.h_mm
+    for qr, cap in ((qr_s, cap_s), (qr_m, cap_m)):
+        # right below the code, and centred under it
+        assert cap.y_mm == pytest.approx(qr.y_mm + qr.h_mm, abs=0.2)
+        assert cap.x_mm + cap.w_mm / 2 == pytest.approx(qr.x_mm + qr.w_mm / 2, abs=0.05)
