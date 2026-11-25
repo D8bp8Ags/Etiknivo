@@ -119,10 +119,12 @@ class ElementPanel(QWidget):
         self.del_btn.setText(tr("Verwijderen"))
         self.up_btn = QToolButton()
         self.up_btn.setText("▲")
-        self.up_btn.setToolTip(tr("Naar voren: boven de andere elementen tekenen"))
+        self.up_btn.setToolTip(tr("Omhoog in de lijst. Wat hoger staat, wordt eerder "
+                                  "getekend en komt dus onder wat eronder staat."))
         self.down_btn = QToolButton()
         self.down_btn.setText("▼")
-        self.down_btn.setToolTip(tr("Naar achteren: onder de andere elementen tekenen"))
+        self.down_btn.setToolTip(tr("Omlaag in de lijst. Wat lager staat, wordt later "
+                                    "getekend en komt dus over wat erboven staat."))
         row = QHBoxLayout()
         row.setSpacing(4)
         for b in (self.add_btn, self.del_btn, self.up_btn, self.down_btn):
@@ -192,8 +194,9 @@ class ElementPanel(QWidget):
 
         self.list.currentRowChanged.connect(self._row_changed)
         self.del_btn.clicked.connect(self.delete_selected)
-        self.up_btn.clicked.connect(lambda: self.move_selected(1))
-        self.down_btn.clicked.connect(lambda: self.move_selected(-1))
+        # the arrows move the element in the list, as they point
+        self.up_btn.clicked.connect(lambda: self.move_selected(-1))
+        self.down_btn.clicked.connect(lambda: self.move_selected(1))
         for w in (self.x, self.y, self.w, self.h, self.size):
             w.valueChanged.connect(self._apply)
         self.text.textEdited.connect(self._apply)
