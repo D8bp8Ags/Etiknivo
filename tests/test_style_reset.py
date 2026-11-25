@@ -13,7 +13,7 @@ def test_restore_default_style_is_one_undo_step(qtbot, window) -> None:  # noqa:
     assert not props.style_reset.isEnabled()  # nothing to restore
     main_before = window.current.main.text
     props.spacing.setValue(-1.9)
-    props.margin_v.setValue(0.0)
+    props.margin_v.setValue(1.0)
     props.invert.setChecked(True)
     assert props.style_reset.isEnabled()
     props.style_reset.click()
@@ -23,7 +23,7 @@ def test_restore_default_style_is_one_undo_step(qtbot, window) -> None:  # noqa:
     assert window.current.main.text == main_before  # the text is left alone
     window.undo()  # one step back: the edited style, not the original one
     s = window.current.style
-    assert s.line_spacing_mm == -1.9 and s.margin_v_mm == 0.0 and s.invert
+    assert s.line_spacing_mm == -1.9 and s.margin_v_mm == 1.0 and s.invert
     assert props.spacing.value() == -1.9 and props.style_reset.isEnabled()
     window.redo()
     assert window.current.style == LabelStyle()
