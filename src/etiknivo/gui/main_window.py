@@ -856,6 +856,8 @@ class MainWindow(QMainWindow):
         # adding or removing an element is its own undo step, not merged with typing
         count = len(self.current.elements)
         merge = self.current.id if count == self._element_count else None
+        if self.properties.separate_step:  # e.g. restoring the default style
+            self.properties.separate_step, merge = False, None
         self._element_count = count
         self._record(merge_key=merge)
 
