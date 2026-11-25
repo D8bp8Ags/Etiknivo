@@ -175,16 +175,19 @@ class _Builder:
 
     def qr_with_text(self, x: float, w: float) -> None:
         """QR code of the code's content, with that content readable below it;
-        the two together are centred in the height."""
+        the two together are centred in the height.  A smaller QR code (size
+        Klein) makes the text below it smaller along with it."""
         s = self.s
         content = self.label.code.text.strip() or tray_field()
-        cap = self.code_room()
-        q = min(w, self.h - cap)
+        full = self.code_room()
+        q = min(w, self.h - full)
+        k = q / (self.h - full)
+        cap = full * k
         y = (self.h - q - cap) / 2
         self.element(ElementKind.QR, x + (w - q) / 2, y, q, q, text=content)
         if cap:
-            self.text(x, y + q + 0.1 * s, w, cap - 0.1 * s, content, 7.5, bold=True,
-                      align=HAlign.CENTER, role="code")
+            self.text(x, y + q + 0.1 * s * k, w, cap - 0.1 * s * k, content, 7.5 * k,
+                      bold=True, align=HAlign.CENTER, role="code")
 
     def stack(self, x: float, y: float, w: float, h: float,
               rows: list[tuple[int, float, float, bool]], align: HAlign = HAlign.LEFT,
@@ -790,15 +793,19 @@ def _bar_qr(b: _Builder) -> None:
     x1 = w
     if b.has_code():
         content = b.label.code.text.strip() or tray_field()
-        cap = 2.2 * s if b.label.code.caption else 0.0
-        room = h - y - 0.25 * s - cap
+        full = 2.2 * s if b.label.code.caption else 0.0
+        top = y + 0.25 * s
+        room = h - top - full
         q = min(b.column(room, "code"), room, w * 0.3)
-        col = max(q, 6.6 * s) if cap else q
+        # the text below the code scales with it (size Klein makes both smaller)
+        k = q / room
+        cap = full * k
+        col = max(q, 6.6 * s * k) if cap else q
         cx = w - col
-        qy = y + 0.25 * s + (room - q) / 2
+        qy = top + (h - top - q - cap) / 2
         b.element(ElementKind.QR, cx + (col - q) / 2, qy, q, q, text=content)
         if cap:
-            b.text(cx, h - cap, col, cap, content, 6.5, bold=True, align=HAlign.CENTER,
+            b.text(cx, qy + q, col, cap, content, 6.5 * k, bold=True, align=HAlign.CENTER,
                    role="code")
         x1 = cx - 0.6 * s
     _bar_lines(b, 0, y, x1)
