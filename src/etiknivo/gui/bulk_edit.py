@@ -33,7 +33,10 @@ from etiknivo.model import (
     CodeSize,
     HAlign,
     Label,
+    LabelTemplate,
     VAlign,
+    find_user_template,
+    user_templates,
 )
 from etiknivo.rendering.templates import apply_template
 
@@ -97,15 +100,29 @@ def _set_size(part: str) -> Callable[[Label, str], None]:
 
 
 def _template_name(lbl: Label) -> str:
+    if lbl.template == LabelTemplate.CUSTOM:
+        own = find_user_template(lbl.custom_template)
+        return own.name if own is not None else ""
     return tr(TEMPLATE_INFO[lbl.template][0])
+
+
+def _template_names() -> list[str]:
+    """The ready-made templates, then the user's own, by name."""
+    return [name for name, _desc in TEMPLATE_INFO.values()] + \
+        sorted((t.name for t in user_templates() if t.name), key=str.casefold)
 
 
 def _set_template(lbl: Label, text: str) -> None:
     """Write a template name (in the current language) to the label; anything
     else leaves it as it is."""
+    want = text.strip().casefold()
     for tpl, (name, _desc) in TEMPLATE_INFO.items():
-        if text.strip().casefold() in (tr(name).casefold(), tpl.value):
+        if want in (tr(name).casefold(), tpl.value):
             apply_template(lbl, tpl)
+            return
+    own = next((t for t in user_templates() if t.name.strip().casefold() == want), None)
+    if own is not None:
+        apply_template(lbl, LabelTemplate.CUSTOM, own.id)
 
 
 COLUMNS: tuple[Column, ...] = (
@@ -225,7 +242,7 @@ class BulkEditDialog(QDialog):
         for col in POSITION_COLUMNS:
             self.table.setItemDelegateForColumn(col, _ChoiceDelegate(places, self.table))
         self.table.setItemDelegateForColumn(TEMPLATE_COLUMN, _ChoiceDelegate(
-            [name for name, _desc in TEMPLATE_INFO.values()], self.table))
+            _template_names(), self.table))
         head = self.table.horizontalHeader()
         head.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
         head.setStretchLastSection(True)

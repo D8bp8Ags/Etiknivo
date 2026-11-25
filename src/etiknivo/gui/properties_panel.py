@@ -59,17 +59,21 @@ from etiknivo.model import (
     LabelTemplate,
     LayoutPreset,
     PictureKind,
+    UserTemplate,
     VAlign,
     make_label,
+    user_templates,
 )
 from etiknivo.rendering import pictures
 from etiknivo.rendering.templates import (
     CODE_TEMPLATES,
-    PICTURE_TEMPLATES,
-    TRAY_TEMPLATES,
     apply_template,
+    custom_template,
     differs_from_template,
     reset_to_template,
+    shows_tray,
+    uses_code,
+    uses_picture,
 )
 from etiknivo.settings import data_dir
 
@@ -96,6 +100,13 @@ CODE_CHOICES = (
 )
 
 
+def _chooser_value(label: Label) -> str:
+    """What the chooser stores for *label*'s template."""
+    if label.template == LabelTemplate.CUSTOM:
+        return f"{LabelTemplate.CUSTOM.value}:{label.custom_template}"
+    return label.template.value
+
+
 @functools.cache
 def _template_sample(tpl: LabelTemplate) -> Image.Image:
     """A sample label (LED, red, A17) in *tpl*, cropped to the printable area."""
@@ -114,9 +125,41 @@ def _template_sample(tpl: LabelTemplate) -> Image.Image:
     return engine.render(lbl).mono.crop(engine.printable_box).convert("L")
 
 
+def _custom_sample(tpl: UserTemplate) -> Image.Image:
+    """The sample label in one of the user's own templates."""
+    from etiknivo.rendering.engine import RenderEngine
+    lbl = make_label("A17", tr("Halfgeleiders"), tr("Rood"), "Ø 3 mm | THT")
+    lbl.top.text, lbl.top.enabled = "LED", True
+    lbl.picture.kind, lbl.picture.symbol = PictureKind.SYMBOL, "led"
+    lbl.code.kind = CodeKind.QR
+    lbl.template, lbl.custom_template = LabelTemplate.CUSTOM, tpl.id
+    engine = RenderEngine()
+    if tpl.width_mm > 2.5 * tpl.height_mm:  # made for a long label
+        engine = RenderEngine(engine.profile.with_label(tpl.width_mm + 4.0,
+                                                        tpl.height_mm + 2.0))
+    return engine.render(lbl).mono.crop(engine.printable_box).convert("L")
+
+
+_CUSTOM_ICONS: dict[str, QIcon] = {}
+
+
+def custom_template_icon(tpl: UserTemplate) -> QIcon:
+    """What one of the user's own templates looks like (it must be known to
+    :func:`etiknivo.model.find_user_template`)."""
+    key = tpl.key()
+    if key not in _CUSTOM_ICONS:
+        if len(_CUSTOM_ICONS) > 200:
+            _CUSTOM_ICONS.clear()
+        _CUSTOM_ICONS[key] = _icon_of(_custom_sample(tpl))
+    return _CUSTOM_ICONS[key]
+
+
 def template_icon(tpl: LabelTemplate) -> QIcon:
     """What a template looks like, for the chooser."""
-    img = _template_sample(tpl)
+    return _icon_of(_template_sample(tpl))
+
+
+def _icon_of(img: Image.Image) -> QIcon:
     w, h = 144, 68
     scale = min(w / img.width, h / img.height)
     img = img.resize((round(img.width * scale), round(img.height * scale)),
@@ -266,6 +309,7 @@ class PropertiesPanel(QScrollArea):
 
     changed = Signal(bool)  # True when the library list needs a rebuild (name/category)
     elementSelected = Signal(str)  # free layout: element id, "" for none
+    manageTemplates = Signal()  # the user wants to make or edit own templates
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -320,10 +364,7 @@ class PropertiesPanel(QScrollArea):
         self.template.setIconSize(QSize(72, 34))
         # always the same height (see theme.py), so every picture shows whole
         self.template.setObjectName("templateChooser")
-        for tpl, (name, desc) in TEMPLATE_INFO.items():
-            self.template.addItem(template_icon(tpl), tr(name), tpl.value)
-            self.template.setItemData(self.template.count() - 1, tr(desc),
-                                      Qt.ItemDataRole.ToolTipRole)
+        self._fill_templates()
         self.template.setToolTip(tr("Kant-en-klare indeling van de regels, het lade-ID, de "
                                     "code en het pictogram. Met Vrij pas je daarna kleine "
                                     "dingen aan."))
@@ -334,7 +375,12 @@ class PropertiesPanel(QScrollArea):
             "Zet lettergrootte, vet, cursief en uitlijning van de regels en de grootte van "
             "pictogram en QR-code terug naar wat het sjabloon kiest. De tekst blijft."))
         self.template_reset.clicked.connect(self._reset_template)
+        self.template_manage = QPushButton(tr("Eigen sjablonen…"))
+        self.template_manage.setToolTip(tr("Eigen sjablonen maken en bewerken, in een apart "
+                                           "venster"))
+        self.template_manage.clicked.connect(self.manageTemplates.emit)
         f.addRow("", self.template_reset)
+        f.addRow("", self.template_manage)
         f.addRow(tr("Regels"), counts)
         self._label_form = f
         self._counts_row = counts
@@ -581,7 +627,7 @@ class PropertiesPanel(QScrollArea):
             self.category.setCurrentText(label.category)
             self.mode_free.setChecked(label.is_free)
             self.mode_lines.setChecked(not label.is_free)
-            self.template.setCurrentIndex(max(0, self.template.findData(label.template.value)))
+            self.template.setCurrentIndex(max(0, self.template.findData(_chooser_value(label))))
             self._show_count()
             for le, ln in zip(self.lines, label.lines):
                 le.setChecked(ln.enabled)
@@ -651,7 +697,11 @@ class PropertiesPanel(QScrollArea):
                       "elementen staan los van de regels: wat je hier verandert, komt daar "
                       "niet terug.")
         elif tpl != LabelTemplate.NONE:
-            hint = tr(TEMPLATE_INFO[tpl][1]) + ". " + tr(
+            own = custom_template(self.label) if self.label is not None else None
+            what = (tr("Eigen sjabloon '{name}'", name=own.name) if own is not None
+                    else tr(TEMPLATE_INFO[tpl][1]) if tpl in TEMPLATE_INFO
+                    else tr("Eigen sjabloon"))
+            hint = what + ". " + tr(
                 "Het sjabloon is een startpunt: lettergrootte, vet, uitlijning, marges en de "
                 "grootte van pictogram en code pas je gewoon aan. Kies Vrij om iets te "
                 "verschuiven.")
@@ -659,6 +709,7 @@ class PropertiesPanel(QScrollArea):
             hint = tr("De lade-ID komt alleen op het etiket als een regel {Lade} bevat. Met "
                       "1, 2 of 3 zet je regels aan of uit; hun tekst en opmaak blijven bewaard.")
         self.layout_hint.setText(hint)
+        self._label_form.setRowVisible(self.template_manage, not free)
         self._label_form.setRowVisible(self.template_reset, tpl != LabelTemplate.NONE)
         for w in (self.text_section, self.code_group, self.pic_group):
             w.setVisible(not free)
@@ -678,12 +729,38 @@ class PropertiesPanel(QScrollArea):
         lbl = self.label
         if self._loading or lbl is None:
             return
-        tpl = LabelTemplate(self.template.currentData() or LabelTemplate.NONE.value)
-        if tpl == lbl.template:
+        value = str(self.template.currentData() or LabelTemplate.NONE.value)
+        tpl, _, custom_id = value.partition(":")
+        template = LabelTemplate(tpl)
+        if template == lbl.template and custom_id == lbl.custom_template:
             return
-        apply_template(lbl, tpl)
+        apply_template(lbl, template, custom_id)
         self.set_label(lbl)
         self._emit(True)
+
+    def _fill_templates(self) -> None:
+        """The chooser: the ready-made templates, then the user's own."""
+        box = self.template
+        box.blockSignals(True)
+        box.clear()
+        for tpl, (name, desc) in TEMPLATE_INFO.items():
+            box.addItem(template_icon(tpl), tr(name), tpl.value)
+            box.setItemData(box.count() - 1, tr(desc), Qt.ItemDataRole.ToolTipRole)
+        own = sorted(user_templates(), key=lambda t: t.name.casefold())
+        if own:
+            box.insertSeparator(box.count())
+        for utpl in own:
+            box.addItem(custom_template_icon(utpl), utpl.name or tr("Naamloos sjabloon"),
+                        f"{LabelTemplate.CUSTOM.value}:{utpl.id}")
+            box.setItemData(box.count() - 1, tr("Eigen sjabloon"),
+                            Qt.ItemDataRole.ToolTipRole)
+        box.blockSignals(False)
+
+    def refresh_templates(self) -> None:
+        """The user's own templates changed: new chooser, label shown again."""
+        self._fill_templates()
+        if self.label is not None:
+            self.set_label(self.label)
 
     def _reset_template(self) -> None:
         lbl = self.label
@@ -719,22 +796,24 @@ class PropertiesPanel(QScrollArea):
             w.setToolTip(note if limited else self._tips.get(w, ""))
         # a template draws a QR code or nothing: no barcode
         barcode = self.code_kind.model().item(self._code_index(CodeKind.CODE128))
-        no_barcode = tpl in CODE_TEMPLATES
+        lbl = self.label
+        has_code = on and lbl is not None and uses_code(lbl)
+        no_barcode = has_code
         barcode.setEnabled(not no_barcode)
         barcode.setToolTip(tr("Een sjabloon gebruikt een QR-code of geen code.")
                            if no_barcode else "")
         kind = CODE_CHOICES[max(0, self.code_kind.currentIndex())][0]
         self._code_form.setRowVisible(self.code_caption,
-                                      tpl in CODE_TEMPLATES and kind == CodeKind.QR)
-        self.tray_show.setVisible(on and tpl in TRAY_TEMPLATES)
+                                      has_code and kind == CodeKind.QR)
+        self.tray_show.setVisible(on and lbl is not None and shows_tray(lbl))
         for group, used, note in (
-                (self.code_group, CODE_TEMPLATES,
+                (self.code_group, has_code,
                  tr("Dit sjabloon gebruikt geen QR-code of barcode.")),
-                (self.pic_group, PICTURE_TEMPLATES, tr("Dit sjabloon gebruikt geen pictogram."))):
-            unused = on and tpl not in used
+                (self.pic_group, on and lbl is not None and uses_picture(lbl),
+                 tr("Dit sjabloon gebruikt geen pictogram."))):
+            unused = on and not used
             group.body.setEnabled(not unused)
             group.body.setToolTip(note if unused else "")
-        lbl = self.label
         self.template_reset.setEnabled(bool(on and lbl is not None and (
             differs_from_template(lbl) or lbl.picture.size != CodeSize.MEDIUM
             or lbl.code.size != CodeSize.MEDIUM)))

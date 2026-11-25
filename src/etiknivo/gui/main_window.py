@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import json
 import logging
 import threading
@@ -55,7 +56,15 @@ from etiknivo.gui.qt_util import with_shortcut
 from etiknivo.gui.queue_panel import QueuePanel
 from etiknivo.i18n import LANGUAGES, language, tr
 from etiknivo.i18n import resolve as resolve_language
-from etiknivo.model import FORMAT_PARTS, HAlign, Label, PictureKind, copy_format, make_label
+from etiknivo.model import (
+    FORMAT_PARTS,
+    HAlign,
+    Label,
+    LabelTemplate,
+    PictureKind,
+    copy_format,
+    make_label,
+)
 from etiknivo.printing.backend import ConnectionState, PrinterBackend
 from etiknivo.printing.manager import PrinterState
 from etiknivo.printing.profiles import PrinterProfile
@@ -73,6 +82,7 @@ from etiknivo.rendering.export import (
 )
 from etiknivo.rendering.fonts import default_registry
 from etiknivo.rendering.patterns import calibration_raster, edge_test_raster, test_label
+from etiknivo.rendering.templates import apply_template
 from etiknivo.settings import Settings, data_dir, load_settings, log_dir, save_settings
 from etiknivo.storage import io as lio
 from etiknivo.storage.history import History, Snapshot
@@ -513,6 +523,7 @@ class MainWindow(QMainWindow):
         act(m, tr("Labels bewerken…"), self.edit_labels, "Ctrl+E")
         self.act_copy_format = act(m, tr("Opmaak overnemen…"), self.copy_format)
         act(m, tr("Pictogrammen…"), self.choose_pictograms)
+        act(m, tr("Eigen sjablonen…"), self.edit_templates)
 
         m = mb.addMenu(tr("&Afdrukken"))
         self.act_print = act(m, tr("Huidig label…"), self.print_current, QKeySequence.StandardKey.Print)
@@ -664,14 +675,17 @@ class MainWindow(QMainWindow):
         self.properties.elementSelected.connect(self.design_view.select)
         self.design_view.elementSelected.connect(self.properties.elements.select)
         self.design_view.elementChanged.connect(self._element_changed)
+        self.properties.manageTemplates.connect(self.edit_templates)
         self.updateChecked.connect(self.on_update_checked)
 
     def _load_fonts_async(self) -> None:
         reg = default_registry()
-        self.properties.set_families(["DejaVu Sans", "DejaVu Sans Condensed"])
+        self._families = ["DejaVu Sans", "DejaVu Sans Condensed"]
+        self.properties.set_families(self._families)
         reg.scan_in_background(self.fontsLoaded.emit)
 
     def _fonts_loaded(self, families: list[str]) -> None:
+        self._families = families
         self.properties.set_families(families)
         reg = default_registry()
         if reg.missed_during_scan:  # labels with a system font were drawn in the fallback
@@ -1107,6 +1121,31 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage(tr("Opmaak overgenomen op {n} label(s)", n=changed), 5000)
         return changed
 
+    def edit_templates(self) -> None:
+        """The window for the user's own templates."""
+        from etiknivo.gui.template_editor import TemplateEditor
+
+        dlg = TemplateEditor(self.library, self.engine,
+                             getattr(self, "_families", ["DejaVu Sans"]), self)
+        dlg.templatesChanged.connect(self._templates_changed)
+        self._template_editor = dlg  # for tests
+        dlg.exec()
+
+    def _templates_changed(self) -> None:
+        """Own templates saved or deleted: every label with one looks new."""
+        known = {t.id for t in self.library.templates}
+        cur = self.current
+        if cur is not None and cur.template == LabelTemplate.CUSTOM and \
+                cur.custom_template not in known:
+            apply_template(cur, LabelTemplate.NONE)
+        self.engine.clear_caches()
+        self.library_panel.invalidate_thumbnails()
+        self.properties.refresh_templates()
+        if cur is not None:
+            self.update_preview()
+            self._update_dirty()
+        self._after_library_change()
+
     def edit_labels(self) -> None:
         """Every label as a row of a table: change names, trays, categories and
         lines of many labels at once."""
@@ -1132,6 +1171,18 @@ class MainWindow(QMainWindow):
                     line.text = new.text
                 for mine, new in ((lbl.picture, edited.picture), (lbl.code, edited.code)):
                     mine.size, mine.side, mine.valign = new.size, new.side, new.valign
+                if (lbl.template, lbl.custom_template) != (edited.template,
+                                                           edited.custom_template):
+                    # a template from the table, with what it set (see apply_template)
+                    lbl.template, lbl.custom_template = edited.template, edited.custom_template
+                    lbl.template_added = list(edited.template_added)
+                    lbl.looks_before_template = copy.deepcopy(edited.looks_before_template)
+                    for line, new in zip(lbl.lines, edited.lines):
+                        line.font_size_pt, line.bold = new.font_size_pt, new.bold
+                        line.italic, line.align = new.italic, new.align
+                    lbl.picture.kind, lbl.picture.symbol = edited.picture.kind, \
+                        edited.picture.symbol
+                    lbl.code.kind, lbl.code.text = edited.code.kind, edited.code.text
                 lbl.touch()
         if self.current is not None:
             self.properties.set_label(self.current)
@@ -1487,6 +1538,8 @@ class MainWindow(QMainWindow):
             msg = tr("Bibliotheek vervangen ({n} labels)", n=len(labels))
         else:
             return
+        self.library.merge_templates(lio.import_json_templates(Path(path)))
+        self.properties.refresh_templates()
         self._after_library_change()
         cur = self.current
         if cur is not None and (box.clickedButton() is replace

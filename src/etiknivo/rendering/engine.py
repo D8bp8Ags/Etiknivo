@@ -35,6 +35,7 @@ from PIL import Image, ImageChops, ImageDraw, ImageOps
 
 from etiknivo.i18n import tr
 from etiknivo.model import (
+    PICTOGRAM_FIELD,
     CodeKind,
     CodeSize,
     ElementKind,
@@ -550,7 +551,9 @@ class RenderEngine:
             return {}
         group = [label] + [p for p in self.peers()
                            if p.id != label.id and p.category == label.category
-                           and p.template == label.template and _shares_template_sizes(p)]
+                           and p.template == label.template
+                           and p.custom_template == label.custom_template
+                           and _shares_template_sizes(p)]
         if len(group) < 2:
             return {}
         caps: dict[str, float] = {}
@@ -615,7 +618,7 @@ class RenderEngine:
                 else:
                     bx0, by0, bx1, by1 = px0, py0, px0, py0
             elif el.kind in (ElementKind.SYMBOL, ElementKind.IMAGE):
-                bx0, by0, bx1, by1 = (self._free_picture(hires, el, box, ss, warnings)
+                bx0, by0, bx1, by1 = (self._free_picture(hires, label, el, box, ss, warnings)
                                       or (px0, py0, px0, py0))
             if bx0 < px0 - 0.5 or by0 < py0 - 0.5 or bx1 > px1 + 0.5 or by1 > py1 + 0.5:
                 warnings.append(tr("{element} valt deels buiten het printbare gebied",
@@ -725,12 +728,22 @@ class RenderEngine:
         return [(x0 + i * module, y0, x0 + (i + 1) * module, y1)
                 for i, bar in enumerate(modules) if bar]
 
-    def _free_picture(self, canvas: Image.Image, el: LabelElement,
+    def _free_picture(self, canvas: Image.Image, label: Label, el: LabelElement,
                       box: tuple[float, float, float, float], ss: int,
                       warnings: list[str]) -> tuple[float, float, float, float] | None:
         """Draws the symbol or image of *el*; returns its ink box in design
-        dots, or None when there is nothing to draw."""
+        dots, or None when there is nothing to draw.  A symbol of
+        ``{Pictogram}`` draws the label's own pictogram."""
         bx0, by0, bx1, by1 = box
+        if el.kind == ElementKind.SYMBOL and el.symbol == PICTOGRAM_FIELD:
+            pic = label.picture
+            if pic.kind == PictureKind.SYMBOL and pic.symbol in symbols.SYMBOLS:
+                el = replace(el, symbol=pic.symbol)
+            elif pic.kind == PictureKind.IMAGE and pic.image_png:
+                el = replace(el, kind=ElementKind.IMAGE, image_png=pic.image_png)
+            else:
+                warnings.append(tr("Dit label heeft geen pictogram"))
+                return None
         if el.kind == ElementKind.SYMBOL:
             if el.symbol not in symbols.SYMBOLS:
                 warnings.append(tr("Kies een symbool"))

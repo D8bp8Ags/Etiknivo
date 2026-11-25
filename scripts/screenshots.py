@@ -86,7 +86,7 @@ def window_shots(app: QApplication, out: Path, theme: str, suffix: str) -> None:
     win.close()
 
 
-def template_shots(app: QApplication, out: Path, names: tuple[str, str]) -> None:
+def template_shots(app: QApplication, out: Path, names: tuple[str, str, str]) -> None:
     """The template chooser opened beside the inspector, and one label of each
     template as it prints."""
     from PySide6.QtCore import QPoint
@@ -124,6 +124,7 @@ def template_shots(app: QApplication, out: Path, names: tuple[str, str]) -> None
     painter.end()
     box.hidePopup()
     shot.save(str(out / names[0]))
+    editor_shot(app, win, out / names[2])
     win._ask_unsaved = lambda _lbl: "discard"  # type: ignore[method-assign]
     win.close()
 
@@ -134,6 +135,8 @@ def template_shots(app: QApplication, out: Path, names: tuple[str, str]) -> None
     lbl.picture.kind, lbl.picture.symbol = PictureKind.SYMBOL, "led"
     tiles = []
     for tpl in LabelTemplate:
+        if tpl == LabelTemplate.CUSTOM:  # the user's own: none in the sheet
+            continue
         apply_template(lbl, tpl)
         # only the grid splits the bottom line into cells at |
         lbl.bottom.text = "Ø 3 mm | THT | 20 mA | 2,0 V" if tpl == LabelTemplate.GRID \
@@ -161,6 +164,39 @@ def template_shots(app: QApplication, out: Path, names: tuple[str, str]) -> None
     sheet.save(out / names[1])
 
 
+def editor_shot(app: QApplication, win: mw.MainWindow, path: Path) -> None:
+    """The window for own templates, with a copy of Header bar being changed."""
+    from etiknivo.gui.template_editor import TemplateEditor
+    from etiknivo.model import LabelTemplate
+
+    dlg = TemplateEditor(win.library, win.engine, ["DejaVu Sans"], win)
+    dlg.resize(1250, 640)
+    dlg.show()
+    dlg.new_from(LabelTemplate.ICON)
+    dlg.save()
+    dlg.new_from(LabelTemplate.HEADER)
+    dlg.save()
+    dlg.add_part(6)  # the label's pictogram
+    el = dlg.work.elements[-1]
+    el.move_to(0.0, 3.25)
+    el.resize(6.0, 8.5)
+    for other in dlg.work.elements[:-1]:
+        if other.y_mm > 2.5 and other.kind.value == "text":
+            other.move_to(other.x_mm + 6.5, other.y_mm)
+            other.resize(max(4.0, other.w_mm - 6.5), other.h_mm)
+    dlg.elements.set_label(dlg.sample)
+    dlg.elements.select(el.id)
+    dlg.view.select(el.id)
+    dlg._changed()
+    for _ in range(10):
+        app.processEvents()
+        time.sleep(0.02)
+    dlg.grab().save(str(path))
+    dlg.ask_unsaved = lambda _name: "discard"
+    dlg.close()
+    win.library.set_templates([])  # the shots after this show the ready-made ones
+
+
 def main(lang: str = "nl", only: str = "") -> None:
     i18n.set_language(lang)
     out = Path(__file__).resolve().parent.parent / "docs" / "img" / lang
@@ -171,8 +207,10 @@ def main(lang: str = "nl", only: str = "") -> None:
         label_sheet(out / "raaco-labels.png")
         window_shots(app, out, "light", "")
         window_shots(app, out, "dark", "-dark")
-    template_shots(app, out, ("sjablonen.png", "sjabloon-resultaat.png") if lang == "nl"
-                   else ("templates.png", "template-result.png"))
+    template_shots(app, out,
+                   ("sjablonen.png", "sjabloon-resultaat.png", "sjablooneditor.png")
+                   if lang == "nl" else
+                   ("templates.png", "template-result.png", "template-editor.png"))
 
 
 if __name__ == "__main__":

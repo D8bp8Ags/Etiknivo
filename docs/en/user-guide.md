@@ -115,7 +115,7 @@ Type `{Voltage}` in a text line and `50 V` appears on the label. Quicker: click 
 
 The braces only belong in the text line, not in the table and not in the notes. If you type them in a specification name anyway, Etiknivo ignores them. A `{field}` in a value or in the notes gives an orange warning, because nothing is filled in there.
 
-Besides your own specifications, `{Name}`, `{Tray}` and `{Category}` always work. A field that doesn't exist stays as plain text and gives a warning below the preview, so you spot a typo straight away. The Dutch field names (`{Naam}`, `{Lade}`, `{Categorie}`, `{Datum}`, `{Nr}`, `{Aantal}`) work as well, so labels work in both languages.
+Besides your own specifications, `{Name}`, `{Tray}` and `{Category}` always work. For own templates there are also fields for the parts of the label, such as `{Main line}` and `{Code}` (see [Own templates](#own-templates)). A field that doesn't exist stays as plain text and gives a warning below the preview, so you spot a typo straight away. The Dutch field names (`{Naam}`, `{Lade}`, `{Categorie}`, `{Datum}`, `{Nr}`, `{Aantal}`) work as well, so labels work in both languages.
 
 ### Date and copy number
 
@@ -191,6 +191,22 @@ Good to know:
 - With **Copy format → Layout** or the **Template** column in *Edit labels* you give many labels the same template at once.
 
 ![A label with a template](../img/en/template-result.png)
+
+### Own templates
+
+If none of the templates fits exactly, make a template of your own. Under *Template*, click **Own templates…** (or choose *Label → Own templates…*). A separate window opens.
+
+![The Own templates window](../img/en/template-editor.png)
+
+- **New** makes an empty template, or a copy of a ready-made template to build on. The ready-made templates themselves do not change.
+- You edit the template like the free layout: drag a part to move it, and drag its bottom-right corner to make it larger or smaller. On the right are the exact sizes, the font and the font size.
+- **Add part** places a part of the label: top line, main line, bottom line, tray ID, QR code, the text under the QR code or the label's pictogram.
+- A text shows what each label has through fields: `{Top line}`, `{Main line}`, `{Bottom line}`, `{Tray}`, `{Code}`, `{Tray row}` and `{Tray number}` (the A and the 17 of A17), and `{Cell 1}` to `{Cell 6}` (the parts of the bottom line between `|`). If you type a line in capitals, such as `{TOP LINE}`, it shows in capitals on the label. You can mix them with plain text too, such as `Tray {Tray}`.
+- A text with exactly one line gets that line's look. You then change it per label as usual, just as with the ready-made templates.
+- **Save** keeps the template in your library. It then appears at the bottom of the template chooser, with a preview, and in the *Template* column of *Edit labels*. If you change a template later, every label that uses it changes along.
+- **Duplicate** makes a copy. To rename a template, change its name and save. **Delete** asks first; labels with that template go back to *Lines under each other*.
+- The QR code, the text under it, the tray ID and the pictogram can be switched off per label, as with the ready-made templates. In an own template their box then stays empty; the rest does not move.
+- An own template scales along on another label roll. It goes into the backup and into *Export → Library (JSON)*, and comes back when you import.
 
 ## Free layout: dragging elements
 
