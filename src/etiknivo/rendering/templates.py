@@ -15,16 +15,19 @@ templated label to the free layout starts from exactly these elements.
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 
 from etiknivo.i18n import tr
 from etiknivo.model import (
     BUILTIN_FIELDS,
     FIELD_RE,
+    PART_FIELDS,
+    PICTOGRAM_FIELD,
     SLOT_BOTTOM,
     SLOT_MAIN,
     SLOT_TOP,
+    TEMPLATE_INFO,
+    TRAY_RE,
     CodeKind,
     CodeSize,
     ElementKind,
@@ -33,10 +36,12 @@ from etiknivo.model import (
     LabelElement,
     LabelTemplate,
     PictureKind,
+    UserTemplate,
+    find_user_template,
+    part_field,
 )
 
-#: tray IDs like A17, A-17 or AB 3: letters, then the rest
-_TRAY_RE = re.compile(r"^\s*([A-Za-z]{1,3})[\s\-.]?(\d.*?)\s*$")
+_TRAY_RE = TRAY_RE
 
 #: the cells of the specification grid are separated by this character
 CELL_SEPARATOR = "|"
@@ -211,13 +216,187 @@ PICTURE_TEMPLATES = (LabelTemplate.ICON, LabelTemplate.ZONES)
 CODE_TEMPLATES = (LabelTemplate.QR, LabelTemplate.ZONES)
 #: templates that show the tray ID as a text of their own
 TRAY_TEMPLATES = tuple(t for t in LabelTemplate
-                       if t not in (LabelTemplate.NONE, *CODE_TEMPLATES))
+                       if t not in (LabelTemplate.NONE, LabelTemplate.CUSTOM, *CODE_TEMPLATES))
 
 
 def template_look(template: LabelTemplate) -> list[dict[str, object]]:
     """The look a template starts the three lines with."""
     return [{"font_size_pt": float(pt), "bold": bold, "italic": False, "align": align}
             for pt, bold, align in TEMPLATE_STYLES[template]]
+
+
+# -- the user's own templates ---------------------------------------------------------
+
+#: field name (any language, lower case) -> line slot
+_LINE_ALIASES = {alias: slot for slot, key in enumerate(("top", "main", "bottom"))
+                 for alias in PART_FIELDS[key][1]}
+_CODE_ALIASES = set(PART_FIELDS["code"][1])
+_TRAY_ALIASES = {*BUILTIN_FIELDS["tray_id"][1], *PART_FIELDS["tray_row"][1],
+                 *PART_FIELDS["tray_number"][1]}
+
+
+def _only_field(text: str) -> str:
+    """The field name (lower case) when *text* is one field and nothing else."""
+    m = FIELD_RE.fullmatch(text.strip())
+    return m.group(1).strip().casefold() if m else ""
+
+
+def line_slot(el: LabelElement) -> int | None:
+    """The line a text element of an own template shows, when it shows just that."""
+    if el.kind != ElementKind.TEXT:
+        return None
+    return _LINE_ALIASES.get(_only_field(el.text))
+
+
+def _fields_in(text: str) -> set[str]:
+    return {m.group(1).strip().casefold() for m in FIELD_RE.finditer(text)}
+
+
+def custom_template(label: Label) -> UserTemplate | None:
+    """The user's own template *label* uses, if any (and if it still exists)."""
+    if label.template != LabelTemplate.CUSTOM:
+        return None
+    return find_user_template(label.custom_template)
+
+
+def uses_picture(label: Label) -> bool:
+    """Whether the label's template shows the label's pictogram."""
+    tpl = custom_template(label)
+    if tpl is not None:
+        return any(el.kind == ElementKind.SYMBOL and el.symbol == PICTOGRAM_FIELD
+                   for el in tpl.elements)
+    return label.template in PICTURE_TEMPLATES
+
+
+def uses_code(label: Label) -> bool:
+    """Whether the label's template shows the label's QR code."""
+    tpl = custom_template(label)
+    if tpl is not None:
+        return any(el.kind in (ElementKind.QR, ElementKind.BARCODE)
+                   and _fields_in(el.text) & _CODE_ALIASES for el in tpl.elements)
+    return label.template in CODE_TEMPLATES
+
+
+def shows_tray(label: Label) -> bool:
+    """Whether the label's template shows the tray ID as a text of its own."""
+    tpl = custom_template(label)
+    if tpl is not None:
+        return any(el.kind == ElementKind.TEXT and _fields_in(el.text) & _TRAY_ALIASES
+                   for el in tpl.elements)
+    return label.template in TRAY_TEMPLATES
+
+
+def start_look(label: Label) -> list[dict[str, object]] | None:
+    """The look the label's template starts the lines with (None for none).
+    An own template takes it from the first text of each line; a line it does
+    not show keeps its look."""
+    tpl = custom_template(label)
+    if tpl is not None:
+        looks: list[dict[str, object]] = [{}, {}, {}]
+        for el in tpl.elements:
+            slot = line_slot(el)
+            if slot is not None and not looks[slot]:
+                looks[slot] = {"font_size_pt": el.font_size_pt, "bold": el.bold,
+                               "italic": el.italic, "align": el.align}
+        return [look or {key: getattr(line, key) for key in _LOOK}
+                for look, line in zip(looks, label.lines)]
+    if label.template in TEMPLATE_STYLES:
+        return template_look(label.template)
+    return None
+
+
+def template_from_builtin(template: LabelTemplate, area_mm: tuple[float, float],
+                          name: str = "") -> UserTemplate:
+    """A copy of a ready-made template as an own template, to change: its
+    elements with fields in place of a sample label's texts."""
+    from etiknivo.model import make_label
+
+    grid = template == LabelTemplate.GRID
+    lbl = make_label("A17", tr("Halfgeleiders"), tr("Rood"),
+                     "Ø 3 mm | THT | 20 mA | 2 V" if grid else "Ø 3 mm THT")
+    lbl.top.text, lbl.top.enabled = "LED", True
+    lbl.picture.kind, lbl.picture.symbol = PictureKind.SYMBOL, "led"
+    apply_template(lbl, template)
+    items, _ = template_items(lbl, area_mm)
+    line_field = [part_field(k) for k in ("top", "main", "bottom")]
+    elements: list[LabelElement] = []
+    cell = 0
+    for item in items:
+        el = item.element
+        if el.kind in (ElementKind.SYMBOL, ElementKind.IMAGE):
+            el.kind, el.symbol, el.image_png = ElementKind.SYMBOL, PICTOGRAM_FIELD, ""
+        elif el.kind in (ElementKind.QR, ElementKind.BARCODE):
+            el.text = part_field("code")
+        elif el.kind == ElementKind.TEXT:
+            if item.role == "cell":
+                cell += 1
+                el.text = part_field(f"cell{cell}")
+            elif item.role == "head":
+                el.text = f"{line_field[0]} {line_field[1]}"
+            elif item.role == "bar":
+                el.text = line_field[0].upper()
+            elif item.slot is not None:
+                el.text = line_field[item.slot]
+            elif item.role == "code":
+                el.text = part_field("code")
+            elif item.role == "tray_row":
+                el.text = part_field("tray_row")
+            elif item.role == "tray_no":
+                el.text = part_field("tray_number")
+            elif item.role == "tray":
+                el.text = tray_field()
+        el.id = LabelElement().id
+        elements.append(el)
+    return UserTemplate(name=name or tr(TEMPLATE_INFO[template][0]), width_mm=area_mm[0],
+                        height_mm=area_mm[1], elements=elements)
+
+
+def _custom(b: _Builder) -> None:
+    """An own template: its elements scaled to the area, filled from the label."""
+    tpl = custom_template(b.label)
+    if tpl is None:
+        b.warnings.append(tr("Het eigen sjabloon van dit label bestaat niet meer: kies een "
+                             "ander sjabloon"))
+        return
+    lbl = b.label
+    sx, sy = b.w / tpl.width_mm, b.h / tpl.height_mm
+    for n, src in enumerate(tpl.elements):
+        el = LabelElement(**{**src.__dict__})
+        el.x_mm, el.y_mm = src.x_mm * sx, src.y_mm * sy
+        el.w_mm, el.h_mm = max(0.125, src.w_mm * sx), max(0.125, src.h_mm * sy)
+        el.font_size_pt = round(src.font_size_pt * sy, 2)
+        fields = _fields_in(el.text) if el.has_text else set()
+        role, slot = "", None
+        if el.kind == ElementKind.SYMBOL and el.symbol == PICTOGRAM_FIELD:
+            if not b.has_picture():
+                continue
+            pic = lbl.picture
+            if pic.kind == PictureKind.SYMBOL:
+                el.symbol = pic.symbol
+            else:
+                el.kind, el.symbol, el.image_png = ElementKind.IMAGE, "", pic.image_png
+        elif el.kind in (ElementKind.QR, ElementKind.BARCODE):
+            if fields & _CODE_ALIASES and lbl.code.kind == CodeKind.NONE:
+                continue
+        elif el.kind == ElementKind.TEXT:
+            only = _only_field(el.text)
+            slot = _LINE_ALIASES.get(only)
+            if slot is not None:
+                line = lbl.lines[slot]
+                el.font_family, el.font_size_pt = line.font_family, line.font_size_pt
+                el.bold, el.italic, el.align = line.bold, line.italic, line.align
+                role = f"line{slot}"
+            elif only in _CODE_ALIASES:
+                if lbl.code.kind == CodeKind.NONE or not lbl.code.caption:
+                    continue
+                role = "code"
+            elif fields and fields <= _TRAY_ALIASES:
+                if not lbl.template_tray:
+                    continue
+                role = "tray"
+            else:
+                role = f"text{n}"
+        b.items.append(Placed(el, role, slot))
 
 
 def line_looks(label: Label) -> list[dict[str, object]]:
@@ -234,19 +413,19 @@ def _set_looks(label: Label, looks: list[dict[str, object]]) -> None:
 
 def differs_from_template(label: Label) -> bool:
     """Whether the user changed the lines' look since the template set it."""
-    if label.template not in TEMPLATE_STYLES:
-        return False
-    return line_looks(label) != template_look(label.template)
+    look = start_look(label)
+    return look is not None and line_looks(label) != look
 
 
 def reset_to_template(label: Label) -> None:
     """The lines' look back to what the template starts with."""
-    if label.template in TEMPLATE_STYLES:
-        _set_looks(label, template_look(label.template))
+    look = start_look(label)
+    if look is not None:
+        _set_looks(label, look)
         label.picture.size = label.code.size = CodeSize.MEDIUM
 
 
-def apply_template(label: Label, template: LabelTemplate) -> None:
+def apply_template(label: Label, template: LabelTemplate, custom_id: str = "") -> None:
     """Give *label* *template*: the lines get the template's starting look
     (size, bold, alignment), which the user can change afterwards, and the
     label gets what the template is built around: a pictogram (a fitting
@@ -256,43 +435,47 @@ def apply_template(label: Label, template: LabelTemplate) -> None:
     label goes to a template that does not need it (for example back to the
     lines under each other); what the user set up stays.  Going back to the
     lines under each other also gives the lines back the look they had
-    before the first template."""
+    before the first template.  *custom_id* names the user's own template
+    when *template* is CUSTOM."""
     from etiknivo.rendering.symbols import suggest_symbol
 
-    if template == label.template:
+    custom_id = custom_id if template == LabelTemplate.CUSTOM else ""
+    if template == label.template and custom_id == label.custom_template:
         return
     if label.template == LabelTemplate.NONE and template != LabelTemplate.NONE:
         label.looks_before_template = line_looks(label)
-    label.template = template
-    if template in TEMPLATE_STYLES:
-        _set_looks(label, template_look(template))
+    label.template, label.custom_template = template, custom_id
+    look = start_look(label)
+    if look is not None:
+        _set_looks(label, look)
     elif label.looks_before_template:
         _set_looks(label, label.looks_before_template)
         label.looks_before_template = []
     pic, code = label.picture, label.code
     added = label.template_added
-    if "picture" in added and template not in PICTURE_TEMPLATES:
+    wants_picture, wants_code = uses_picture(label), uses_code(label)
+    if "picture" in added and not wants_picture:
         pic.kind = PictureKind.NONE
         added.remove("picture")
-    if "code" in added and template not in CODE_TEMPLATES:
+    if "code" in added and not wants_code:
         code.kind = CodeKind.NONE
         added.remove("code")
-    if "code_text" in added and template not in CODE_TEMPLATES:
+    if "code_text" in added and not wants_code:
         code.text = ""
         added.remove("code_text")
-    if template in PICTURE_TEMPLATES and pic.kind == PictureKind.NONE:
+    if wants_picture and pic.kind == PictureKind.NONE:
         pic.kind = PictureKind.SYMBOL
         # the most specific text first: "LED" says more than "Halfgeleiders"
         pic.symbol = suggest_symbol(label.top.text, label.name, label.main.text,
                                     label.category) or pic.symbol
         added.append("picture")
-    if "code_barcode" in added and template not in CODE_TEMPLATES:
+    if "code_barcode" in added and not wants_code:
         code.kind = CodeKind.CODE128
         added.remove("code_barcode")
-    if template in CODE_TEMPLATES and code.kind != CodeKind.QR:
+    if wants_code and code.kind != CodeKind.QR:
         added.append("code" if code.kind == CodeKind.NONE else "code_barcode")
         code.kind = CodeKind.QR
-    if template in CODE_TEMPLATES and not code.text.strip():
+    if wants_code and not code.text.strip():
         code.text = tray_field()
         added.append("code_text")
 
@@ -469,6 +652,7 @@ _BUILDERS = {
     LabelTemplate.GRID: _grid,
     LabelTemplate.DISTANCE: _distance,
     LabelTemplate.ZONES: _zones,
+    LabelTemplate.CUSTOM: _custom,
 }
 
 

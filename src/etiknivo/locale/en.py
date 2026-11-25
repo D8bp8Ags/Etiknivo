@@ -963,4 +963,52 @@ EN: dict[str, str] = {
     "van pictogram en code pas je gewoon aan. Kies Vrij om iets te verschuiven.":
         "The template is a starting point: change font size, bold, alignment, margins and "
         "the size of the pictogram and code as usual. Choose Free to move something.",
+    "Pictogram van het label": "The label's pictogram",
+    "Eigen sjablonen…": "Own templates…",
+    "Eigen sjablonen maken en bewerken, in een apart venster":
+        "Make and edit your own templates, in a separate window",
+    "Eigen sjabloon": "Own template",
+    "Eigen sjabloon '{name}'": "Own template '{name}'",
+    "Naamloos sjabloon": "Untitled template",
+    "{name} (eigen)": "{name} (own)",
+    "Sjabloon '{name}' verwijderen?": "Delete template '{name}'?",
+    "Eigen sjablonen": "Own templates",
+    "Leeg sjabloon": "Empty template",
+    "Kopie van een kant-en-klaar sjabloon": "Copy of a ready-made template",
+    "De kant-en-klare sjablonen veranderen niet: maak met Nieuw een kopie om op voort te "
+    "bouwen.":
+        "The ready-made templates do not change: use New to make a copy to build on.",
+    "Naam van het sjabloon": "Name of the template",
+    "Teksten met {Bovenregel}, {Hoofdregel}, {Onderregel}, {Lade} of {Code} tonen wat het "
+    "label heeft; in hoofdletters ({BOVENREGEL}) staat de regel in hoofdletters. {Cel 1} tot "
+    "{Cel 6} zijn de delen van de onderregel tussen |. Een symbool 'Pictogram van het label' "
+    "toont het pictogram van elk label. Een tekst met precies één regel krijgt de opmaak van "
+    "die regel, die je per label kunt aanpassen.":
+        "Texts with {Top line}, {Main line}, {Bottom line}, {Tray} or {Code} show what the "
+        "label has; in capitals ({TOP LINE}) the line shows in capitals. {Cell 1} to "
+        "{Cell 6} are the parts of the bottom line between |. A symbol 'The label's "
+        "pictogram' shows each label's pictogram. A text with exactly one line gets that "
+        "line's look, which you can change per label.",
+    "Wijzigingen in '{name}' opslaan?": "Save the changes to '{name}'?",
+    "Nieuw": "New",
+    "Je eigen sjablonen": "Your own templates",
+    "Onderdeel toevoegen": "Add part",
+    "Maak met Nieuw een eigen sjabloon.": "Use New to make a template of your own.",
+    "{n} labels gebruiken het; die krijgen weer de regels onder elkaar.":
+        "{n} labels use it; they go back to the lines under each other.",
+    "Nieuw sjabloon": "New template",
+    "tekst van de bovenregel": "text of the top line",
+    "tekst van de hoofdregel": "text of the main line",
+    "tekst van de onderregel": "text of the bottom line",
+    "inhoud van de QR-code of barcode": "content of the QR code or barcode",
+    "letters van het lade-ID, bv. A van A17": "letters of the tray ID, e.g. A of A17",
+    "nummer van het lade-ID, bv. 17 van A17": "number of the tray ID, e.g. 17 of A17",
+    "Code": "Code",
+    "Laderij": "Tray row",
+    "Ladenummer": "Tray number",
+    "deel van de onderregel tussen | tekens": "part of the bottom line between | signs",
+    "Cel": "Cell",
+    "Dit label heeft geen pictogram": "This label has no pictogram",
+    "Het eigen sjabloon van dit label bestaat niet meer: kies een ander sjabloon":
+        "This label's own template no longer exists: choose another template",
 }

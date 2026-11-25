@@ -113,7 +113,7 @@ Typ in een tekstregel `{Spanning}` en op het etiket verschijnt `50 V`. Sneller: 
 
 De accolades horen alleen in de tekstregel, niet in de tabel en niet in de notities. Typ je ze toch in de naam van een specificatie, dan negeert Etiknivo ze. Staat er een `{veld}` in een waarde of in de notities, dan krijg je een oranje melding, want daar wordt niets ingevuld.
 
-Naast je eigen specificaties werken altijd `{Naam}`, `{Lade}` en `{Categorie}`. Een veld dat niet bestaat blijft als tekst staan en geeft een waarschuwing onder het voorbeeld, zodat je een tikfout meteen ziet.
+Naast je eigen specificaties werken altijd `{Naam}`, `{Lade}` en `{Categorie}`. Voor eigen sjablonen zijn er ook velden voor de delen van het label, zoals `{Hoofdregel}` en `{Code}` (zie [Eigen sjablonen](#eigen-sjablonen)). Een veld dat niet bestaat blijft als tekst staan en geeft een waarschuwing onder het voorbeeld, zodat je een tikfout meteen ziet.
 
 ### Datum en volgnummer
 
@@ -189,6 +189,22 @@ Goed om te weten:
 - Met **Opmaak overnemen → Layout** of de kolom **Sjabloon** in *Labels bewerken* geef je veel labels tegelijk hetzelfde sjabloon.
 
 ![Een etiket met een sjabloon](../img/nl/sjabloon-resultaat.png)
+
+### Eigen sjablonen
+
+Past geen van de sjablonen precies, maak dan je eigen sjabloon. Klik onder *Sjabloon* op **Eigen sjablonen…** (of kies *Label → Eigen sjablonen…*). Er opent een apart venster.
+
+![Het venster Eigen sjablonen](../img/nl/sjablooneditor.png)
+
+- **Nieuw** maakt een leeg sjabloon of een kopie van een kant-en-klaar sjabloon om op voort te bouwen. De kant-en-klare sjablonen zelf veranderen niet.
+- Je bewerkt het sjabloon zoals de vrije layout: sleep een onderdeel om het te verplaatsen en sleep het hoekje rechtsonder om het groter of kleiner te maken. Rechts staan de precieze maten, het lettertype en de grootte.
+- **Onderdeel toevoegen** zet een deel van het label neer: bovenregel, hoofdregel, onderregel, lade-ID, QR-code, de tekst onder de QR-code of het pictogram van het label.
+- Een tekst toont wat elk label heeft via velden: `{Bovenregel}`, `{Hoofdregel}`, `{Onderregel}`, `{Lade}`, `{Code}`, `{Laderij}` en `{Ladenummer}` (de A en de 17 van A17), en `{Cel 1}` tot `{Cel 6}` (de delen van de onderregel tussen `|`). Typ je een regel in hoofdletters, zoals `{BOVENREGEL}`, dan staat hij in hoofdletters op het etiket. Je kunt ze ook mengen met gewone tekst, zoals `Lade {Lade}`.
+- Een tekst met precies één regel krijgt de opmaak van die regel. Per label pas je die dan gewoon aan, net als bij de kant-en-klare sjablonen.
+- **Opslaan** bewaart het sjabloon in je bibliotheek. Het staat daarna onderaan de sjabloonkiezer, met een voorbeeld, en ook in de kolom *Sjabloon* van *Labels bewerken*. Verander je een sjabloon later, dan veranderen alle labels die het gebruiken mee.
+- **Dupliceren** maakt een kopie. Je hernoemt een sjabloon door de naam te wijzigen en op te slaan. **Verwijderen** vraagt eerst om bevestiging; labels met dat sjabloon krijgen weer *Regels onder elkaar*.
+- QR-code, tekst onder de QR-code, lade-ID en pictogram zet je per label uit, zoals bij de kant-en-klare sjablonen. In een eigen sjabloon blijft hun vak dan leeg; de rest schuift niet op.
+- Een eigen sjabloon schaalt mee op een andere etiketrol. Het gaat mee in de back-up en in *Exporteren → Bibliotheek (JSON)*, en komt bij importeren weer terug.
 
 ## Vrije layout: elementen slepen
 

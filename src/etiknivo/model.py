@@ -55,6 +55,25 @@ PRINT_FIELDS = {
     "number": (N_("Nr"), ("nr", "no")),
     "count": (N_("Aantal"), ("aantal", "count")),
 }
+#: Fields for the parts of a label, made for templates of the user's own
+#: (usable in any text): the three lines, the cells of the bottom line
+#: (split at "|"), the code's content and the tray ID split in its letters and
+#: its number.  A line field typed in capitals, such as ``{BOVENREGEL}``, shows
+#: the line in capitals.
+PART_FIELDS = {
+    "top": (N_("Bovenregel"), ("bovenregel", "top line")),
+    "main": (N_("Hoofdregel"), ("hoofdregel", "main line")),
+    "bottom": (N_("Onderregel"), ("onderregel", "bottom line")),
+    **{f"cell{n}": (N_("Cel") + f" {n}", (f"cel {n}", f"cell {n}")) for n in range(1, 7)},
+    "code": (N_("Code"), ("code",)),
+    "tray_row": (N_("Laderij"), ("laderij", "tray row")),
+    "tray_number": (N_("Ladenummer"), ("ladenummer", "tray number")),
+}
+#: in a template element's symbol: the label's own pictogram
+PICTOGRAM_FIELD = "{Pictogram}"
+#: tray IDs like A17, A-17 or AB 3: letters, then the rest
+TRAY_RE = re.compile(r"^\s*([A-Za-z]{1,3})[\s\-.]?(\d.*?)\s*$")
+
 #: What each built-in field shows, for the { } menu.
 FIELD_HELP = {
     "name": N_("naam van het label"),
@@ -63,13 +82,37 @@ FIELD_HELP = {
     "date": N_("datum van afdrukken"),
     "number": N_("volgnummer bij meerdere exemplaren: 1, 2, 3…"),
     "count": N_("totaal aantal exemplaren in de afdruk"),
+    "top": N_("tekst van de bovenregel"),
+    "main": N_("tekst van de hoofdregel"),
+    "bottom": N_("tekst van de onderregel"),
+    **{f"cell{n}": N_("deel van de onderregel tussen | tekens") for n in range(1, 7)},
+    "code": N_("inhoud van de QR-code of barcode"),
+    "tray_row": N_("letters van het lade-ID, bv. A van A17"),
+    "tray_number": N_("nummer van het lade-ID, bv. 17 van A17"),
 }
 
 
 def field_help() -> dict[str, str]:
     """{shown field name: what it shows}, for the built-in fields."""
-    return {tr(shown): tr(FIELD_HELP[key])
-            for key, (shown, _) in (*BUILTIN_FIELDS.items(), *PRINT_FIELDS.items())}
+    return {_shown(shown): tr(FIELD_HELP[key])
+            for key, (shown, _) in (*BUILTIN_FIELDS.items(), *PRINT_FIELDS.items(),
+                                    *PART_FIELDS.items())}
+
+
+def _shown(name: str) -> str:
+    """A field's shown name; "Cel 2" is translated as "Cel" plus the number."""
+    word, _, number = name.partition(" ")
+    return f"{tr(word)} {number}" if number else tr(name)
+
+
+def part_field_names() -> list[str]:
+    """Shown names of :data:`PART_FIELDS`, for the { } menu of a template."""
+    return [_shown(shown) for shown, _ in PART_FIELDS.values()]
+
+
+def part_field(key: str) -> str:
+    """``{Name}`` of a part field in the current language, e.g. ``{Hoofdregel}``."""
+    return "{" + _shown(PART_FIELDS[key][0]) + "}"
 
 
 def spec_name(key: str) -> str:
@@ -120,6 +163,8 @@ class LabelTemplate(StrEnum):
     GRID = "grid"
     DISTANCE = "distance"
     ZONES = "zones"
+    #: one of the user's own templates (see ``Label.custom_template``)
+    CUSTOM = "custom"
 
 
 #: (name, what it is for) per template, in the order of the chooser
@@ -496,6 +541,70 @@ class LabelElement:
         return el
 
 
+#: the line and cell fields, that a name in capitals shows in capitals
+_CAPITAL_FIELDS = {alias for key, (_, aliases) in PART_FIELDS.items()
+                   if key in ("top", "main", "bottom") or key.startswith("cell")
+                   for alias in aliases}
+
+
+@dataclass
+class UserTemplate:
+    """A template of the user's own: elements as in the free layout, drawn on
+    a printable area of *width_mm* x *height_mm*.  Their texts use the part
+    fields (``{Hoofdregel}``, ``{Lade}``, ``{Code}``…) and a symbol of
+    :data:`PICTOGRAM_FIELD` shows the label's pictogram, so every label fills
+    the template with its own content.  On another roll the elements scale
+    along."""
+
+    id: str = field(default_factory=lambda: uuid.uuid4().hex)
+    name: str = ""
+    width_mm: float = 26.0
+    height_mm: float = 12.0
+    elements: list[LabelElement] = field(default_factory=list)
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, data: Any) -> UserTemplate:
+        data, d = as_dict(data), cls()
+        raw = data.get("elements")
+        return cls(id=as_str(data.get("id")) or d.id, name=as_str(data.get("name")),
+                   width_mm=as_float(data.get("width_mm"), d.width_mm, 5.0, 150.0),
+                   height_mm=as_float(data.get("height_mm"), d.height_mm, 3.0, 50.0),
+                   elements=[LabelElement.from_dict(x) for x in
+                             (raw if isinstance(raw, list) else []) if isinstance(x, dict)])
+
+    def key(self) -> str:
+        """Hash of everything that affects how labels with it look."""
+        d = self.to_dict()
+        d.pop("name")
+        return hashlib.sha1(json.dumps(d, sort_keys=True, default=str).encode()).hexdigest()
+
+
+#: the user's own templates by id; the library keeps this up to date
+_USER_TEMPLATES: dict[str, UserTemplate] = {}
+
+
+def set_user_templates(templates: list[UserTemplate]) -> None:
+    _USER_TEMPLATES.clear()
+    _USER_TEMPLATES.update({t.id: t for t in templates})
+
+
+def user_templates() -> list[UserTemplate]:
+    return list(_USER_TEMPLATES.values())
+
+
+def find_user_template(template_id: str) -> UserTemplate | None:
+    return _USER_TEMPLATES.get(template_id)
+
+
+def custom_template_key(template_id: str) -> str:
+    """What a label with this own template depends on ("" when it is gone)."""
+    tpl = _USER_TEMPLATES.get(template_id)
+    return f"{template_id}:{tpl.key()}" if tpl else ""
+
+
 def default_lines() -> list[TextLine]:
     return [TextLine(), TextLine(), TextLine()]
 
@@ -523,6 +632,8 @@ class Label:
     #: the lines' look (size, bold, italic, alignment) before the first
     #: template, given back when the label returns to the lines under each other
     looks_before_template: list[dict[str, Any]] = field(default_factory=list)
+    #: id of the user's own template, when ``template`` is CUSTOM
+    custom_template: str = ""
     #: whether a template puts the tray ID on the label
     template_tray: bool = True
     #: loose elements, used when ``layout`` is FREE
@@ -574,8 +685,28 @@ class Label:
         values = {alias: getattr(self, attr) for attr, (_, aliases) in BUILTIN_FIELDS.items()
                   for alias in aliases}
         values.update(self.print_values())
-        values.update({spec_name(k).casefold(): v for k, v in self.specs.items()})
+        own = {spec_name(k).casefold(): v for k, v in self.specs.items()}
+        base = {**values, **own}
+        values.update({alias: value for key, value in self._part_values(base).items()
+                       for alias in PART_FIELDS[key][1]})
+        values.update(own)
         return values
+
+    def _part_values(self, base: dict[str, str]) -> dict[str, str]:
+        """What the part fields show; their own fields filled in from *base*."""
+        def fill(text: str) -> str:
+            return FIELD_RE.sub(lambda m: base.get(m.group(1).strip().casefold(), m.group(0)),
+                                text)
+
+        lines = [fill(ln.text) if ln.enabled else "" for ln in self.lines]
+        cells = [c.strip() for c in lines[SLOT_BOTTOM].split("|") if c.strip()]
+        m = TRAY_RE.match(self.tray_id)
+        out = {"top": lines[SLOT_TOP], "main": lines[SLOT_MAIN], "bottom": lines[SLOT_BOTTOM],
+               "code": fill(self.code.text),
+               "tray_row": m.group(1) if m else self.tray_id,
+               "tray_number": m.group(2) if m else ""}
+        out.update({f"cell{n}": cells[n - 1] if n <= len(cells) else "" for n in range(1, 7)})
+        return out
 
     @property
     def is_free(self) -> bool:
@@ -619,10 +750,13 @@ class Label:
         unknown: list[str] = []
 
         def sub(m: re.Match[str]) -> str:
-            key = m.group(1).strip().casefold()
+            name = m.group(1).strip()
+            key = name.casefold()
             if key in values:
+                if key in _CAPITAL_FIELDS and name.isupper():
+                    return values[key].upper()
                 return values[key]
-            unknown.append(m.group(1).strip())
+            unknown.append(name)
             return m.group(0)
 
         return FIELD_RE.sub(sub, text), unknown
@@ -690,6 +824,8 @@ class Label:
             d["template"] = str(self.template)
         if not self.template_tray:
             d["template_tray"] = False
+        if self.template == LabelTemplate.CUSTOM:
+            d["custom_template"] = custom_template_key(self.custom_template)
         return hashlib.sha1(json.dumps(d, sort_keys=True, default=str).encode()).hexdigest()
 
     # -- (de)serialisation -----------------------------------------------------
@@ -725,6 +861,7 @@ class Label:
                 if x in ("picture", "code", "code_text", "code_barcode")],
             looks_before_template=_looks(data.get("looks_before_template")),
             template_tray=data.get("template_tray") is not False,
+            custom_template=as_str(data.get("custom_template")),
             style=LabelStyle.from_dict(data.get("style")),
             format=LabelFormat.from_dict(data.get("format")),
             code=LabelCode.from_dict(data.get("code")),
@@ -755,6 +892,8 @@ class Label:
              "code": asdict(self.code),
              "picture": asdict(self.picture), "layout": str(self.layout),
              "template": str(self.template), "template_tray": self.template_tray,
+             "custom_template": custom_template_key(self.custom_template)
+             if self.template == LabelTemplate.CUSTOM else "",
              "elements": [asdict(x) for x in self.elements] if self.is_free else [],
              "fields": self.field_values()}
         return hashlib.sha1(json.dumps(d, sort_keys=True, default=str).encode()).hexdigest()
@@ -776,6 +915,7 @@ def copy_format(src: Label, dst: Label, parts: set[str] | list[str]) -> None:
         dst.layout = src.layout
         dst.template = src.template
         dst.template_tray = src.template_tray
+        dst.custom_template = src.custom_template
         for s_line, d_line in zip(src.lines, dst.lines):
             d_line.enabled = s_line.enabled
             d_line.font_family = s_line.font_family

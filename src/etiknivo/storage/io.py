@@ -12,9 +12,22 @@ from datetime import datetime
 from pathlib import Path
 
 from etiknivo.i18n import tr
-from etiknivo.model import LINE_COUNT_PRESETS, Label, LayoutPreset, make_label
+from etiknivo.model import (
+    LINE_COUNT_PRESETS,
+    Label,
+    LabelTemplate,
+    LayoutPreset,
+    UserTemplate,
+    make_label,
+    user_templates,
+)
 from etiknivo.storage.atomic import atomic_write_bytes, atomic_write_text
-from etiknivo.storage.library import LibraryError, labels_from_document, labels_to_document
+from etiknivo.storage.library import (
+    LibraryError,
+    labels_from_document,
+    labels_to_document,
+    templates_from_document,
+)
 
 #: Column names accepted by the CSV importer (case-insensitive, with aliases).
 _ALIASES = {
@@ -31,7 +44,22 @@ _ALIASES = {
 
 
 def export_json(labels: Iterable[Label], path: Path) -> None:
-    atomic_write_text(path, json.dumps(labels_to_document(labels), indent=2, ensure_ascii=False))
+    """Write *labels* to *path*, with the own templates they use."""
+    labels = list(labels)
+    doc = labels_to_document(labels)
+    used = {lbl.custom_template for lbl in labels if lbl.template == LabelTemplate.CUSTOM}
+    templates = [t.to_dict() for t in user_templates() if t.id in used]
+    if templates:
+        doc["templates"] = templates
+    atomic_write_text(path, json.dumps(doc, indent=2, ensure_ascii=False))
+
+
+def import_json_templates(path: Path) -> list[UserTemplate]:
+    """The own templates in an exported JSON file (none when it has none)."""
+    try:
+        return templates_from_document(json.loads(Path(path).read_text("utf-8")))
+    except (OSError, ValueError):
+        return []
 
 
 def import_json(path: Path) -> list[Label]:

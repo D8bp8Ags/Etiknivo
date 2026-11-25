@@ -27,7 +27,7 @@ from etiknivo.rendering.templates import (
 )
 from tests.test_gui import window  # noqa: F401 - fixture
 
-TEMPLATES = [t for t in LabelTemplate if t != LabelTemplate.NONE]
+TEMPLATES = [t for t in LabelTemplate if t not in (LabelTemplate.NONE, LabelTemplate.CUSTOM)]
 
 
 def led(tray: str = "A17", main: str = "Rood", category: str = "Halfgeleiders") -> Label:
@@ -204,7 +204,7 @@ def test_capitals_leave_fields_alone() -> None:
 def test_chooser_applies_a_template(qtbot, window) -> None:  # noqa: ANN001, F811
     props = window.properties
     box = props.template
-    assert box.count() == len(LabelTemplate)
+    assert box.count() == len(LabelTemplate) - 1  # no own templates yet
     assert props._label_form.isRowVisible(box)
     box.setCurrentIndex(box.findData(LabelTemplate.HEADER.value))
     box.activated.emit(box.currentIndex())

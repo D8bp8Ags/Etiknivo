@@ -37,7 +37,14 @@ from etiknivo.gui.widgets import (
     symbol_combo,
 )
 from etiknivo.i18n import tr
-from etiknivo.model import ELEMENT_TITLES, ElementKind, HAlign, Label, LabelElement
+from etiknivo.model import (
+    ELEMENT_TITLES,
+    PICTOGRAM_FIELD,
+    ElementKind,
+    HAlign,
+    Label,
+    LabelElement,
+)
 from etiknivo.rendering import pictures, symbols
 
 #: Size of a new element (mm) and, for text, its font size.
@@ -74,6 +81,8 @@ def element_text(el: LabelElement) -> str:
     """How an element is listed: its kind and, where it has one, its content."""
     if el.has_text and el.text.strip():
         return f"{el.title}: {el.text.strip()}"
+    if el.kind == ElementKind.SYMBOL and el.symbol == PICTOGRAM_FIELD:
+        return f"{el.title}: {tr('Pictogram van het label')}"
     if el.kind == ElementKind.SYMBOL and el.symbol in symbols.SYMBOLS:
         return f"{el.title}: {tr(symbols.SYMBOLS[el.symbol][0])}"
     return el.title
@@ -161,6 +170,8 @@ class ElementPanel(QWidget):
         for a, t in ALIGN_TEXT.items():
             self.align.addItem(tr(t), a)
         self.symbol = symbol_combo()
+        # the label's own pictogram, whatever it is (handy in an own template)
+        self.symbol.insertItem(0, tr("Pictogram van het label"), PICTOGRAM_FIELD)
         self.image_btn = QPushButton(tr("Afbeelding kiezen…"))
         self.image_btn.clicked.connect(self._choose_image)
         self.fitted = QLabel()

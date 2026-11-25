@@ -18,7 +18,16 @@ from pathlib import Path
 from typing import Any
 
 from etiknivo.i18n import language, tr
-from etiknivo.model import SCHEMA_VERSION, Label, PictureKind, as_dict, as_float, as_str
+from etiknivo.model import (
+    SCHEMA_VERSION,
+    Label,
+    PictureKind,
+    UserTemplate,
+    as_dict,
+    as_float,
+    as_str,
+    set_user_templates,
+)
 from etiknivo.rendering.symbols import suggest_symbol
 from etiknivo.storage.atomic import atomic_write_text
 
@@ -52,6 +61,13 @@ def labels_from_document(doc: Any) -> list[Label]:
     return labels
 
 
+def templates_from_document(doc: Any) -> list[UserTemplate]:
+    """The user's own templates in a library or export document."""
+    raw = doc.get("templates") if isinstance(doc, dict) else None
+    return [UserTemplate.from_dict(x) for x in (raw if isinstance(raw, list) else [])
+            if isinstance(x, dict)]
+
+
 def document_schema(doc: Any) -> int:
     """The schema version a library document says it has (1 when absent)."""
     return int(as_float(doc.get("schema"), 1.0)) if isinstance(doc, dict) else 1
@@ -69,6 +85,30 @@ class Library:
         #: fields this version does not know are lost on saving, so the first
         #: save keeps a copy of that file (see :meth:`save`)
         self.newer_schema = 0
+        #: the user's own templates (see :class:`etiknivo.model.UserTemplate`)
+        self._templates: list[UserTemplate] = []
+
+    # -- own templates ---------------------------------------------------------
+
+    @property
+    def templates(self) -> list[UserTemplate]:
+        return list(self._templates)
+
+    def set_templates(self, templates: Iterable[UserTemplate]) -> None:
+        """Keep *templates* and let every label find them."""
+        self._templates = list(templates)
+        set_user_templates(self._templates)
+
+    def merge_templates(self, templates: Iterable[UserTemplate]) -> int:
+        """Add imported templates; one with a known id replaces it.  Returns
+        how many were new."""
+        known = {t.id: t for t in self._templates}
+        new = 0
+        for tpl in templates:
+            new += tpl.id not in known
+            known[tpl.id] = tpl
+        self.set_templates(known.values())
+        return new
 
     # -- collection API --------------------------------------------------------
 
@@ -156,6 +196,7 @@ class Library:
         except (OSError, ValueError) as exc:
             raise LibraryError(tr("Bibliotheek kon niet worden gelezen: {error}", error=exc)) from exc
         self._labels = labels_from_document(doc)
+        self.set_templates(templates_from_document(doc))
         schema = document_schema(doc)
         self.newer_schema = schema if schema > SCHEMA_VERSION else 0
         if self.newer_schema:
@@ -187,6 +228,8 @@ class Library:
             except OSError as exc:  # a failed backup copy must not block saving
                 log.warning(tr("Back-up van bibliotheek mislukt: %s"), exc)
         doc = labels_to_document(self._labels)
+        if self._templates:
+            doc["templates"] = [t.to_dict() for t in self._templates]
         if self.category_symbols:
             doc["category_symbols"] = dict(sorted(self.category_symbols.items()))
             doc["category_symbols_version"] = CATEGORY_SYMBOLS_VERSION
