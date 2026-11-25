@@ -289,6 +289,9 @@ def test_edge_test_covers_whole_band_without_offsets(engine: RenderEngine) -> No
     assert long_band.size == (256, 96) and long_raster.size == (96, 256)
     assert long_band.getpixel((255, 48)) == 0 and long_band.getpixel((247, 48)) == 0
     assert edge_test_raster(engine, -16)[1].size == (96, 224)
+    wide_band, wide_raster = edge_test_raster(engine, head_px=112)
+    assert wide_band.size == (240, 112) and wide_raster.size == (112, 240)
+    assert wide_band.getpixel((120, 111)) == 0
 
 
 def test_fields_show_specification_values(engine: RenderEngine) -> None:

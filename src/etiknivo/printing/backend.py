@@ -168,6 +168,7 @@ class PrinterBackend(ABC):
         progress: ProgressCallback | None = None,
         cancel: asyncio.Event | None = None,
         continuous: bool = False,
+        any_width: bool = False,
     ) -> None:
         """Print a native-orientation 1-bit raster ``copies`` times.
 
@@ -176,14 +177,21 @@ class PrinterBackend(ABC):
 
         *continuous* prints in continuous-paper mode (no gap detection while
         printing); only for the edge-test experiments.  Backends without the
-        mode ignore it.
+        mode ignore it.  *any_width* accepts a raster wider or narrower than
+        the printhead (also only for the experiments).
         """
 
 
-def check_raster(raster: Image.Image, profile: PrinterProfile) -> None:
+def check_raster(raster: Image.Image, profile: PrinterProfile, any_width: bool = False) -> None:
+    """Reject rasters the printer cannot take; *any_width* allows another width
+    (a multiple of 8 dots) for the edge-test experiments."""
     if raster.mode != "1":
         raise ValueError(tr("Raster moet 1-bit zijn (mode '1'), niet '{mode}'", mode=raster.mode))
-    if raster.width != profile.printhead_px:
+    if any_width:
+        if raster.width % 8 or not 8 <= raster.width <= 256:
+            raise ValueError(tr("Rasterbreedte {width} ≠ printkopbreedte {head}", width=raster.width,
+                                head=profile.printhead_px))
+    elif raster.width != profile.printhead_px:
         raise ValueError(tr("Rasterbreedte {width} ≠ printkopbreedte {head}", width=raster.width,
                             head=profile.printhead_px))
     if not 1 <= raster.height <= 0xFFFF:

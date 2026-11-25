@@ -75,6 +75,8 @@ class PrintJob:
     copy_rasters: list[Image.Image] | None = None
     #: print in continuous-paper mode (edge-test experiment only)
     continuous: bool = False
+    #: raster width may differ from the printhead (edge-test experiment only)
+    any_width: bool = False
 
     def __post_init__(self) -> None:
         if self.copy_rasters:
@@ -290,7 +292,8 @@ class PrintQueue:
                 await backend.print_raster(job.raster, density=job.density,
                                            copies=job.copies - start,
                                            progress=lambda done, _total: progress(done),
-                                           cancel=self._cancel, continuous=job.continuous)
+                                           cancel=self._cancel, continuous=job.continuous,
+                                           any_width=job.any_width)
         except PrintCancelled as exc:
             if self.paused:  # Stop: continue with the next copy on resume
                 job.status = JobStatus.PENDING

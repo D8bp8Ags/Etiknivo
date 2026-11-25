@@ -59,7 +59,8 @@ def calibration_raster(engine: RenderEngine) -> tuple[Image.Image, Image.Image]:
 EDGE_TEST_FRAMES = 5
 
 
-def edge_test_raster(engine: RenderEngine, extra_px: int = 0) -> tuple[Image.Image, Image.Image]:
+def edge_test_raster(engine: RenderEngine, extra_px: int = 0,
+                     head_px: int | None = None) -> tuple[Image.Image, Image.Image]:
     """Edge test: measures how much of the raster really lands on the label.
 
     Returns ``(band, native_raster)``; *band* is the full printhead band over
@@ -73,9 +74,12 @@ def edge_test_raster(engine: RenderEngine, extra_px: int = 0) -> tuple[Image.Ima
 
     *extra_px* makes the raster that many rows longer (negative: shorter) than
     the label, to see how the printer places a raster that is not label length.
+    *head_px* sends a raster of that many dots across instead of the printhead
+    width, to see whether the head has more dots than the profile uses.
     """
     p = engine.profile
-    w, h, dpm = max(8 * p.dots_per_mm, p.label_length_px + extra_px), p.printhead_px, p.dots_per_mm
+    w, dpm = max(8 * p.dots_per_mm, p.label_length_px + extra_px), p.dots_per_mm
+    h = head_px or p.printhead_px
     band = Image.new("1", (w, h), 1)
     d = ImageDraw.Draw(band)
     for k in range(EDGE_TEST_FRAMES):
