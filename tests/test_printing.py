@@ -181,6 +181,13 @@ async def test_invalid_raster_rejected(engine: RenderEngine) -> None:
     assert q.jobs[0].status == JobStatus.FAILED and "printkopbreedte" in q.jobs[0].error
 
 
+async def test_experiment_may_send_a_wider_raster(engine: RenderEngine) -> None:
+    b = MockPrinterBackend()
+    await b.connect()
+    q = await run_queue(b, [PrintJob("a", "A", Image.new("1", (112, 240), 1), any_width=True)])
+    assert q.jobs[0].status == JobStatus.DONE and b.printed[0].width == 112
+
+
 def test_status_flags() -> None:
     assert proto.decode_status(0).ok
     s = proto.decode_status(0x02 | 0x04 | 0x40 | 0x20)

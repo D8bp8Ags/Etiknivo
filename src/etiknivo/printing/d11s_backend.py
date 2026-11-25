@@ -240,8 +240,9 @@ class D11sBackend(PrinterBackend):
         progress: ProgressCallback | None = None,
         cancel: asyncio.Event | None = None,
         continuous: bool = False,
+        any_width: bool = False,
     ) -> None:
-        check_raster(raster, self.profile)
+        check_raster(raster, self.profile, any_width)
         image_cmd = proto.raster_image(raster_to_bytes(raster), raster.width)
         density_cmd = proto.set_density(density)
         link = self._require()

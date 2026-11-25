@@ -239,6 +239,7 @@ EN: dict[str, str] = {
     "Precies de etiketlengte": "Exactly the label length",
     "2 mm langer dan het etiket": "2 mm longer than the label",
     "2 mm langer, doorlopend papier": "2 mm longer, continuous paper",
+    "14 mm breed (112 dots)": "14 mm wide (112 dots)",
     "Randentest": "Edge test",
     "▲ boven · randentest": "▲ top · edge test",
     "Printdichtheid": "Print density",
