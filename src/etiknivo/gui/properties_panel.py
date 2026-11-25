@@ -302,7 +302,8 @@ class PropertiesPanel(QScrollArea):
         f.addRow(tr("Categorie"), self.category)
         self.template = combo()
         self.template.setIconSize(QSize(72, 34))
-        self.template.setMinimumHeight(40)  # room for the picture of the template
+        # always the same height (see theme.py), so every picture shows whole
+        self.template.setObjectName("templateChooser")
         for tpl, (name, desc) in TEMPLATE_INFO.items():
             self.template.addItem(template_icon(tpl), tr(name), tpl.value)
             self.template.setItemData(self.template.count() - 1, tr(desc),
@@ -761,6 +762,7 @@ class PropertiesPanel(QScrollArea):
         s.separators = self.separators.isChecked()
         s.invert = self.invert.isChecked()
         self._update_style_reset()
+        before = (lbl.picture.kind, lbl.picture.symbol, lbl.code.text)
         lbl.code.kind = CODE_CHOICES[max(0, self.code_kind.currentIndex())][0]
         if lbl.code.kind == CodeKind.QR:  # a barcode keeps the QR code's place for later
             lbl.code.side, lbl.code.valign = chosen_position(self.code_pos)
@@ -771,6 +773,12 @@ class PropertiesPanel(QScrollArea):
         lbl.picture.side, lbl.picture.valign = chosen_position(self.pic_pos)
         lbl.picture.size = chosen_size(self.pic_sizes)
         lbl.picture.symbol = self.pic_symbol.currentData() or lbl.picture.symbol
+        # what the user chose themselves stays when the template changes again
+        if (lbl.picture.kind, lbl.picture.symbol) != before[:2] and \
+                "picture" in lbl.template_added:
+            lbl.template_added.remove("picture")
+        if lbl.code.text != before[2] and "code" in lbl.template_added:
+            lbl.template_added.remove("code")
         self._update_picture_widgets()
         lbl.specs = self.specs.specs()
         lbl.notes = self.notes.toPlainText()

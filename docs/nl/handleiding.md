@@ -181,7 +181,7 @@ Bij **Sjabloon** kies je met één klik een indeling zoals professionele bak-, m
 Goed om te weten:
 
 - **Specificatie-raster**: scheid de vakjes in de onderregel met `|`, bijvoorbeeld `Ø 3 mm | THT | 20 mA | 2,0 V`. Zonder `|` staat de hele onderregel in één vak.
-- **Pictogram-kolom** en **Drie zones** kiezen zelf een passend symbool als het label nog geen pictogram had. Bij **QR-vak** en **Drie zones** staat de inhoud van de code standaard op `{Lade}`.
+- **Pictogram-kolom** en **Drie zones** kiezen zelf een passend symbool als het label nog geen pictogram had. Bij **QR-vak** en **Drie zones** staat de inhoud van de code standaard op `{Lade}`. Kies je daarna een sjabloon dat ze niet gebruikt (bijvoorbeeld weer *Regels onder elkaar*), dan gaat wat het sjabloon zelf aanzette weer uit. Een pictogram dat je zelf had gekozen of daarna zelf veranderde, blijft staan.
 - Met *Zelfde lettergrootte binnen de categorie* aan krijgen labels met hetzelfde sjabloon in een categorie per onderdeel dezelfde lettergrootte, zodat de kast er rustig uitziet.
 - Marges, regelafstand, rotatie en de lijn tussen regels gelden niet in een sjabloon; *Wit op zwart* en de rand wel. De lettergrootte van een regel volgt het sjabloon.
 - **Kleine aanpassingen**: kies daarna **Vrij**. Je krijgt dan precies de elementen van het sjabloon, die je kunt verschuiven of vergroten.

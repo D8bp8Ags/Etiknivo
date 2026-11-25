@@ -360,6 +360,8 @@ QLineEdit:focus, QComboBox:focus, QAbstractSpinBox:focus, QPlainTextEdit:focus {
 QLineEdit:disabled, QComboBox:disabled, QAbstractSpinBox:disabled, QPlainTextEdit:disabled {{
     background: {t.window}; color: {t.muted};
 }}
+/* the template chooser shows a picture of each template: one fixed height */
+QComboBox#templateChooser {{ min-height: 36px; max-height: 36px; height: 36px; }}
 QComboBox::drop-down {{ border: none; width: 22px; }}
 QComboBox::down-arrow {{ image: url("{down}"); width: 12px; height: 12px; }}
 QComboBox QAbstractItemView {{
