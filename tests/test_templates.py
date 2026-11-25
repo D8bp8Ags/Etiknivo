@@ -20,6 +20,7 @@ from etiknivo.model import (
 )
 from etiknivo.rendering.engine import RenderEngine
 from etiknivo.rendering.templates import (
+    BAR_TEMPLATES,
     apply_template,
     capitals,
     differs_from_template,
@@ -398,3 +399,35 @@ def test_panel_switches_code_and_tray_off(qtbot, window) -> None:  # noqa: ANN00
     box.setCurrentIndex(box.findData(LabelTemplate.NONE.value))
     box.activated.emit(box.currentIndex())
     assert not props.tray_show.isVisibleTo(props) and barcode.isEnabled()
+
+
+@pytest.mark.parametrize("template", BAR_TEMPLATES)
+def test_bar_templates_show_category_and_pictogram_white_on_black(
+        engine: RenderEngine, template: LabelTemplate) -> None:
+    lbl = led()
+    lbl.picture.kind = PictureKind.NONE
+    apply_template(lbl, template)
+    assert lbl.picture.kind == PictureKind.SYMBOL  # the template picks one
+    items, _ = engine.template_items(lbl)
+    texts = {p.role: p.element.text for p in items if p.element.kind == ElementKind.TEXT}
+    assert texts["category"] == "{Categorie}"
+    kinds = [p.element.kind for p in items]
+    assert ElementKind.INVERT in kinds and ElementKind.SYMBOL in kinds
+    r = engine.render(lbl)
+    px0, py0, px1, _ = engine.printable_box
+    bar = (px0, py0, px1, py0 + 27)  # 3.4 mm
+    area = (bar[2] - bar[0]) * (bar[3] - bar[1])
+    assert 0.6 * area < ink(r.mono, bar) < area
+    assert (ElementKind.QR in kinds) == (template == LabelTemplate.BAR_QR)
+
+
+def test_tray_goes_out_of_the_bar_on_a_narrow_roll() -> None:
+    def tray_in_bar(engine: RenderEngine) -> bool:
+        lbl = led()
+        apply_template(lbl, LabelTemplate.BAR_TRAY)
+        items, _ = engine.template_items(lbl)
+        bar = next(p.element for p in items if p.element.kind == ElementKind.INVERT)
+        tray = next(p.element for p in items if p.role == "tray")
+        return tray.y_mm < bar.h_mm
+    assert tray_in_bar(RenderEngine())
+    assert not tray_in_bar(RenderEngine(RenderEngine().profile.with_label(22.0, 14.0)))

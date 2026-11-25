@@ -134,7 +134,9 @@ def template_shots(app: QApplication, out: Path, names: tuple[str, str, str]) ->
     lbl.top.text, lbl.top.enabled = "LED", True
     lbl.picture.kind, lbl.picture.symbol = PictureKind.SYMBOL, "led"
     tiles = []
-    for tpl in LabelTemplate:
+    # the long-label template last, so it can get a row of its own
+    order = sorted(LabelTemplate, key=lambda t: t == LabelTemplate.ZONES)
+    for tpl in order:
         if tpl == LabelTemplate.CUSTOM:  # the user's own: none in the sheet
             continue
         apply_template(lbl, tpl)

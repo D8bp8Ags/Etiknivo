@@ -846,7 +846,7 @@ class RenderEngine:
                 (x0, y0, x1, y1), size = r.element_text[el.id]
                 # two dots of air, on the side the text does not lean against
                 left = {HAlign.LEFT: 0.0, HAlign.CENTER: 1.0, HAlign.RIGHT: 2.0}[el.align]
-                el.font_size_pt = round(size, 2)
+                el.font_size_pt = round(size, 4)
                 el.move_to((x0 - left - px0) / dpm, (y0 - 1.0 - py0) / dpm)
                 el.resize((x1 - x0 + 2.0) / dpm, (y1 - y0 + 2.0) / dpm)
             out.append(el)

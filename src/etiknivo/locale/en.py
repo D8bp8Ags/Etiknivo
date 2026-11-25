@@ -925,6 +925,18 @@ EN: dict[str, str] = {
     "Drie zones": "Three zones",
     "Pictogram, tekst met kopbalk en QR-code naast elkaar; voor lange labels":
         "Pictogram, text with a header bar and QR code side by side; for long labels",
+    "Kopbalk: rustig": "Header bar: calm",
+    "Categorie en pictogram op een zwarte balk; lade-ID rechtsboven in het witte deel":
+        "Category and pictogram on a black bar; tray ID top right in the white part",
+    "Kopbalk: lade in de balk": "Header bar: tray in the bar",
+    "Categorie, lade-ID en pictogram op een zwarte balk; eronder de drie regels":
+        "Category, tray ID and pictogram on a black bar; the three lines below it",
+    "Kopbalk: lade groot": "Header bar: large tray",
+    "Categorie en pictogram op een zwarte balk; lade-ID groot in een kader links":
+        "Category and pictogram on a black bar; tray ID large in a frame on the left",
+    "Kopbalk: met QR-code": "Header bar: with QR code",
+    "Categorie en pictogram op een zwarte balk; QR-code met lade-ID rechts":
+        "Category and pictogram on a black bar; QR code with the tray ID on the right",
     "Kies een pictogram voor dit sjabloon": "Choose a pictogram for this template",
     "Dit sjabloon heeft tekst nodig: vul de regels of de lade-ID in":
         "This template needs text: fill in the lines or the tray ID",

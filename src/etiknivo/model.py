@@ -163,6 +163,11 @@ class LabelTemplate(StrEnum):
     GRID = "grid"
     DISTANCE = "distance"
     ZONES = "zones"
+    #: a black bar with the category and the pictogram, the text below it
+    BAR_CALM = "bar_calm"
+    BAR_TRAY = "bar_tray"
+    BAR_LOCATION = "bar_location"
+    BAR_QR = "bar_qr"
     #: one of the user's own templates (see ``Label.custom_template``)
     CUSTOM = "custom"
 
@@ -191,6 +196,18 @@ TEMPLATE_INFO: dict[LabelTemplate, tuple[str, str]] = {
     LabelTemplate.ZONES: (N_("Drie zones"),
                           N_("Pictogram, tekst met kopbalk en QR-code naast elkaar; voor "
                              "lange labels")),
+    LabelTemplate.BAR_CALM: (N_("Kopbalk: rustig"),
+                             N_("Categorie en pictogram op een zwarte balk; lade-ID "
+                                "rechtsboven in het witte deel")),
+    LabelTemplate.BAR_TRAY: (N_("Kopbalk: lade in de balk"),
+                             N_("Categorie, lade-ID en pictogram op een zwarte balk; "
+                                "eronder de drie regels")),
+    LabelTemplate.BAR_LOCATION: (N_("Kopbalk: lade groot"),
+                                 N_("Categorie en pictogram op een zwarte balk; lade-ID "
+                                    "groot in een kader links")),
+    LabelTemplate.BAR_QR: (N_("Kopbalk: met QR-code"),
+                           N_("Categorie en pictogram op een zwarte balk; QR-code met "
+                              "lade-ID rechts")),
 }
 
 #: the layout stored for each quick choice of 1, 2 or 3 lines
