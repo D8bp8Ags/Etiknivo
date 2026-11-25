@@ -459,6 +459,8 @@ class RenderEngine:
             y = area[3] - block_h
         else:
             y = area[1] + (avail_h - block_h) / 2
+            if share is not None and prepared and block_h <= avail_h:
+                y = self._optical_top(boxes[-1], heights[-1], rooms[-1], block_h, area)
 
         hires = Image.new("L", (w * ss, h * ss), 255)
         draw = ImageDraw.Draw(hires)
@@ -1149,6 +1151,26 @@ class RenderEngine:
         if ext is not None:
             t, b = ext[0] * size_pt, ext[1] * size_pt
         return l, t, r, b
+
+    @staticmethod
+    def _optical_top(last: tuple[float, float, float, float], last_h: float, last_room: float,
+                     block_h: float, area: tuple[float, float, float, float]) -> float:
+        """Top of a centred text block in a category.
+
+        The category's extents give every line the room of the deepest
+        descender in the category, so a label with only "LED" keeps empty
+        room under its letters for the "g" or "p" of another label; centring
+        that room put "LED" visibly above the middle.  The block is centred
+        from its top down to the baseline of its last line instead (what the
+        eye takes as the text), and the descender room hangs below.  That
+        position depends only on the shared extents and sizes, so the lines
+        still stand at the same height on every label of the category.  The
+        block never leaves the text area."""
+        # under the last baseline: the descender share of the line's room
+        # (an outlier's smaller line has the room of the shared size)
+        below = last_room * max(0.0, last[3]) / max(1e-6, last_h)
+        y = area[1] + (area[3] - area[1] - (block_h - below)) / 2
+        return min(max(y, area[1]), area[3] - block_h)
 
     def _width(self, p: _Prepared, size_pt: float) -> float:
         l, _t, r, _b = self._measure(p, size_pt)

@@ -139,3 +139,25 @@ def test_pictogram_has_the_same_size_whatever_the_text(engine: RenderEngine) -> 
     assert box(a) == box(b)
     b.picture.size = CodeSize.SMALL
     assert box(b)[1] < box(a)[1]
+
+
+def _ink_rows(r) -> tuple[int, int]:  # noqa: ANN001
+    bb = r.mono.convert("L").point(lambda v: 255 - v).getbbox()
+    return bb[1], bb[3]
+
+
+def test_single_main_line_is_centred_in_a_category(engine: RenderEngine) -> None:
+    """A label with only "LED" sits in the middle, also when another label of
+    its category has letters under the baseline ("gpq"): the room for those
+    descenders hangs below the text instead of lifting it."""
+    alone = make_label("", "", "LED")
+    top0, bottom0 = _ink_rows(engine.render(alone))
+    peer = make_label("", "", "gpq")
+    r = with_peers(engine, [alone, peer]).render(alone)
+    top, bottom = _ink_rows(r)
+    area = r.text_area
+    assert (top, bottom) == (top0, bottom0)
+    assert abs((top + bottom) / 2 - (area[1] + area[3]) / 2) <= 1
+    # the peer's line stands at the same height
+    other = engine.render(peer)
+    assert round(other.lines[0].y0) == round(r.lines[0].y0)
