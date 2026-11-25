@@ -895,15 +895,6 @@ EN: dict[str, str] = {
     "pas je daarna kleine dingen aan.":
         "Ready-made arrangement of the lines, the tray ID, the code and the pictogram. "
         "Use Free afterwards for small changes.",
-    "Het sjabloon zet een QR-code met deze inhoud op het label, met de tekst leesbaar "
-    "eronder.":
-        "The template puts a QR code with this content on the label, with the text "
-        "readable below it.",
-    "Het sjabloon bepaalt plaats en grootte; de tekst komt uit de regels. Kies Vrij om "
-    "daarna iets te verschuiven.":
-        "The template decides position and size; the text comes from the lines. Choose "
-        "Free to move something afterwards.",
-    "Grootte volgt het sjabloon: {pt} pt": "Size set by the template: {pt} pt",
     "Regels onder elkaar": "Lines under each other",
     "De regels onder elkaar, met pictogram en code ernaast":
         "The lines under each other, with pictogram and code beside them",
@@ -934,4 +925,26 @@ EN: dict[str, str] = {
     "Kies een pictogram voor dit sjabloon": "Choose a pictogram for this template",
     "Dit sjabloon heeft tekst nodig: vul de regels of de lade-ID in":
         "This template needs text: fill in the lines or the tray ID",
+    "Sjabloonwaarden herstellen": "Restore template values",
+    "Zet lettergrootte, vet, cursief en uitlijning van de regels en de grootte van "
+    "pictogram en QR-code terug naar wat het sjabloon kiest. De tekst blijft.":
+        "Puts the font size, bold, italic and alignment of the lines and the size of the "
+        "pictogram and QR code back to what the template chooses. The text stays.",
+    "Geldt niet bij een sjabloon: het sjabloon zet de regels zelf neer.":
+        "Does not apply to a template: the template places the lines itself.",
+    "Geldt niet bij een sjabloon.": "Does not apply to a template.",
+    "Geldt niet bij een sjabloon: het sjabloon tekent zijn eigen lijnen.":
+        "Does not apply to a template: the template draws its own lines.",
+    "Bij een sjabloon ligt de plaats van het pictogram vast.":
+        "With a template the pictogram's place is fixed.",
+    "Bij een sjabloon ligt de plaats van de code vast.":
+        "With a template the code's place is fixed.",
+    "Dit sjabloon gebruikt altijd een QR-code.": "This template always uses a QR code.",
+    "Dit sjabloon gebruikt geen QR-code of barcode.":
+        "This template uses no QR code or barcode.",
+    "Dit sjabloon gebruikt geen pictogram.": "This template uses no pictogram.",
+    "Het sjabloon is een startpunt: lettergrootte, vet, uitlijning, marges en de grootte "
+    "van pictogram en code pas je gewoon aan. Kies Vrij om iets te verschuiven.":
+        "The template is a starting point: change font size, bold, alignment, margins and "
+        "the size of the pictogram and code as usual. Choose Free to move something.",
 }

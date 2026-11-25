@@ -515,8 +515,17 @@ class RenderEngine:
         return (px1 - px0) / dpm, (py1 - py0) / dpm
 
     def template_items(self, label: Label) -> tuple[list[Placed], list[str]]:
-        """The elements *label*'s template places, with its warnings."""
-        return template_items(label, self.area_mm)
+        """The elements *label*'s template places, with its warnings.  The
+        label's margins make the template smaller."""
+        w, h = self.area_mm
+        mh, mv = label.style.margin_h_mm, label.style.margin_v_mm
+        mh, mv = min(mh, w / 4), min(mv, h / 4)
+        items, warnings = template_items(label, (w - 2 * mh, h - 2 * mv))
+        if mh or mv:
+            for item in items:
+                item.element.x_mm += mh
+                item.element.y_mm += mv
+        return items, warnings
 
     def _render_free(self, label: Label) -> RenderResult:
         """Free layout: every element in its own box."""
@@ -600,7 +609,7 @@ class RenderEngine:
                     texts[el.id] = ((lb.x0, lb.y0, lb.x1, lb.y1), lb.size_pt)
                     if template:
                         lb = replace(lb, slot=item.slot if item.slot is not None else -1 - n,
-                                     requested_pt=lb.size_pt)
+                                     requested_pt=item.element.font_size_pt)
                     line_boxes.append(lb)
                     bx0, by0, bx1, by1 = lb.x0, lb.y0, lb.x1, lb.y1
                 else:

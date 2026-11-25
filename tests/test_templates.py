@@ -6,7 +6,10 @@ import pytest
 from PIL import Image, ImageChops
 
 from etiknivo.model import (
+    CodeKind,
+    CodeSize,
     ElementKind,
+    HAlign,
     Label,
     LabelElement,
     LabelTemplate,
@@ -16,7 +19,12 @@ from etiknivo.model import (
     make_label,
 )
 from etiknivo.rendering.engine import RenderEngine
-from etiknivo.rendering.templates import apply_template, capitals
+from etiknivo.rendering.templates import (
+    apply_template,
+    capitals,
+    differs_from_template,
+    reset_to_template,
+)
 from tests.test_gui import window  # noqa: F401 - fixture
 
 TEMPLATES = [t for t in LabelTemplate if t != LabelTemplate.NONE]
@@ -201,10 +209,20 @@ def test_chooser_applies_a_template(qtbot, window) -> None:  # noqa: ANN001, F81
     box.setCurrentIndex(box.findData(LabelTemplate.HEADER.value))
     box.activated.emit(box.currentIndex())
     assert window.current.template == LabelTemplate.HEADER
-    assert not props._style_form.isRowVisible(props.valign)  # the template places the lines
+    # everything stays in view; what the template decides is greyed out, with why
+    assert props._style_form.isRowVisible(props.valign) and not props.valign.isEnabled()
+    assert "sjabloon" in props.valign.toolTip()
+    assert props.margin_h.isEnabled() and props.lines[1].size.isEnabled()
+    assert not props.template_reset.isEnabled()  # nothing changed yet
+    props.lines[1].size.setValue(9.0)
+    assert window.current.main.font_size_pt == 9.0 and props.template_reset.isEnabled()
+    props.template_reset.click()
+    assert window.current.main.font_size_pt == 15.0 and not props.template_reset.isEnabled()
+    window.undo()
+    window.undo()
     window.undo()
     assert window.current.template == LabelTemplate.NONE
-    assert props._style_form.isRowVisible(props.valign)
+    assert props.valign.isEnabled()
 
 
 def test_leaving_a_template_undoes_what_it_switched_on() -> None:
@@ -257,3 +275,48 @@ def test_chooser_keeps_one_height(qtbot, window) -> None:  # noqa: ANN001, F811
         qtbot.wait(10)
         heights.add(box.height())
     assert len(heights) == 1 and heights.pop() >= box.iconSize().height() + 8
+
+
+def test_template_is_a_starting_point(engine: RenderEngine) -> None:
+    lbl = led()
+    lbl.main.font_size_pt, lbl.main.bold = 11.0, False
+    apply_template(lbl, LabelTemplate.LOCATION)
+    assert (lbl.main.font_size_pt, lbl.main.bold) == (16.0, True)  # the template's start
+    size = {lb.slot: lb.size_pt for lb in engine.render(lbl).lines}[1]
+    lbl.main.font_size_pt = 10.0  # the user builds on it: a smaller main line
+    assert {lb.slot: lb.size_pt for lb in engine.render(lbl).lines}[1] == 10.0 < size
+    lbl.main.align = HAlign.RIGHT
+    r = engine.render(lbl)
+    main = next(lb for lb in r.lines if lb.slot == 1)
+    assert main.x1 == pytest.approx(engine.printable_box[2], abs=1.5)
+    apply_template(lbl, LabelTemplate.NONE)  # back: the look from before the template
+    assert (lbl.main.font_size_pt, lbl.main.bold) == (11.0, False)
+    assert lbl.looks_before_template == []
+    back = Label.from_dict({**lbl.to_dict(), "looks_before_template": [{"bold": "ja"}] * 3})
+    assert back.looks_before_template[0]["bold"] is True
+
+
+def test_margins_and_sizes_work_on_a_template(engine: RenderEngine) -> None:
+    lbl = led()
+    apply_template(lbl, LabelTemplate.ICON)
+    before = engine.render(lbl)
+    lbl.style.margin_h_mm = 2.0
+    inset = engine.render(lbl)
+    left = min(lb.x0 for lb in inset.lines)
+    assert left > min(lb.x0 for lb in before.lines)
+    lbl.style.margin_h_mm = 0.0
+    lbl.picture.size = CodeSize.LARGE
+    wide = engine.render(lbl)
+    main = lambda r: next(lb for lb in r.lines if lb.slot == 1)  # noqa: E731
+    assert main(wide).x0 > main(before).x0  # a wider pictogram column
+    reset_to_template(lbl)
+    assert lbl.picture.size == CodeSize.MEDIUM and not differs_from_template(lbl)
+
+
+def test_code_template_switches_a_qr_code_on_and_off() -> None:
+    lbl = led()
+    lbl.code.kind = CodeKind.CODE128
+    apply_template(lbl, LabelTemplate.QR)
+    assert lbl.code.kind == CodeKind.QR
+    apply_template(lbl, LabelTemplate.VALUE)
+    assert lbl.code.kind == CodeKind.CODE128  # the barcode it had comes back

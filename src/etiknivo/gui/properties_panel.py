@@ -63,7 +63,13 @@ from etiknivo.model import (
     make_label,
 )
 from etiknivo.rendering import pictures
-from etiknivo.rendering.templates import apply_template
+from etiknivo.rendering.templates import (
+    CODE_TEMPLATES,
+    PICTURE_TEMPLATES,
+    apply_template,
+    differs_from_template,
+    reset_to_template,
+)
 from etiknivo.settings import data_dir
 
 VALIGN_TEXT = {VAlign.TOP: N_("Boven"), VAlign.CENTER: N_("Midden"), VAlign.BOTTOM: N_("Onder")}
@@ -313,6 +319,12 @@ class PropertiesPanel(QScrollArea):
                                     "dingen aan."))
         f.addRow(tr("Layout"), mode)
         f.addRow(tr("Sjabloon"), self.template)
+        self.template_reset = QPushButton(tr("Sjabloonwaarden herstellen"))
+        self.template_reset.setToolTip(tr(
+            "Zet lettergrootte, vet, cursief en uitlijning van de regels en de grootte van "
+            "pictogram en QR-code terug naar wat het sjabloon kiest. De tekst blijft."))
+        self.template_reset.clicked.connect(self._reset_template)
+        f.addRow("", self.template_reset)
         f.addRow(tr("Regels"), counts)
         self._label_form = f
         self._counts_row = counts
@@ -504,6 +516,10 @@ class PropertiesPanel(QScrollArea):
         self.code_text.textEdited.connect(lambda: self._apply(False))
         self.specs.changed.connect(lambda: self._apply(False))
         self.notes.textChanged.connect(lambda: self._apply(False))
+        #: tooltips to show again when no template limits these
+        self._tips = {w: w.toolTip() for w in (
+            self.valign, self.spacing, self.rotation, self.separators, self.pic_pos,
+            self.code_pos, self.code_kind)}
         self.setEnabled(False)
 
     def eventFilter(self, obj: QObject, event: QEvent) -> bool:  # noqa: N802 - Qt API
@@ -618,23 +634,19 @@ class PropertiesPanel(QScrollArea):
                       "niet terug.")
         elif tpl != LabelTemplate.NONE:
             hint = tr(TEMPLATE_INFO[tpl][1]) + ". " + tr(
-                "Het sjabloon bepaalt plaats en grootte; de tekst komt uit de regels. Kies "
-                "Vrij om daarna iets te verschuiven.")
+                "Het sjabloon is een startpunt: lettergrootte, vet, uitlijning, marges en de "
+                "grootte van pictogram en code pas je gewoon aan. Kies Vrij om iets te "
+                "verschuiven.")
         else:
             hint = tr("De lade-ID komt alleen op het etiket als een regel {Lade} bevat. Met "
                       "1, 2 of 3 zet je regels aan of uit; hun tekst en opmaak blijven bewaard.")
         self.layout_hint.setText(hint)
-        self.text_section.setVisible(not free)
-        self.code_group.setVisible(not free and tpl in (
-            LabelTemplate.NONE, LabelTemplate.QR, LabelTemplate.ZONES))
-        self.pic_group.setVisible(not free and tpl in (
-            LabelTemplate.NONE, LabelTemplate.ICON, LabelTemplate.ZONES))
-        for w in (self.autofit, self.same_size):
-            self._style_form.setRowVisible(w, not free)
-        # a template places the lines itself
+        self._label_form.setRowVisible(self.template_reset, tpl != LabelTemplate.NONE)
+        for w in (self.text_section, self.code_group, self.pic_group):
+            w.setVisible(not free)
         for w in (self.valign, self.spacing, self.margin_h, self.margin_v, self.rotation,
-                  self.separators):
-            self._style_form.setRowVisible(w, not free and tpl == LabelTemplate.NONE)
+                  self.autofit, self.same_size, self.separators):
+            self._style_form.setRowVisible(w, not free)
         self._update_code_hint()
         self._update_picture_widgets()
 
@@ -655,6 +667,52 @@ class PropertiesPanel(QScrollArea):
         self.set_label(lbl)
         self._emit(True)
 
+    def _reset_template(self) -> None:
+        lbl = self.label
+        if self._loading or lbl is None or not lbl.uses_template:
+            return
+        reset_to_template(lbl)
+        self.set_label(lbl)
+        self.separate_step = True  # not merged with the edits just before it
+        self._emit(True)
+
+    def _template_limits(self) -> None:
+        """With a template, grey out what it decides itself and say why;
+        everything else stays as it is and works on the template."""
+        if not hasattr(self, "_tips"):  # still building the panel
+            return
+        tpl = self._active_template()
+        on = tpl != LabelTemplate.NONE
+        notes = {
+            self.valign: tr("Geldt niet bij een sjabloon: het sjabloon zet de regels zelf neer."),
+            self.spacing: tr("Geldt niet bij een sjabloon: het sjabloon zet de regels zelf neer."),
+            self.rotation: tr("Geldt niet bij een sjabloon."),
+            self.separators: tr("Geldt niet bij een sjabloon: het sjabloon tekent zijn eigen "
+                                "lijnen."),
+            self.pic_pos: tr("Bij een sjabloon ligt de plaats van het pictogram vast."),
+            self.code_pos: tr("Bij een sjabloon ligt de plaats van de code vast."),
+            self.code_kind: tr("Dit sjabloon gebruikt altijd een QR-code."),
+        }
+        for w, note in notes.items():
+            limited = on and (w is not self.code_kind or tpl in CODE_TEMPLATES)
+            if limited:
+                w.setEnabled(False)
+            elif w in (self.valign, self.spacing, self.rotation, self.separators,
+                       self.code_kind):
+                w.setEnabled(True)
+            w.setToolTip(note if limited else self._tips.get(w, ""))
+        for group, used, note in (
+                (self.code_group, CODE_TEMPLATES,
+                 tr("Dit sjabloon gebruikt geen QR-code of barcode.")),
+                (self.pic_group, PICTURE_TEMPLATES, tr("Dit sjabloon gebruikt geen pictogram."))):
+            unused = on and tpl not in used
+            group.body.setEnabled(not unused)
+            group.body.setToolTip(note if unused else "")
+        lbl = self.label
+        self.template_reset.setEnabled(bool(on and lbl is not None and (
+            differs_from_template(lbl) or lbl.picture.size != CodeSize.MEDIUM
+            or lbl.code.size != CodeSize.MEDIUM)))
+
     def show_fitted_sizes(self, sizes: dict[int, tuple[float, float, str]]) -> None:
         """Show the auto-fit result per slot: {slot: (fitted_pt, requested_pt,
         shared)}, *shared* as in :class:`LineBox`; in the free layout the slot
@@ -664,13 +722,9 @@ class PropertiesPanel(QScrollArea):
             idx = self.label.elements.index(el) if el is not None else -1
             self.elements.show_fitted(sizes[idx][0] if idx in sizes else None)
             return
-        templated = self.label is not None and self.label.uses_template
         for le in self.lines:
             fitted = sizes.get(le.slot)
-            if templated:
-                le.set_fitted(tr("Grootte volgt het sjabloon: {pt} pt", pt=f"{fitted[0]:.1f}")
-                              if fitted else "")
-            elif fitted and fitted[2] == "shared":
+            if fitted and fitted[2] == "shared":
                 le.set_fitted(tr("{pt} pt, gelijk aan de rest van de categorie",
                                  pt=f"{fitted[0]:.1f}"))
             elif fitted and fitted[0] < fitted[1] - 0.05:
@@ -806,13 +860,13 @@ class PropertiesPanel(QScrollArea):
         self.pic_symbol.setEnabled(kind == PictureKind.SYMBOL)
         self.pic_image_btn.setEnabled(kind == PictureKind.IMAGE)
         # only the rows that matter for the chosen kind
-        placed = self._active_template() == LabelTemplate.NONE  # else the template places it
-        self._pic_form.setRowVisible(self.pic_pos, placed and kind != PictureKind.NONE)
-        self._pic_form.setRowVisible(self._pic_size_box, placed and kind != PictureKind.NONE)
+        self._pic_form.setRowVisible(self.pic_pos, kind != PictureKind.NONE)
+        self._pic_form.setRowVisible(self._pic_size_box, kind != PictureKind.NONE)
         self._pic_form.setRowVisible(self.pic_symbol, kind == PictureKind.SYMBOL)
         self._pic_form.setRowVisible(self.pic_image_btn, kind == PictureKind.IMAGE)
         has = bool(self.label and self.label.picture.image_png)
         self.pic_image_btn.setText(tr("Andere afbeelding…") if has else tr("Afbeelding kiezen…"))
+        self._template_limits()
 
     def _choose_image(self) -> None:
         path, _ = QFileDialog.getOpenFileName(
@@ -859,18 +913,6 @@ class PropertiesPanel(QScrollArea):
         self.notes_links.setToolTip("\n".join(links))
 
     def _update_code_hint(self) -> None:
-        if self._active_template() != LabelTemplate.NONE:
-            # the template always shows a QR code with its content below it
-            self.code_text.setEnabled(True)
-            self.code_field_btn.setEnabled(True)
-            for w in (self.code_kind, self.code_pos, self._code_size_box):
-                self._code_form.setRowVisible(w, False)
-            self._code_form.setRowVisible(self._code_row, True)
-            self.code_hint.setText(tr("Het sjabloon zet een QR-code met deze inhoud op het "
-                                      "label, met de tekst leesbaar eronder."))
-            self._code_form.setRowVisible(self.code_hint, True)
-            return
-        self._code_form.setRowVisible(self.code_kind, True)
         kind = CODE_CHOICES[max(0, self.code_kind.currentIndex())][0]
         self.code_text.setEnabled(kind != CodeKind.NONE)
         self.code_field_btn.setEnabled(kind != CodeKind.NONE)
@@ -888,6 +930,7 @@ class PropertiesPanel(QScrollArea):
                                  "Alleen letters, cijfers en leestekens zonder accenten."),
         }[kind])
         self._code_form.setRowVisible(self.code_hint, bool(self.code_hint.text()))
+        self._template_limits()
 
     def _commit_category(self) -> None:
         if self._loading or self.label is None:
@@ -901,6 +944,7 @@ class PropertiesPanel(QScrollArea):
         if self.label is not None:
             self.label.touch()
             self._update_summaries()
+            self._template_limits()
         self.changed.emit(structural)
 
     def _update_summaries(self) -> None:
