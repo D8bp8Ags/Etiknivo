@@ -206,7 +206,7 @@ class _Builder:
         if not top and not tray:
             return 0.0
         s = self.s
-        pad = 0.5 * s
+        pad = 0.25 * s  # two dots, so white letters do not lose their edge
         tray_w = min(7.0 * s, w * 0.35) if tray else 0.0
         self.text(x + pad, 0.15 * s, w - 2 * pad - tray_w, height - 0.3 * s, capitals(top),
                   6.5, bold=True, role="bar", slot=SLOT_TOP)
@@ -516,18 +516,20 @@ def _location(b: _Builder) -> None:
     x = 0.0
     if b.tray:
         box_w = min(8.0 * s, w * 0.35)
-        b.element(ElementKind.BOX, 0, 1.0 * s, box_w, h - 2.0 * s)
+        # the frame runs to the edges of the printable area; inside it a
+        # little air, so the text does not touch the frame
+        b.element(ElementKind.BOX, 0, 0, box_w, h)
         m = _TRAY_RE.match(b.tray)
         inner = box_w - 1.0 * s
         if m:
-            b.text(0.5 * s, 1.5 * s, inner, 3.25 * s, m.group(1), 11, bold=True,
+            b.text(0.5 * s, 0.5 * s, inner, 3.5 * s, m.group(1), 11, bold=True,
                    align=HAlign.CENTER, role="tray_row")
-            b.text(0.5 * s, 4.9 * s, inner, 5.6 * s, m.group(2), 20, bold=True,
+            b.text(0.5 * s, 4.0 * s, inner, h - 4.5 * s, m.group(2), 20, bold=True,
                    align=HAlign.CENTER, role="tray_no")
         else:
-            b.text(0.5 * s, 1.5 * s, inner, h - 3.0 * s, tray_field(), 16, bold=True,
+            b.text(0.5 * s, 0.5 * s, inner, h - 1.0 * s, tray_field(), 16, bold=True,
                    align=HAlign.CENTER, role="tray")
-        x = box_w + 1.0 * s
+        x = box_w + 0.75 * s
     b.stack(x, 0, w - x, h, [(SLOT_TOP, 3.0, 8, False), (SLOT_MAIN, 5.25, 16, True),
                              (SLOT_BOTTOM, 3.75, 7, False)])
 
@@ -550,7 +552,7 @@ def _value(b: _Builder) -> None:
 def _header(b: _Builder) -> None:
     s, w, h = b.s, b.w, b.h
     bar = b.header_bar(0, w, 3.0 * s)
-    y = bar + (0.25 * s if bar else 0.0)
+    y = bar
     b.stack(0, y, w, h - y, [(SLOT_MAIN, 5.75, 15, True), (SLOT_BOTTOM, 2.75, 7, False)],
             align=HAlign.CENTER)
 
@@ -560,9 +562,9 @@ def _icon(b: _Builder) -> None:
     x = 0.0
     if b.has_picture():
         col = min(b.column(7.5 * s, "picture"), w * 0.4)
-        b.picture(0.25 * s, 1.0 * s, col - 0.5 * s, h - 2.0 * s)
-        b.rule_v(col + 0.25 * s, 0.75 * s, h - 1.5 * s)
-        x = col + 1.25 * s
+        b.picture(0, 0, col - 0.25 * s, h)
+        b.rule_v(col + 0.25 * s, 0, h)
+        x = col + 1.0 * s
     else:
         b.warnings.append(tr("Kies een pictogram voor dit sjabloon"))
     _text_with_tray(b, x, w - x)
@@ -636,8 +638,8 @@ def _zones(b: _Builder) -> None:
     x0, x1 = 0.0, w
     if b.has_picture():
         col = min(b.column(7.5 * s, "picture"), w * 0.25)
-        b.picture(0.25 * s, 1.0 * s, col - 0.5 * s, h - 2.0 * s)
-        b.rule_v(col + 0.25 * s, 0.75 * s, h - 1.5 * s)
+        b.picture(0, 0, col - 0.25 * s, h)
+        b.rule_v(col + 0.25 * s, 0, h)
         x0 = col + 1.0 * s
     if b.has_code():
         room = h - b.code_room()
@@ -648,11 +650,11 @@ def _zones(b: _Builder) -> None:
     top = b.line(SLOT_TOP)
     bar = 0.0
     if top:
-        b.text(x0 + 0.5 * s, 0.15 * s, tw - 1.0 * s, 2.45 * s, capitals(top), 6, bold=True,
+        b.text(x0 + 0.25 * s, 0.15 * s, tw - 0.5 * s, 2.45 * s, capitals(top), 6, bold=True,
                role="bar", slot=SLOT_TOP)
         b.element(ElementKind.INVERT, x0, 0, tw, 2.75 * s)
         bar = 3.0 * s
-    b.stack(x0 + 0.5 * s, bar, tw - 0.5 * s, h - bar,
+    b.stack(x0, bar, tw, h - bar,
             [(SLOT_MAIN, 5.5, 15, True), (SLOT_BOTTOM, 3.0, 7, False)])
 
 
@@ -669,9 +671,9 @@ def _category_bar(b: _Builder, tray: bool = False) -> float:
     if not category and not b.has_picture() and not tray:
         return 0.0
     bar = BAR_MM * s
-    right = w - 0.4 * s
+    right = w - 0.25 * s  # two dots, so white letters do not lose their edge
     if b.has_picture():
-        right = w - 3.8 * s
+        right = w - 3.65 * s
         b.picture(right, 0.25 * s, 3.4 * s, bar - 0.5 * s)
         right -= 0.4 * s
     if tray:
@@ -680,7 +682,7 @@ def _category_bar(b: _Builder, tray: bool = False) -> float:
                align=HAlign.RIGHT, role="tray")
         right -= tray_w + 0.6 * s
     if category:
-        b.text(0.4 * s, 0.15 * s, right - 0.4 * s, bar - 0.3 * s, category_field(), 7,
+        b.text(0.25 * s, 0.15 * s, right - 0.25 * s, bar - 0.3 * s, category_field(), 7,
                bold=True, role="category")
     b.element(ElementKind.INVERT, 0, 0, w, bar)
     return bar
@@ -695,19 +697,17 @@ def _bar_lines(b: _Builder, x: float, y: float, w: float, tray: bool = False) ->
     if top or tray:
         top_h = 2.4 * s
         tray_w = min(6.0 * s, w * 0.35) if tray else 0.0
-        b.text(x, y + 0.1 * s, w - tray_w, top_h - 0.1 * s, top, 7, role="top", slot=SLOT_TOP)
-        b.text(x + w - tray_w, y + 0.1 * s, tray_w, top_h - 0.1 * s,
+        b.text(x, y, w - tray_w, top_h, top, 7, role="top", slot=SLOT_TOP)
+        b.text(x + w - tray_w, y, tray_w, top_h,
                tray_field() if tray else "", 7, bold=True, align=HAlign.RIGHT, role="tray")
         y += top_h
-    # the bottom line keeps a little room under it for descenders such as |
-    b.stack(x, y, w, h - y - 0.3 * s, [(SLOT_MAIN, 3.7, 15, True),
-                                      (SLOT_BOTTOM, 2.3, 6.5, False)])
+    b.stack(x, y, w, h - y, [(SLOT_MAIN, 3.5, 15, True),
+                                      (SLOT_BOTTOM, 2.6, 6.5, False)])
 
 
 def _bar_calm(b: _Builder) -> None:
-    s = b.s
     y = _category_bar(b)
-    _bar_lines(b, 0.3 * s, y, b.w - 0.6 * s, tray=True)
+    _bar_lines(b, 0, y, b.w, tray=True)
 
 
 #: below this width (at a 12 mm printhead) the tray ID does not fit in the bar
@@ -719,41 +719,41 @@ def _bar_tray(b: _Builder) -> None:
     s = b.s
     in_bar = b.w / s >= _BAR_TRAY_MIN_MM
     y = _category_bar(b, tray=in_bar)
-    _bar_lines(b, 0.3 * s, y, b.w - 0.6 * s, tray=not in_bar)
+    _bar_lines(b, 0, y, b.w, tray=not in_bar)
 
 
 def _bar_location(b: _Builder) -> None:
     s, h = b.s, b.h
     y = _category_bar(b)
-    x = 0.3 * s
+    x = 0.0
     if b.tray:
         box_w = min(7.5 * s, b.w * 0.3)
-        top = y + 0.5 * s
+        top = y + 0.25 * s
         b.element(ElementKind.BOX, 0, top, box_w, h - top)
         b.text(0.4 * s, top + 0.3 * s, box_w - 0.8 * s, h - top - 0.6 * s, tray_field(), 14,
                bold=True, align=HAlign.CENTER, role="tray")
-        x = box_w + 0.8 * s
-    _bar_lines(b, x, y, b.w - x - 0.2 * s)
+        x = box_w + 0.75 * s
+    _bar_lines(b, x, y, b.w - x)
 
 
 def _bar_qr(b: _Builder) -> None:
     s, w, h = b.s, b.w, b.h
     y = _category_bar(b)
-    x1 = w - 0.3 * s
+    x1 = w
     if b.has_code():
         content = b.label.code.text.strip() or tray_field()
         cap = 2.2 * s if b.label.code.caption else 0.0
-        room = h - y - 0.4 * s - cap
+        room = h - y - 0.25 * s - cap
         q = min(b.column(room, "code"), room, w * 0.3)
         col = max(q, 6.6 * s) if cap else q
         cx = w - col
-        qy = y + 0.4 * s + (room - q) / 2
+        qy = y + 0.25 * s + (room - q) / 2
         b.element(ElementKind.QR, cx + (col - q) / 2, qy, q, q, text=content)
         if cap:
             b.text(cx, h - cap, col, cap, content, 6.5, bold=True, align=HAlign.CENTER,
                    role="code")
         x1 = cx - 0.6 * s
-    _bar_lines(b, 0.3 * s, y, x1 - 0.3 * s)
+    _bar_lines(b, 0, y, x1)
 
 
 _BUILDERS = {

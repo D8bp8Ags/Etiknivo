@@ -61,7 +61,7 @@ Click **+** in the toolbar (⌘N). You pick a category and the label opens in th
 - **Tray ID**: for example `A14`, used for sorting. It is not printed on the label, unless you put `{Tray}` in a text line.
 - **Category**: groups labels in the library. Pick an existing one or type a new one.
 - **Layout**: **Lines** or **Free**. With *Lines*, up to three text lines sit below each other, with a QR code or barcode and a pictogram next to them. With *Free*, you place separate elements wherever you like (see [Free layout](#free-layout-dragging-elements)).
-- **Template** (only with *Lines*): a ready-made arrangement, such as *Header bar* or *QR box* (see [Templates](#templates-ready-made-layouts)). *Lines under each other* is the usual arrangement.
+- **Template** (only with *Lines*): a ready-made arrangement, such as *Black bar with category* or *QR code on the left* (see [Templates](#templates-ready-made-layouts)). *Lines under each other* is the usual arrangement.
 - **Lines** (only with *Lines*): the quick buttons **1**, **2** and **3** switch lines on or off.
 
 | Button | Lines on the label |
@@ -171,26 +171,26 @@ Under **Template** you pick, with one click, an arrangement like those of profes
 | Template | What it does | Why |
 |---|---|---|
 | Lines under each other | the usual arrangement, with pictogram and code beside it | |
-| Location first | tray ID large in a frame on the left, the lines left-aligned beside it | like warehouse labels: find the drawer and put it back without reading |
-| Value large | main line as large as possible, top line top left, tray ID top right | you look for the value (10 kΩ, M3), not the name |
-| Header bar | top line and tray ID white on a black bar | groups the cabinet; white on black stands in for a colour code |
-| Pictogram column | pictogram over the full height, a line, then the text | 5S: recognise before reading |
-| QR box | QR code with its content readable below it | still works when scanning fails |
-| Specification grid | top and main line as the heading, the bottom line in cells | the same property is always in the same place |
-| Readable from a distance | only the main line, as large as it fits | one word that tells the drawer apart |
-| Three zones | pictogram, text with header bar, QR code side by side | meant for long labels (40 or 50 mm) |
-| Header bar: calm | category and pictogram white on a black bar; below it the top line with the tray ID on the right, the main line large, the bottom line small | the bar groups the cabinet, the main line keeps the most room |
-| Header bar: tray in the bar | like *calm*, but the tray ID is white in the bar next to the pictogram | the white part is all for the text; on narrow rolls the tray ID moves to the white part |
-| Header bar: large tray | like *calm*, with the tray ID large in a frame on the left | you read the drawer from a distance in the cabinet |
-| Header bar: with QR code | like *calm*, with a QR code of the tray ID on the right and the tray ID below it | for scanning with a phone |
+| Large tray ID on the left | tray ID large in a frame on the left, the lines left-aligned beside it | like warehouse labels: find the drawer and put it back without reading |
+| Large main line | main line as large as possible, top line top left, tray ID top right | you look for the value (10 kΩ, M3), not the name |
+| Black bar with top line | top line and tray ID white on a black bar | groups the cabinet; white on black stands in for a colour code |
+| Pictogram on the left | pictogram over the full height, a line, then the text | 5S: recognise before reading |
+| QR code on the left | QR code with its content readable below it | still works when scanning fails |
+| Specifications in cells | top and main line as the heading, the bottom line in cells | the same property is always in the same place |
+| Main line extra large | only the main line, as large as it fits | one word that tells the drawer apart |
+| Pictogram, text and QR code (long label) | pictogram, text with black bar, QR code side by side | meant for long labels (40 or 50 mm) |
+| Black bar with category | category and pictogram white on a black bar; below it the top line with the tray ID on the right, the main line large, the bottom line small | the bar groups the cabinet, the main line keeps the most room |
+| Black bar with category and tray ID | like *calm*, but the tray ID is white in the bar next to the pictogram | the white part is all for the text; on narrow rolls the tray ID moves to the white part |
+| Black bar, large tray ID on the left | like *calm*, with the tray ID large in a frame on the left | you read the drawer from a distance in the cabinet |
+| Black bar, QR code on the right | like *calm*, with a QR code of the tray ID on the right and the tray ID below it | for scanning with a phone |
 
 Good to know:
 
-- **Specification grid**: separate the cells in the bottom line with `|`, for example `Ø 3 mm | THT | 20 mA | 2.0 V`. Without `|` the whole bottom line is one cell.
-- **Pictogram column**, **Three zones** and the four **Header bar** templates pick a fitting symbol themselves when the label had no pictogram yet. With **QR box**, **Three zones** and **Header bar: with QR code** the code's content starts as `{Tray}`. If you then pick a template that does not use them (for example *Lines under each other* again), what the template switched on by itself goes off again. A pictogram you had chosen yourself, or changed afterwards, stays.
+- **Specifications in cells**: separate the cells in the bottom line with `|`, for example `Ø 3 mm | THT | 20 mA | 2.0 V`. Without `|` the whole bottom line is one cell.
+- **Pictogram on the left**, **Pictogram, text and QR code (long label)** and the four **Black bar with top line** templates pick a fitting symbol themselves when the label had no pictogram yet. With **QR code on the left**, **Pictogram, text and QR code (long label)** and **Black bar, QR code on the right** the code's content starts as `{Tray}`. If you then pick a template that does not use them (for example *Lines under each other* again), what the template switched on by itself goes off again. A pictogram you had chosen yourself, or changed afterwards, stays.
 - With *Same font size within the category* on, labels with the same template in a category get the same font size per part, so the cabinet looks calm.
 - **Building on a template**: a template is a starting point. When you pick it, the lines get the template's font size, bold and alignment; afterwards you change those as usual under *Text*. The font size is the largest size in the box: text that does not fit gets smaller. The margins (they make the template smaller), *White on black*, the border and the size (Small, Medium, Large) of the pictogram and QR code work too. What the template decides itself (vertical, line spacing, rotation, the line between lines and the place of the pictogram and code) is greyed out, with the reason. **Restore template values** undoes your changes; going back to *Lines under each other* gives the lines their look from before the template.
-- **Switching parts off**: in **QR box**, **Three zones** and **Header bar: with QR code** set *Type* under *QR code or barcode* to *None* to leave the QR code out, or switch off *Text under the QR code*; the rest of the label moves along and gets larger. A barcode cannot go in a template. In the templates that show the tray ID as a text of their own, the **On the label** tick box next to *Tray ID* takes it off the label; the tray ID itself is kept (for `{Lade}` in the QR code, for example). A pictogram goes off the same way with *Type: None*.
+- **Switching parts off**: in **QR code on the left**, **Pictogram, text and QR code (long label)** and **Black bar, QR code on the right** set *Type* under *QR code or barcode* to *None* to leave the QR code out, or switch off *Text under the QR code*; the rest of the label moves along and gets larger. A barcode cannot go in a template. In the templates that show the tray ID as a text of their own, the **On the label** tick box next to *Tray ID* takes it off the label; the tray ID itself is kept (for `{Lade}` in the QR code, for example). A pictogram goes off the same way with *Type: None*.
 - **Small changes**: choose **Free** afterwards. You then get exactly the template's elements, to move or resize.
 - With **Copy format → Layout** or the **Template** column in *Edit labels* you give many labels the same template at once.
 
@@ -202,7 +202,7 @@ If none of the templates fits exactly, make a template of your own. Under *Templ
 
 ![The Own templates window](../img/en/template-editor.png)
 
-- **New** makes an empty template, or a copy of a ready-made template to build on, and keeps it at once. The ready-made templates themselves do not change.
+- **New** makes an empty template, or a copy of a ready-made template to build on. You can look through all the templates this way: nothing is kept until you click **Save**. Pick another template without changing anything and the new one goes away without a question. The ready-made templates themselves do not change.
 - **Undo** and **Redo** (Ctrl+Z and Ctrl+Shift+Z, or Cmd on the Mac) work in the window, also right after saving. Ctrl+S saves.
 - You edit the template like the free layout: drag a part to move it, and drag its bottom-right corner to make it larger or smaller. On the right are the exact sizes, the font and the font size.
 - While you drag, a part lines up with the edges and centres of the other parts and of the printable area. A pink line shows what it lines up with. Hold Alt (Option on the Mac) to drag freely. This works in the free layout too.

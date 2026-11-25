@@ -174,39 +174,34 @@ class LabelTemplate(StrEnum):
 #: (name, what it is for) per template, in the order of the chooser
 TEMPLATE_INFO: dict[LabelTemplate, tuple[str, str]] = {
     LabelTemplate.NONE: (N_("Regels onder elkaar"),
-                         N_("De regels onder elkaar, met pictogram en code ernaast")),
-    LabelTemplate.LOCATION: (N_("Locatie eerst"),
-                             N_("Lade-ID groot in een kader links, de tekst ernaast")),
-    LabelTemplate.VALUE: (N_("Waarde groot"),
-                          N_("Hoofdregel zo groot mogelijk; bovenregel en lade-ID in de "
-                             "hoeken")),
-    LabelTemplate.HEADER: (N_("Kopbalk"),
-                           N_("Bovenregel en lade-ID wit op een zwarte balk")),
-    LabelTemplate.ICON: (N_("Pictogram-kolom"),
-                         N_("Pictogram over de volle hoogte, een lijn, dan de tekst")),
-    LabelTemplate.QR: (N_("QR-vak"),
-                       N_("QR-code met de inhoud leesbaar eronder, de tekst ernaast")),
-    LabelTemplate.GRID: (N_("Specificatie-raster"),
-                         N_("Bovenregel en hoofdregel als kop; de onderregel in vakjes, "
-                            "gescheiden door |")),
-    LabelTemplate.DISTANCE: (N_("Op afstand leesbaar"),
-                             N_("Alleen de hoofdregel groot; bovenregel en lade-ID klein "
-                                "eronder")),
-    LabelTemplate.ZONES: (N_("Drie zones"),
-                          N_("Pictogram, tekst met kopbalk en QR-code naast elkaar; voor "
-                             "lange labels")),
-    LabelTemplate.BAR_CALM: (N_("Kopbalk: rustig"),
-                             N_("Categorie en pictogram op een zwarte balk; lade-ID "
-                                "rechtsboven in het witte deel")),
-    LabelTemplate.BAR_TRAY: (N_("Kopbalk: lade in de balk"),
-                             N_("Categorie, lade-ID en pictogram op een zwarte balk; "
-                                "eronder de drie regels")),
-    LabelTemplate.BAR_LOCATION: (N_("Kopbalk: lade groot"),
-                                 N_("Categorie en pictogram op een zwarte balk; lade-ID "
-                                    "groot in een kader links")),
-    LabelTemplate.BAR_QR: (N_("Kopbalk: met QR-code"),
-                           N_("Categorie en pictogram op een zwarte balk; QR-code met "
-                              "lade-ID rechts")),
+        N_("De regels onder elkaar, met pictogram en code ernaast")),
+    LabelTemplate.LOCATION: (N_("Grote lade-ID links"),
+        N_("Lade-ID groot in een kader links, de tekst ernaast")),
+    LabelTemplate.VALUE: (N_("Grote hoofdregel"),
+        N_("Hoofdregel zo groot mogelijk; bovenregel en lade-ID klein in de hoeken")),
+    LabelTemplate.DISTANCE: (N_("Hoofdregel extra groot"),
+        N_("Alleen de hoofdregel, zo groot als past; bovenregel en lade-ID klein eronder")),
+    LabelTemplate.ICON: (N_("Pictogram links"),
+        N_("Pictogram over de volle hoogte links, een lijn, dan de tekst")),
+    LabelTemplate.QR: (N_("QR-code links"),
+        N_("QR-code links met de inhoud leesbaar eronder, de tekst ernaast")),
+    LabelTemplate.GRID: (N_("Specificaties in vakjes"),
+        N_("Bovenregel en hoofdregel als kop; de onderregel in vakjes, gescheiden door |")),
+    LabelTemplate.HEADER: (N_("Zwarte balk met bovenregel"),
+        N_("Bovenregel en lade-ID wit op een zwarte balk, de hoofdregel groot eronder")),
+    LabelTemplate.BAR_CALM: (N_("Zwarte balk met categorie"),
+        N_("Categorie en pictogram wit op een zwarte balk; lade-ID rechtsboven in het "
+           "witte deel")),
+    LabelTemplate.BAR_TRAY: (N_("Zwarte balk met categorie en lade-ID"),
+        N_("Categorie, lade-ID en pictogram wit op een zwarte balk; eronder de drie regels")),
+    LabelTemplate.BAR_LOCATION: (N_("Zwarte balk, grote lade-ID links"),
+        N_("Categorie en pictogram wit op een zwarte balk; lade-ID groot in een kader "
+           "links")),
+    LabelTemplate.BAR_QR: (N_("Zwarte balk, QR-code rechts"),
+        N_("Categorie en pictogram wit op een zwarte balk; QR-code met lade-ID rechts")),
+    LabelTemplate.ZONES: (N_("Pictogram, tekst en QR-code (lang etiket)"),
+        N_("Pictogram, tekst met zwarte balk en QR-code naast elkaar; voor etiketten van "
+           "40 of 50 mm")),
 }
 
 #: the layout stored for each quick choice of 1, 2 or 3 lines

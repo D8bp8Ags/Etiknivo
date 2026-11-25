@@ -146,25 +146,20 @@ def test_editor_makes_changes_and_deletes(qtbot, window) -> None:  # noqa: ANN00
     qtbot.addWidget(dlg)
     dlg.templatesChanged.connect(window._templates_changed)
     assert dlg.list.count() == 0 and not dlg.name.isEnabled()
-    dlg.new_from(LabelTemplate.ICON)
-    # kept at once: in the list, nothing to ask about when choosing another
-    assert not dlg.dirty and dlg.work is not None and not dlg.save_btn.isEnabled()
-    assert dlg.list.count() == 1
-    assert any(el.symbol == PICTOGRAM_FIELD for el in dlg.work.elements)
+    # looking through the ready-made ones keeps nothing and asks nothing
     dlg.ask_unsaved = lambda _name: pytest.fail("asked about an unchanged template")
-    dlg.new_from(LabelTemplate.HEADER)
-    assert dlg.list.count() == 2
-    dlg.list.setCurrentRow([dlg.list.item(r).text() for r in range(2)].index(
-        "Pictogram-kolom (eigen)"))
-    assert dlg.work.name == "Pictogram-kolom (eigen)"
+    for tpl in (LabelTemplate.ICON, LabelTemplate.HEADER, LabelTemplate.QR):
+        dlg.new_from(tpl)
+        assert dlg.draft and not dlg.dirty and dlg.save_btn.isEnabled()
+        assert dlg.list.count() == 1 and lib.templates == []
+        assert "nog niet opgeslagen" in dlg.list.item(0).text()
+    dlg.new_from(LabelTemplate.ICON)
+    assert any(el.symbol == PICTOGRAM_FIELD for el in dlg.work.elements)
+    assert dlg.save()  # saving keeps it
+    assert not dlg.draft and dlg.list.count() == 1
+    assert [t.name for t in lib.templates] == ["Pictogram links (eigen)"]
+    assert dlg.list.item(0).text() == "Pictogram links (eigen)"
     dlg.confirm = lambda _text: True
-    keep = dlg.work.id
-    dlg._select_in_list(next(t.id for t in lib.templates if t.id != keep))
-    dlg._edit(next(t for t in lib.templates if t.id != keep))
-    dlg.delete()  # the header copy goes again
-    assert [t.id for t in lib.templates] == [keep]
-    dlg._select_in_list(keep)
-    dlg._edit(lib.templates[0])
     dlg.name.setText("Bakje")
     dlg.name.textEdited.emit("Bakje")
     n = len(dlg.work.elements)
@@ -185,9 +180,10 @@ def test_editor_makes_changes_and_deletes(qtbot, window) -> None:  # noqa: ANN00
     window.save_current()
     # a copy, then the original is deleted: its labels go back to the lines
     dlg.duplicate()
-    assert dlg.work.name == "Bakje (kopie)" and not dlg.dirty
-    assert sorted(t.name for t in lib.templates) == ["Bakje", "Bakje (kopie)"]
-    dlg.delete()  # the copy
+    assert dlg.work.name == "Bakje (kopie)" and not dlg.dirty and dlg.draft
+    assert [t.name for t in lib.templates] == ["Bakje"]  # not until it is saved
+    dlg.delete()  # the unsaved copy goes without a question
+    dlg.confirm = lambda _text: True
     dlg._select_in_list(lib.templates[0].id)
     dlg._edit(lib.templates[0])
     assert dlg.work.name == "Bakje"
@@ -209,7 +205,7 @@ def test_bulk_edit_gives_labels_a_template(window, monkeypatch) -> None:  # noqa
 
     def accept(dlg: BulkEditDialog) -> int:
         dlg.table.clearSelection()
-        dlg.set_cell(0, TEMPLATE_COLUMN, "Kopbalk")
+        dlg.set_cell(0, TEMPLATE_COLUMN, "Zwarte balk met bovenregel")
         dlg.table.clearSelection()
         dlg.set_cell(1, TEMPLATE_COLUMN, "Mijn sjabloon")
         return QDialog.DialogCode.Accepted
@@ -283,6 +279,8 @@ def test_editor_fields_stay_whole_in_a_small_window(qtbot, window) -> None:  # n
     assert dlg.elements.width() >= dlg.elements.minimumSizeHint().width()
     assert scroll.viewport().width() >= dlg.elements.minimumSizeHint().width()
     assert dlg.view.width() >= dlg.view.minimumSizeHint().width()
+    for btn in (dlg.new_btn, dlg.dup_btn, dlg.del_btn):  # their text stays whole
+        assert btn.width() >= btn.sizeHint().width(), btn.text()
 
 
 def test_element_arrows_move_as_they_point(qtbot, window) -> None:  # noqa: ANN001, F811
@@ -335,3 +333,18 @@ def test_dragging_lines_up_with_other_elements(qtbot, window) -> None:  # noqa: 
     qtbot.mouseRelease(view, Qt.MouseButton.LeftButton, pos=start + QPoint(round(target_dx), 0))
     assert view.guides == []
     dlg.ask_unsaved = lambda _name: "discard"
+
+
+def test_unchanged_copies_are_cleaned_up(window) -> None:  # noqa: ANN001, F811
+    lib = window.library
+    a = template_from_builtin(LabelTemplate.HEADER, window.engine.area_mm, "Kop")
+    b = template_from_builtin(LabelTemplate.HEADER, window.engine.area_mm, "Kop")
+    c = template_from_builtin(LabelTemplate.HEADER, window.engine.area_mm, "Kop")
+    c.elements[0].x_mm += 1  # changed: stays
+    other = template_from_builtin(LabelTemplate.HEADER, window.engine.area_mm, "Andere")
+    lib.set_templates([a, b, c, other])
+    lbl = lib.labels[0]
+    lbl.template, lbl.custom_template = LabelTemplate.CUSTOM, b.id  # in use: stays
+    assert lib.drop_duplicate_templates() == 1
+    assert {t.id for t in lib.templates} == {b.id, c.id, other.id}
+    assert lib.drop_duplicate_templates() == 0

@@ -167,7 +167,7 @@ def template_shots(app: QApplication, out: Path, names: tuple[str, str, str]) ->
 
 
 def editor_shot(app: QApplication, win: mw.MainWindow, path: Path) -> None:
-    """The window for own templates, with a copy of Header bar being changed."""
+    """The window for own templates, with a copy of a ready-made one being changed."""
     from etiknivo.gui.template_editor import TemplateEditor
     from etiknivo.model import LabelTemplate
 

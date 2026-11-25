@@ -624,6 +624,7 @@ EN: dict[str, str] = {
     "CSV-bestand is leeg": "CSV file is empty",
     "CSV-bestand bevat geen kopregel": "CSV file has no header row",
     "{name} (kopie)": "{name} (copy)",
+    "{name} (nog niet opgeslagen)": "{name} (not saved yet)",
     # -- specifications table and narrow inspector -------------------------------------
     "Stijl": "Style",
     "Een specificatie heeft een naam en een waarde, bv. Spanning en 50 V. Zet {Spanning} in "
@@ -901,42 +902,42 @@ EN: dict[str, str] = {
     "Regels onder elkaar": "Lines under each other",
     "De regels onder elkaar, met pictogram en code ernaast":
         "The lines under each other, with pictogram and code beside them",
-    "Locatie eerst": "Location first",
+    "Grote lade-ID links": "Large tray ID on the left",
     "Lade-ID groot in een kader links, de tekst ernaast":
         "Tray ID large in a frame on the left, the text beside it",
-    "Waarde groot": "Value large",
-    "Hoofdregel zo groot mogelijk; bovenregel en lade-ID in de hoeken":
-        "Main line as large as possible; top line and tray ID in the corners",
-    "Kopbalk": "Header bar",
-    "Bovenregel en lade-ID wit op een zwarte balk":
-        "Top line and tray ID white on a black bar",
-    "Pictogram-kolom": "Pictogram column",
-    "Pictogram over de volle hoogte, een lijn, dan de tekst":
-        "Pictogram over the full height, a line, then the text",
-    "QR-vak": "QR box",
-    "QR-code met de inhoud leesbaar eronder, de tekst ernaast":
-        "QR code with its content readable below it, the text beside it",
-    "Specificatie-raster": "Specification grid",
+    "Grote hoofdregel": "Large main line",
+    "Hoofdregel zo groot mogelijk; bovenregel en lade-ID klein in de hoeken":
+        "Main line as large as possible; top line and tray ID small in the corners",
+    "Hoofdregel extra groot": "Main line extra large",
+    "Alleen de hoofdregel, zo groot als past; bovenregel en lade-ID klein eronder":
+        "Only the main line, as large as it fits; top line and tray ID small below it",
+    "Pictogram links": "Pictogram on the left",
+    "Pictogram over de volle hoogte links, een lijn, dan de tekst":
+        "Pictogram over the full height on the left, a line, then the text",
+    "QR-code links": "QR code on the left",
+    "QR-code links met de inhoud leesbaar eronder, de tekst ernaast":
+        "QR code on the left with its content readable below it, the text beside it",
+    "Specificaties in vakjes": "Specifications in cells",
     "Bovenregel en hoofdregel als kop; de onderregel in vakjes, gescheiden door |":
         "Top and main line as the heading; the bottom line in cells, separated by |",
-    "Op afstand leesbaar": "Readable from a distance",
-    "Alleen de hoofdregel groot; bovenregel en lade-ID klein eronder":
-        "Only the main line large; top line and tray ID small below it",
-    "Drie zones": "Three zones",
-    "Pictogram, tekst met kopbalk en QR-code naast elkaar; voor lange labels":
-        "Pictogram, text with a header bar and QR code side by side; for long labels",
-    "Kopbalk: rustig": "Header bar: calm",
-    "Categorie en pictogram op een zwarte balk; lade-ID rechtsboven in het witte deel":
-        "Category and pictogram on a black bar; tray ID top right in the white part",
-    "Kopbalk: lade in de balk": "Header bar: tray in the bar",
-    "Categorie, lade-ID en pictogram op een zwarte balk; eronder de drie regels":
-        "Category, tray ID and pictogram on a black bar; the three lines below it",
-    "Kopbalk: lade groot": "Header bar: large tray",
-    "Categorie en pictogram op een zwarte balk; lade-ID groot in een kader links":
-        "Category and pictogram on a black bar; tray ID large in a frame on the left",
-    "Kopbalk: met QR-code": "Header bar: with QR code",
-    "Categorie en pictogram op een zwarte balk; QR-code met lade-ID rechts":
-        "Category and pictogram on a black bar; QR code with the tray ID on the right",
+    "Zwarte balk met bovenregel": "Black bar with top line",
+    "Bovenregel en lade-ID wit op een zwarte balk, de hoofdregel groot eronder":
+        "Top line and tray ID white on a black bar, the main line large below it",
+    "Zwarte balk met categorie": "Black bar with category",
+    "Categorie en pictogram wit op een zwarte balk; lade-ID rechtsboven in het witte deel":
+        "Category and pictogram white on a black bar; tray ID top right in the white part",
+    "Zwarte balk met categorie en lade-ID": "Black bar with category and tray ID",
+    "Categorie, lade-ID en pictogram wit op een zwarte balk; eronder de drie regels":
+        "Category, tray ID and pictogram white on a black bar; the three lines below it",
+    "Zwarte balk, grote lade-ID links": "Black bar, large tray ID on the left",
+    "Categorie en pictogram wit op een zwarte balk; lade-ID groot in een kader links":
+        "Category and pictogram white on a black bar; tray ID large in a frame on the left",
+    "Zwarte balk, QR-code rechts": "Black bar, QR code on the right",
+    "Categorie en pictogram wit op een zwarte balk; QR-code met lade-ID rechts":
+        "Category and pictogram white on a black bar; QR code with the tray ID on the right",
+    "Pictogram, tekst en QR-code (lang etiket)": "Pictogram, text and QR code (long label)",
+    "Pictogram, tekst met zwarte balk en QR-code naast elkaar; voor etiketten van 40 of 50 mm":
+        "Pictogram, text with a black bar and QR code side by side; for 40 or 50 mm labels",
     "Kies een pictogram voor dit sjabloon": "Choose a pictogram for this template",
     "Dit sjabloon heeft tekst nodig: vul de regels of de lade-ID in":
         "This template needs text: fill in the lines or the tray ID",

@@ -59,7 +59,7 @@ Klik **+** in de werkbalk (⌘N). Je kiest een categorie en het label opent in d
 - **Lade-ID**: bijvoorbeeld `A14`, om op te sorteren. Komt niet op het etiket, tenzij je `{Lade}` in een tekstregel zet.
 - **Categorie**: groepeert labels in de bibliotheek. Kies een bestaande of typ een nieuwe.
 - **Layout**: **Regels** of **Vrij**. Bij *Regels* staan er tot drie tekstregels onder elkaar, met een QR-code of barcode en een pictogram ernaast. Bij *Vrij* zet je losse elementen waar je wilt (zie [Vrije layout](#vrije-layout-elementen-slepen)).
-- **Sjabloon** (alleen bij *Regels*): een kant-en-klare indeling, zoals *Kopbalk* of *QR-vak* (zie [Sjablonen](#sjablonen-kant-en-klare-layouts)). *Regels onder elkaar* is de gewone indeling.
+- **Sjabloon** (alleen bij *Regels*): een kant-en-klare indeling, zoals *Zwarte balk met categorie* of *QR-code links* (zie [Sjablonen](#sjablonen-kant-en-klare-layouts)). *Regels onder elkaar* is de gewone indeling.
 - **Regels** (alleen bij *Regels*): de snelknoppen **1**, **2** en **3** zetten regels aan of uit.
 
 | Knop | Regels op het etiket |
@@ -169,26 +169,26 @@ Bij **Sjabloon** kies je met één klik een indeling zoals professionele bak-, m
 | Sjabloon | Wat het doet | Waarom |
 |---|---|---|
 | Regels onder elkaar | de gewone indeling, met pictogram en code ernaast | |
-| Locatie eerst | lade-ID groot in een kader links, de regels links uitgelijnd ernaast | zoals magazijnlabels: je vindt het vak terug en zet het terug zonder te lezen |
-| Waarde groot | hoofdregel zo groot mogelijk, bovenregel linksboven, lade-ID rechtsboven | je zoekt op waarde (10 kΩ, M3), niet op naam |
-| Kopbalk | bovenregel en lade-ID wit op een zwarte balk | groepeert de kast; wit-op-zwart vervangt een kleurcode |
-| Pictogram-kolom | pictogram over de volle hoogte, een lijn, dan de tekst | 5S: herkennen vóór lezen |
-| QR-vak | QR-code met de inhoud leesbaar eronder | werkt ook als scannen niet lukt |
-| Specificatie-raster | boven- en hoofdregel als kop, de onderregel in vakjes | dezelfde eigenschap staat altijd op dezelfde plek |
-| Op afstand leesbaar | alleen de hoofdregel, zo groot als past | één woord dat het vak onderscheidt |
-| Drie zones | pictogram, tekst met kopbalk, QR-code naast elkaar | bedoeld voor lange labels (40 of 50 mm) |
-| Kopbalk: rustig | categorie en pictogram wit op een zwarte balk; eronder bovenregel met lade-ID rechts, hoofdregel groot, onderregel klein | de balk groepeert de kast, de hoofdregel houdt de meeste ruimte |
-| Kopbalk: lade in de balk | als *rustig*, maar het lade-ID staat wit in de balk naast het pictogram | het witte deel is helemaal voor de tekst; op smalle rollen gaat het lade-ID naar het witte deel |
-| Kopbalk: lade groot | als *rustig*, met het lade-ID groot in een kader links | het vak lees je van een afstand in de kast |
-| Kopbalk: met QR-code | als *rustig*, met rechts een QR-code van het lade-ID en het lade-ID eronder | voor wie met de telefoon scant |
+| Grote lade-ID links | lade-ID groot in een kader links, de regels links uitgelijnd ernaast | zoals magazijnlabels: je vindt het vak terug en zet het terug zonder te lezen |
+| Grote hoofdregel | hoofdregel zo groot mogelijk, bovenregel linksboven, lade-ID rechtsboven | je zoekt op waarde (10 kΩ, M3), niet op naam |
+| Zwarte balk met bovenregel | bovenregel en lade-ID wit op een zwarte balk | groepeert de kast; wit-op-zwart vervangt een kleurcode |
+| Pictogram links | pictogram over de volle hoogte, een lijn, dan de tekst | 5S: herkennen vóór lezen |
+| QR-code links | QR-code met de inhoud leesbaar eronder | werkt ook als scannen niet lukt |
+| Specificaties in vakjes | boven- en hoofdregel als kop, de onderregel in vakjes | dezelfde eigenschap staat altijd op dezelfde plek |
+| Hoofdregel extra groot | alleen de hoofdregel, zo groot als past | één woord dat het vak onderscheidt |
+| Pictogram, tekst en QR-code (lang etiket) | pictogram, tekst met zwarte balk, QR-code naast elkaar | bedoeld voor lange labels (40 of 50 mm) |
+| Zwarte balk met categorie | categorie en pictogram wit op een zwarte balk; eronder bovenregel met lade-ID rechts, hoofdregel groot, onderregel klein | de balk groepeert de kast, de hoofdregel houdt de meeste ruimte |
+| Zwarte balk met categorie en lade-ID | als *rustig*, maar het lade-ID staat wit in de balk naast het pictogram | het witte deel is helemaal voor de tekst; op smalle rollen gaat het lade-ID naar het witte deel |
+| Zwarte balk, grote lade-ID links | als *rustig*, met het lade-ID groot in een kader links | het vak lees je van een afstand in de kast |
+| Zwarte balk, QR-code rechts | als *rustig*, met rechts een QR-code van het lade-ID en het lade-ID eronder | voor wie met de telefoon scant |
 
 Goed om te weten:
 
-- **Specificatie-raster**: scheid de vakjes in de onderregel met `|`, bijvoorbeeld `Ø 3 mm | THT | 20 mA | 2,0 V`. Zonder `|` staat de hele onderregel in één vak.
-- **Pictogram-kolom**, **Drie zones** en de vier **Kopbalk**-sjablonen kiezen zelf een passend symbool als het label nog geen pictogram had. Bij **QR-vak**, **Drie zones** en **Kopbalk: met QR-code** staat de inhoud van de code standaard op `{Lade}`. Kies je daarna een sjabloon dat ze niet gebruikt (bijvoorbeeld weer *Regels onder elkaar*), dan gaat wat het sjabloon zelf aanzette weer uit. Een pictogram dat je zelf had gekozen of daarna zelf veranderde, blijft staan.
+- **Specificaties in vakjes**: scheid de vakjes in de onderregel met `|`, bijvoorbeeld `Ø 3 mm | THT | 20 mA | 2,0 V`. Zonder `|` staat de hele onderregel in één vak.
+- **Pictogram links**, **Pictogram, tekst en QR-code (lang etiket)** en de vier **Zwarte balk met bovenregel**-sjablonen kiezen zelf een passend symbool als het label nog geen pictogram had. Bij **QR-code links**, **Pictogram, tekst en QR-code (lang etiket)** en **Zwarte balk, QR-code rechts** staat de inhoud van de code standaard op `{Lade}`. Kies je daarna een sjabloon dat ze niet gebruikt (bijvoorbeeld weer *Regels onder elkaar*), dan gaat wat het sjabloon zelf aanzette weer uit. Een pictogram dat je zelf had gekozen of daarna zelf veranderde, blijft staan.
 - Met *Zelfde lettergrootte binnen de categorie* aan krijgen labels met hetzelfde sjabloon in een categorie per onderdeel dezelfde lettergrootte, zodat de kast er rustig uitziet.
 - **Voortbouwen op een sjabloon**: een sjabloon is een startpunt. Bij het kiezen krijgen de regels de lettergrootte, vet en uitlijning van het sjabloon; daarna pas je die gewoon aan in *Tekst*. De lettergrootte is de grootste grootte in het vak: past de tekst niet, dan wordt hij kleiner. Ook de marges (maken het sjabloon kleiner), *Wit op zwart*, de rand en de grootte (Klein, Middel, Groot) van het pictogram en de QR-code werken. Wat het sjabloon zelf bepaalt (verticaal, regelafstand, rotatie, de lijn tussen regels en de plaats van pictogram en code) is grijs, met de reden erbij. **Sjabloonwaarden herstellen** zet je wijzigingen terug; ga je terug naar *Regels onder elkaar*, dan krijgen de regels hun opmaak van vóór het sjabloon terug.
-- **Onderdelen uitzetten**: bij **QR-vak**, **Drie zones** en **Kopbalk: met QR-code** zet je *Soort* onder *QR-code of barcode* op *Geen* om de QR-code weg te laten, of zet je *Tekst onder de QR-code* uit; de rest van het etiket schuift mee en wordt groter. Een barcode kan niet in een sjabloon. Bij de sjablonen die het lade-ID als eigen tekst tonen, staat naast *Lade-ID* het vinkje **Op het etiket**: uit haalt het lade-ID van het etiket, maar het blijft bewaard (bijvoorbeeld voor `{Lade}` in de QR-code). Een pictogram zet je net zo uit met *Soort: Geen*.
+- **Onderdelen uitzetten**: bij **QR-code links**, **Pictogram, tekst en QR-code (lang etiket)** en **Zwarte balk, QR-code rechts** zet je *Soort* onder *QR-code of barcode* op *Geen* om de QR-code weg te laten, of zet je *Tekst onder de QR-code* uit; de rest van het etiket schuift mee en wordt groter. Een barcode kan niet in een sjabloon. Bij de sjablonen die het lade-ID als eigen tekst tonen, staat naast *Lade-ID* het vinkje **Op het etiket**: uit haalt het lade-ID van het etiket, maar het blijft bewaard (bijvoorbeeld voor `{Lade}` in de QR-code). Een pictogram zet je net zo uit met *Soort: Geen*.
 - **Kleine aanpassingen**: kies daarna **Vrij**. Je krijgt dan precies de elementen van het sjabloon, die je kunt verschuiven of vergroten.
 - Met **Opmaak overnemen → Layout** of de kolom **Sjabloon** in *Labels bewerken* geef je veel labels tegelijk hetzelfde sjabloon.
 
@@ -200,7 +200,7 @@ Past geen van de sjablonen precies, maak dan je eigen sjabloon. Klik onder *Sjab
 
 ![Het venster Eigen sjablonen](../img/nl/sjablooneditor.png)
 
-- **Nieuw** maakt een leeg sjabloon of een kopie van een kant-en-klaar sjabloon om op voort te bouwen, en bewaart het meteen. De kant-en-klare sjablonen zelf veranderen niet.
+- **Nieuw** maakt een leeg sjabloon of een kopie van een kant-en-klaar sjabloon om op voort te bouwen. Je kunt zo rustig alle sjablonen bekijken: er wordt pas iets bewaard als je op **Opslaan** klikt. Kies je een ander sjabloon zonder iets te veranderen, dan verdwijnt het nieuwe weer zonder vraag. De kant-en-klare sjablonen zelf veranderen niet.
 - **Ongedaan maken** en **Opnieuw** (Ctrl+Z en Ctrl+Shift+Z, of Cmd op de Mac) werken in het venster, ook vlak na het opslaan. Ctrl+S slaat op.
 - Je bewerkt het sjabloon zoals de vrije layout: sleep een onderdeel om het te verplaatsen en sleep het hoekje rechtsonder om het groter of kleiner te maken. Rechts staan de precieze maten, het lettertype en de grootte.
 - Tijdens het slepen lijnt een onderdeel uit aan de randen en het midden van de andere onderdelen en van het printbare gebied. Een roze lijn laat zien waaraan. Houd Alt (Option op de Mac) ingedrukt om vrij te slepen. Dit werkt ook in de vrije layout.
