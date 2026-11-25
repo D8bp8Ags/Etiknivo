@@ -239,6 +239,7 @@ class D11sBackend(PrinterBackend):
         copies: int = 1,
         progress: ProgressCallback | None = None,
         cancel: asyncio.Event | None = None,
+        continuous: bool = False,
     ) -> None:
         check_raster(raster, self.profile)
         image_cmd = proto.raster_image(raster_to_bytes(raster), raster.width)
@@ -255,7 +256,8 @@ class D11sBackend(PrinterBackend):
                 status = await self._status(link)
                 if not status.ok:
                     raise PrinterNotReadyError(status)
-                await self._call(link.request(proto.set_paper_mode(proto.PaperMode.GAP)))
+                mode = proto.PaperMode.CONTINUOUS if continuous else proto.PaperMode.GAP
+                await self._call(link.request(proto.set_paper_mode(mode)))
                 await asyncio.sleep(t.between_commands)
                 await self._call(link.send(proto.WAKE))
                 await asyncio.sleep(t.between_commands)
@@ -263,6 +265,9 @@ class D11sBackend(PrinterBackend):
                 await asyncio.sleep(t.between_commands)
                 await self._call(link.stream(image_cmd))
                 await asyncio.sleep(t.after_raster)
+                if continuous:  # back to labels, so the feed stops at the next gap
+                    await self._call(link.request(proto.set_paper_mode(proto.PaperMode.GAP)))
+                    await asyncio.sleep(t.between_commands)
                 await self._call(link.send(proto.FEED_TO_NEXT_LABEL))
                 await asyncio.sleep(t.after_feed)
                 reply = await self._call(link.request(proto.JOB_END, timeout=t.end_of_job_timeout))

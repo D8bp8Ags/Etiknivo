@@ -167,11 +167,16 @@ class PrinterBackend(ABC):
         copies: int = 1,
         progress: ProgressCallback | None = None,
         cancel: asyncio.Event | None = None,
+        continuous: bool = False,
     ) -> None:
         """Print a native-orientation 1-bit raster ``copies`` times.
 
         Each copy is positioned on its own label using gap detection (form
         feed).  Raises :class:`PrinterError` subclasses on failure.
+
+        *continuous* prints in continuous-paper mode (no gap detection while
+        printing); only for the edge-test experiments.  Backends without the
+        mode ignore it.
         """
 
 

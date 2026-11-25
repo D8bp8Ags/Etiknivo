@@ -355,6 +355,16 @@ async def test_print_sequence_uses_d11s_job_commands(engine: RenderEngine) -> No
     assert set(h["ble"].uuids) == {UART_PROFILES[0][1]}
 
 
+async def test_continuous_mode_switches_back_to_gap_before_the_feed(engine: RenderEngine) -> None:
+    be, h = make_backend()
+    await be.connect("AA:BB")
+    h["ble"].writes.clear()
+    await be.print_raster(raster(engine), continuous=True)
+    w = h["ble"].writes
+    assert w.index(b"\x10\xff\x84\x02") < w.index(b"\x10\xff\xfe\x01")
+    assert w.index(b"\x10\xff\x84\x00") < w.index(b"\x1d\x0c") < w.index(b"\x10\xff\xfe\x45")
+
+
 async def test_link_picks_available_profile_and_chunk_size(engine: RenderEngine) -> None:
     be, h = make_backend(services=gatt(profile_index=1, max_len=100), fragment=True)
     await be.connect("AA")

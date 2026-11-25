@@ -71,11 +71,11 @@ def edge_test_raster(engine: RenderEngine, extra_px: int = 0) -> tuple[Image.Ima
     are lost there; if all are visible, the white paper outside the outer
     frame is space the printhead cannot reach.
 
-    *extra_px* makes the raster that many rows longer than the label, to see
-    whether the printer prints past the end of a label-length raster.
+    *extra_px* makes the raster that many rows longer (negative: shorter) than
+    the label, to see how the printer places a raster that is not label length.
     """
     p = engine.profile
-    w, h, dpm = p.label_length_px + max(0, extra_px), p.printhead_px, p.dots_per_mm
+    w, h, dpm = max(8 * p.dots_per_mm, p.label_length_px + extra_px), p.printhead_px, p.dots_per_mm
     band = Image.new("1", (w, h), 1)
     d = ImageDraw.Draw(band)
     for k in range(EDGE_TEST_FRAMES):

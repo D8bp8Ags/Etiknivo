@@ -119,6 +119,7 @@ class MockPrinterBackend(PrinterBackend):
         copies: int = 1,
         progress: ProgressCallback | None = None,
         cancel: asyncio.Event | None = None,
+        continuous: bool = False,
     ) -> None:
         check_raster(raster, self.profile)
         data = raster_to_bytes(raster)
