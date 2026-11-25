@@ -10,9 +10,14 @@ own content.  The ready-made templates cannot be changed; a copy of one can.
 from __future__ import annotations
 
 import copy
+import json
+import time
 
-from PySide6.QtCore import QSize, Qt, Signal
+import shiboken6
+from PySide6.QtCore import QEvent, QObject, QSize, Qt, Signal
+from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import (
+    QApplication,
     QDialog,
     QHBoxLayout,
     QLabel,
@@ -74,6 +79,11 @@ def sample_label() -> Label:
     return lbl
 
 
+def _alive(widget: QWidget) -> bool:
+    """Whether Qt still has the widget (a closed window may be gone)."""
+    return shiboken6.isValid(widget)
+
+
 def scaled(tpl: UserTemplate, area_mm: tuple[float, float]) -> UserTemplate:
     """A copy of *tpl* drawn on a printable area of *area_mm*."""
     out = copy.deepcopy(tpl)
@@ -107,6 +117,12 @@ class TemplateEditor(QDialog):
         self._loading = False
         #: asks what to do with unsaved changes: "save", "discard" or "cancel"
         self.ask_unsaved = self._ask_box
+        #: undo history of the template being edited: its states as JSON, the
+        #: state shown now at ``_at``; the saved state, to know what is unsaved
+        self._states: list[str] = []
+        self._at = -1
+        self._saved_state = ""
+        self._last_edit = (0.0, 0, "")  # time, element count and kind of the last edit
         #: asks to go ahead with a deletion
         self.confirm = lambda text: QMessageBox.question(
             self, tr("Eigen sjablonen"), text) == QMessageBox.StandardButton.Yes
@@ -176,7 +192,17 @@ class TemplateEditor(QDialog):
         name_row.addWidget(self.name, 1)
         ml.addLayout(name_row)
         ml.addWidget(self.view, 0, Qt.AlignmentFlag.AlignHCenter)
+        self.undo_btn = QToolButton()
+        self.undo_btn.setText(tr("Ongedaan maken"))
+        self.undo_btn.setToolTip(tr("Ongedaan maken") + " (Ctrl+Z)")
+        self.redo_btn = QToolButton()
+        self.redo_btn.setText(tr("Opnieuw"))
+        self.redo_btn.setToolTip(tr("Opnieuw") + " (Ctrl+Shift+Z)")
+        self.undo_btn.clicked.connect(self.undo)
+        self.redo_btn.clicked.connect(self.redo)
         tools = QHBoxLayout()
+        tools.addWidget(self.undo_btn)
+        tools.addWidget(self.redo_btn)
         tools.addWidget(self.parts_btn)
         tools.addStretch(1)
         ml.addLayout(tools)
@@ -192,8 +218,8 @@ class TemplateEditor(QDialog):
         right = QScrollArea()
         right.setWidgetResizable(True)
         right.setWidget(self.elements)
-        right.setMinimumWidth(380)
         right.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self._right = right
 
         split = QSplitter()
         split.addWidget(left)
@@ -201,6 +227,9 @@ class TemplateEditor(QDialog):
         split.addWidget(right)
         split.setStretchFactor(1, 1)
         split.setSizes([240, 540, 400])
+        split.setChildrenCollapsible(False)
+        left.setMinimumWidth(200)
+        middle.setMinimumWidth(self.view.minimumSizeHint().width())
 
         self.save_btn = QPushButton(tr("Opslaan"))
         self.save_btn.setDefault(True)
@@ -222,8 +251,17 @@ class TemplateEditor(QDialog):
         self.name.textEdited.connect(self._changed)
         self.elements.changed.connect(self._changed)
         self.elements.selected.connect(self.view.select)
+        self.elements.selected.connect(lambda _id: self._fit_right())
         self.view.elementSelected.connect(self.elements.select)
         self.view.elementChanged.connect(self._moved)
+        for keys, slot in ((QKeySequence.StandardKey.Undo, self.undo),
+                           (QKeySequence.StandardKey.Redo, self.redo),
+                           (QKeySequence("Ctrl+Shift+Z"), self.redo),
+                           (QKeySequence.StandardKey.Save, self.save)):
+            QShortcut(QKeySequence(keys), self, activated=slot)
+        # text fields have an undo of their own, that only knows that field:
+        # Ctrl+Z goes to the template's history instead (as in the main window)
+        QApplication.instance().installEventFilter(self)
         self._fill_list()
         self.list.setCurrentRow(0 if self.list.count() else -1)
         self._show()
@@ -272,16 +310,78 @@ class TemplateEditor(QDialog):
     def _edit(self, tpl: UserTemplate | None, dirty: bool = False) -> None:
         """Start editing a working copy of *tpl*, drawn on the current roll."""
         self.work = scaled(tpl, self.engine.area_mm) if tpl is not None else None
+        state = self._state()
+        self._states, self._at = ([state], 0) if self.work is not None else ([], -1)
+        # a new template is unsaved until it is saved; an existing one as stored
+        self._saved_state = "" if dirty else state
         self.dirty = dirty
         self._show()
+
+    # -- undo -------------------------------------------------------------------------
+
+    def _state(self) -> str:
+        return json.dumps(self.work.to_dict(), sort_keys=True) if self.work else ""
+
+    def _record(self, kind: str = "edit") -> None:
+        """Keep the state after an edit.  Typing and dragging in quick
+        succession is one step; adding or removing a part is always its own."""
+        state = self._state()
+        if not self._states or state == self._states[self._at]:
+            return
+        now, count = time.monotonic(), len(self.work.elements)
+        last_time, last_count, last_kind = self._last_edit
+        merge = (self._at == len(self._states) - 1 and self._at > 0 and kind == "edit"
+                 and last_kind == "edit" and now - last_time < 0.8 and count == last_count)
+        del self._states[self._at + 1:]
+        if merge:
+            self._states[self._at] = state
+        else:
+            self._states.append(state)
+            self._at += 1
+        self._last_edit = (now, count, kind)
+
+    def undo(self) -> None:
+        if self._at > 0:
+            self._go(self._at - 1)
+
+    def redo(self) -> None:
+        if 0 <= self._at < len(self._states) - 1:
+            self._go(self._at + 1)
+
+    def _go(self, at: int) -> None:
+        keep = self.elements.current().id if self.elements.current() else ""
+        self._at = at
+        self._last_edit = (0.0, 0, "")  # the next edit is a step of its own
+        self.work = UserTemplate.from_dict(json.loads(self._states[at]))
+        self.dirty = self._states[at] != self._saved_state
+        self._show()
+        if any(el.id == keep for el in self.work.elements):
+            self.elements.select(keep)
+            self.view.select(keep)
+
+    def _update_undo(self) -> None:
+        self.undo_btn.setEnabled(self._at > 0)
+        self.redo_btn.setEnabled(0 <= self._at < len(self._states) - 1)
+
+    def eventFilter(self, obj: QObject, event: QEvent) -> bool:  # noqa: N802 - Qt API
+        if event.type() == QEvent.Type.ShortcutOverride and _alive(self) and \
+                self.isActiveWindow():
+            focus = QApplication.focusWidget()
+            if focus is not None and self.isAncestorOf(focus) and (
+                    event.matches(QKeySequence.StandardKey.Undo)
+                    or event.matches(QKeySequence.StandardKey.Redo)
+                    or QKeySequence(event.keyCombination()) == QKeySequence("Ctrl+Shift+Z")):
+                event.ignore()
+                return True
+        return super().eventFilter(obj, event)
 
     def _start_new(self, tpl: UserTemplate) -> None:
         if not self._may_leave():
             return
-        self._loading = True
-        self.list.setCurrentRow(-1)
-        self._loading = False
-        self._edit(tpl, dirty=True)
+        # saved at once: it is in the list straight away, and choosing another
+        # template does not ask about one you did not change
+        self._edit(tpl)
+        self.save()
         self.name.setFocus()
         self.name.selectAll()
 
@@ -324,7 +424,7 @@ class TemplateEditor(QDialog):
         self.elements.set_label(self.sample)
         self.elements.select(el.id)
         self.view.select(el.id)
-        self._changed()
+        self._changed("add")
 
     # -- showing ------------------------------------------------------------------------
 
@@ -336,7 +436,15 @@ class TemplateEditor(QDialog):
         self.name.setText(self.work.name if on else "")
         self.sample.elements = self.work.elements if on else []
         self.elements.set_label(self.sample if on else None)
+        self._fit_right()
         self._render()
+
+    def _fit_right(self) -> None:
+        """The element column never gets narrower than its fields (which
+        depend on the selected element): a smaller window narrows the middle."""
+        bar = self._right.verticalScrollBar().sizeHint().width()
+        self._right.setMinimumWidth(max(380, self.elements.minimumSizeHint().width()
+                                        + bar + 4))
 
     def _render(self) -> None:
         self.view.set_label(self.sample)
@@ -348,12 +456,19 @@ class TemplateEditor(QDialog):
             self.view.set_result(r)
             self.warnings.setText("\n".join(dict.fromkeys(r.warnings)))
         self.save_btn.setEnabled(self.work is not None and self.dirty)
+        self._update_undo()
 
-    def _changed(self) -> None:
+    def _changed(self, kind: str = "edit") -> None:
         if self._loading or self.work is None:
             return
-        self.dirty = True
+        self.work.name = self.name.text()
+        self._record(kind)
+        self.dirty = self._states[self._at] != self._saved_state
         self._render()
+
+    def showEvent(self, event) -> None:  # noqa: N802, ANN001 - Qt API
+        super().showEvent(event)
+        self._fit_right()
 
     def _moved(self) -> None:
         self.elements.refresh()
@@ -370,6 +485,8 @@ class TemplateEditor(QDialog):
         others = [t for t in self.library.templates if t.id != saved.id]
         self.library.set_templates([*others, saved])
         self.dirty = False
+        # the name as saved belongs to this step; undo after saving still works
+        self._states[self._at] = self._saved_state = self._state()
         self._fill_list(saved.id)
         self._render()
         self.templatesChanged.emit()
@@ -425,8 +542,15 @@ class TemplateEditor(QDialog):
         box.exec()
         return {save: "save", drop: "discard"}.get(box.clickedButton(), "cancel")
 
+    def reject(self) -> None:
+        """Esc: as closing, so unsaved changes are asked about."""
+        if self._may_leave():
+            QApplication.instance().removeEventFilter(self)
+            super().reject()
+
     def closeEvent(self, event) -> None:  # noqa: N802, ANN001 - Qt API
         if self._may_leave():
+            QApplication.instance().removeEventFilter(self)
             event.accept()
         else:
             event.ignore()

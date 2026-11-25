@@ -146,14 +146,31 @@ def test_editor_makes_changes_and_deletes(qtbot, window) -> None:  # noqa: ANN00
     dlg.templatesChanged.connect(window._templates_changed)
     assert dlg.list.count() == 0 and not dlg.name.isEnabled()
     dlg.new_from(LabelTemplate.ICON)
-    assert dlg.dirty and dlg.work is not None and dlg.save_btn.isEnabled()
+    # kept at once: in the list, nothing to ask about when choosing another
+    assert not dlg.dirty and dlg.work is not None and not dlg.save_btn.isEnabled()
+    assert dlg.list.count() == 1
     assert any(el.symbol == PICTOGRAM_FIELD for el in dlg.work.elements)
+    dlg.ask_unsaved = lambda _name: pytest.fail("asked about an unchanged template")
+    dlg.new_from(LabelTemplate.HEADER)
+    assert dlg.list.count() == 2
+    dlg.list.setCurrentRow([dlg.list.item(r).text() for r in range(2)].index(
+        "Pictogram-kolom (eigen)"))
+    assert dlg.work.name == "Pictogram-kolom (eigen)"
+    dlg.confirm = lambda _text: True
+    keep = dlg.work.id
+    dlg._select_in_list(next(t.id for t in lib.templates if t.id != keep))
+    dlg._edit(next(t for t in lib.templates if t.id != keep))
+    dlg.delete()  # the header copy goes again
+    assert [t.id for t in lib.templates] == [keep]
+    dlg._select_in_list(keep)
+    dlg._edit(lib.templates[0])
     dlg.name.setText("Bakje")
     dlg.name.textEdited.emit("Bakje")
     n = len(dlg.work.elements)
     dlg.add_part(4)  # a QR code of the label's code
     assert len(dlg.work.elements) == n + 1
     assert dlg.work.elements[-1].kind == ElementKind.QR
+    assert dlg.dirty and dlg.save_btn.isEnabled()
     assert dlg.save()
     assert [t.name for t in lib.templates] == ["Bakje"] and dlg.list.count() == 1
     # the chooser offers it, with the ready-made ones
@@ -167,11 +184,12 @@ def test_editor_makes_changes_and_deletes(qtbot, window) -> None:  # noqa: ANN00
     window.save_current()
     # a copy, then the original is deleted: its labels go back to the lines
     dlg.duplicate()
-    assert dlg.work.name == "Bakje (kopie)" and dlg.dirty
-    dlg.ask_unsaved = lambda _name: "discard"
-    dlg.list.setCurrentRow(0)
-    assert dlg.work.name == "Bakje" and not dlg.dirty
-    dlg.confirm = lambda _text: True
+    assert dlg.work.name == "Bakje (kopie)" and not dlg.dirty
+    assert sorted(t.name for t in lib.templates) == ["Bakje", "Bakje (kopie)"]
+    dlg.delete()  # the copy
+    dlg._select_in_list(lib.templates[0].id)
+    dlg._edit(lib.templates[0])
+    assert dlg.work.name == "Bakje"
     dlg.delete()
     assert lib.templates == [] and dlg.work is None
     assert window.current.template == LabelTemplate.NONE
@@ -201,3 +219,84 @@ def test_bulk_edit_gives_labels_a_template(window, monkeypatch) -> None:  # noqa
     assert a.template == LabelTemplate.HEADER and a.top.bold  # with the template's look
     assert (b.template, b.custom_template) == (LabelTemplate.CUSTOM, tpl.id)
     assert b.main.font_size_pt == 20
+
+
+def test_editor_undo_and_redo(qtbot, window, monkeypatch) -> None:  # noqa: ANN001, F811
+    from PySide6.QtCore import Qt as QtCore_Qt
+
+    import etiknivo.gui.template_editor as te
+    from etiknivo.gui.template_editor import TemplateEditor
+
+    clock = [100.0]
+    monkeypatch.setattr(te.time, "monotonic", lambda: clock[0])
+    dlg = TemplateEditor(window.library, window.engine, ["DejaVu Sans"], window)
+    qtbot.addWidget(dlg)
+    dlg.new_from(LabelTemplate.ICON)
+    assert not dlg.dirty and not dlg.undo_btn.isEnabled()
+    n = len(dlg.work.elements)
+    clock[0] += 5
+    dlg.add_part(4)  # a step of its own
+    clock[0] += 0.1
+    dlg.add_part(6)  # also its own step, however quick
+    assert len(dlg.work.elements) == n + 2 and dlg.dirty
+    # dragging: many small moves in a row are one step
+    el = dlg.work.elements[0]
+    x0 = el.x_mm
+    for _ in range(5):
+        clock[0] += 0.1
+        el.move_to(el.x_mm + 0.5, el.y_mm)
+        dlg.view.elementChanged.emit()
+    dlg.undo()
+    assert dlg.work.elements[0].x_mm == x0 and len(dlg.work.elements) == n + 2
+    dlg.undo()
+    assert len(dlg.work.elements) == n + 1
+    dlg.undo()
+    assert len(dlg.work.elements) == n and not dlg.dirty  # back at what is saved
+    assert not dlg.undo_btn.isEnabled() and dlg.redo_btn.isEnabled()
+    dlg.redo()
+    dlg.redo()
+    assert len(dlg.work.elements) == n + 2 and dlg.dirty
+    # Ctrl+Z in a text field goes to the template, not to the field
+    clock[0] += 5
+    dlg.name.setFocus()
+    qtbot.keyClicks(dlg.name, "x")
+    assert dlg.work.name.endswith("x")
+    dlg.activateWindow()
+    qtbot.keyClick(dlg.name, QtCore_Qt.Key.Key_Z, QtCore_Qt.KeyboardModifier.ControlModifier)
+    assert not dlg.name.text().endswith("x") and len(dlg.work.elements) == n + 2
+    dlg.ask_unsaved = lambda _name: "discard"
+    dlg.close()
+
+
+def test_editor_fields_stay_whole_in_a_small_window(qtbot, window) -> None:  # noqa: ANN001, F811
+    from etiknivo.gui.template_editor import TemplateEditor
+
+    dlg = TemplateEditor(window.library, window.engine, ["DejaVu Sans"], window)
+    qtbot.addWidget(dlg)
+    dlg.new_from(LabelTemplate.HEADER)
+    dlg.elements.select(dlg.work.elements[0].id)
+    dlg.show()
+    dlg.resize(400, 500)  # smaller than it can go
+    qtbot.wait(20)
+    scroll = dlg.elements.parentWidget().parentWidget()
+    assert dlg.elements.width() >= dlg.elements.minimumSizeHint().width()
+    assert scroll.viewport().width() >= dlg.elements.minimumSizeHint().width()
+    assert dlg.view.width() >= dlg.view.minimumSizeHint().width()
+
+
+def test_element_arrows_move_as_they_point(qtbot, window) -> None:  # noqa: ANN001, F811
+    from etiknivo.gui.template_editor import TemplateEditor
+
+    dlg = TemplateEditor(window.library, window.engine, ["DejaVu Sans"], window)
+    qtbot.addWidget(dlg)
+    dlg.new_from(LabelTemplate.HEADER)
+    els = dlg.work.elements
+    second = els[1]
+    dlg.elements.select(second.id)
+    dlg.elements.up_btn.click()
+    assert dlg.work.elements[0].id == second.id and dlg.elements.list.currentRow() == 0
+    dlg.elements.down_btn.click()
+    dlg.elements.down_btn.click()
+    assert dlg.work.elements[2].id == second.id and dlg.elements.list.currentRow() == 2
+    dlg.undo()
+    assert dlg.work.elements[1].id == second.id

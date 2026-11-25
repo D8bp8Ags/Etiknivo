@@ -196,7 +196,8 @@ Past geen van de sjablonen precies, maak dan je eigen sjabloon. Klik onder *Sjab
 
 ![Het venster Eigen sjablonen](../img/nl/sjablooneditor.png)
 
-- **Nieuw** maakt een leeg sjabloon of een kopie van een kant-en-klaar sjabloon om op voort te bouwen. De kant-en-klare sjablonen zelf veranderen niet.
+- **Nieuw** maakt een leeg sjabloon of een kopie van een kant-en-klaar sjabloon om op voort te bouwen, en bewaart het meteen. De kant-en-klare sjablonen zelf veranderen niet.
+- **Ongedaan maken** en **Opnieuw** (Ctrl+Z en Ctrl+Shift+Z, of Cmd op de Mac) werken in het venster, ook vlak na het opslaan. Ctrl+S slaat op.
 - Je bewerkt het sjabloon zoals de vrije layout: sleep een onderdeel om het te verplaatsen en sleep het hoekje rechtsonder om het groter of kleiner te maken. Rechts staan de precieze maten, het lettertype en de grootte.
 - **Onderdeel toevoegen** zet een deel van het label neer: bovenregel, hoofdregel, onderregel, lade-ID, QR-code, de tekst onder de QR-code of het pictogram van het label.
 - Een tekst toont wat elk label heeft via velden: `{Bovenregel}`, `{Hoofdregel}`, `{Onderregel}`, `{Lade}`, `{Code}`, `{Laderij}` en `{Ladenummer}` (de A en de 17 van A17), en `{Cel 1}` tot `{Cel 6}` (de delen van de onderregel tussen `|`). Typ je een regel in hoofdletters, zoals `{BOVENREGEL}`, dan staat hij in hoofdletters op het etiket. Je kunt ze ook mengen met gewone tekst, zoals `Lade {Lade}`.
@@ -212,7 +213,7 @@ Wil je meer vrijheid dan drie regels onder elkaar, kies dan bij *Layout* **Vrij*
 
 - **Selecteren en slepen**: klik een element in het ontwerp en sleep het. Het blauwe hoekje rechtsonder maakt het groter of kleiner. Alles springt per dot (0,125 mm), dus wat je ziet is precies wat er geprint wordt.
 - **Toetsen**: de pijltjes schuiven het geselecteerde element 1 dot, met Shift 1 mm. Delete verwijdert het.
-- **Toevoegen**: met **Toevoegen ▾** onder de lijst kies je een tekst, QR-code, barcode, symbool, afbeelding, lijn, kader of een vlak *wit op zwart*. De knoppen ▲ en ▼ bepalen wat boven ligt als elementen elkaar overlappen.
+- **Toevoegen**: met **Toevoegen ▾** onder de lijst kies je een tekst, QR-code, barcode, symbool, afbeelding, lijn, kader of een vlak *wit op zwart*. Met ▲ en ▼ schuif je het gekozen element omhoog of omlaag in de lijst. Overlappen elementen, dan ligt wat lager in de lijst staat erbovenop.
 - **Instellen**: onder de lijst staan de plaats en grootte in mm en, afhankelijk van het element, de inhoud, het lettertype, het symbool of de afbeelding.
 
 Tekst wordt zo groot als je instelt, maar krimpt als hij niet in zijn vak past. Codes, symbolen en afbeeldingen worden zo groot mogelijk in hun vak gezet. Een symbool vult zijn vak tot aan de rand, zonder witruimte eromheen. Een **lijn** vult zijn hele vak, dus een plat vak is een streep en een vierkant vak een zwart blok. Een **kader** is een rand van 1 dot om het vak. Een vlak **wit op zwart** keert alles om wat eronder ligt, zoals de kopbalk van een sjabloon. Velden zoals `{Lade}`, `{Datum}` en `{Nr}` werken in alle tekst en codes.

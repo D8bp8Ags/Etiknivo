@@ -596,8 +596,6 @@ EN: dict[str, str] = {
     "Wijzigingen opslaan": "Save changes",
     # free layout
     "Elementen": "Elements",
-    "Naar voren: boven de andere elementen tekenen": "Bring forward: draw above the other elements",
-    "Naar achteren: onder de andere elementen tekenen": "Send backward: draw below the other elements",
     "Sleep een element in het ontwerp om het te verplaatsen; sleep het hoekje rechtsonder om het "
     "groter of kleiner te maken. Pijltjestoetsen schuiven 1 dot (met Shift 1 mm).":
         "Drag an element in the design to move it; drag its bottom-right corner to make it "
@@ -1011,4 +1009,11 @@ EN: dict[str, str] = {
     "Dit label heeft geen pictogram": "This label has no pictogram",
     "Het eigen sjabloon van dit label bestaat niet meer: kies een ander sjabloon":
         "This label's own template no longer exists: choose another template",
+    "Omhoog in de lijst. Wat hoger staat, wordt eerder getekend en komt dus onder wat "
+    "eronder staat.":
+        "Up in the list. What is higher is drawn earlier, so it goes under what is below "
+        "it.",
+    "Omlaag in de lijst. Wat lager staat, wordt later getekend en komt dus over wat "
+    "erboven staat.":
+        "Down in the list. What is lower is drawn later, so it goes over what is above it.",
 }
