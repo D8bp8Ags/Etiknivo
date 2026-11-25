@@ -113,13 +113,14 @@ FICHERO_5836 = PrinterProfile(
     dots_per_mm=8,
     label_width_mm=30.0,
     label_height_mm=14.0,
-    # Measured with the edge test (2026-11-25): the raster starts ~1.5 mm before
-    # the label, so the last ~1.5 mm of the label cannot be reached.  The offset
-    # puts design dot 0 on the label edge; 0.5 mm safety at the start, 2 mm at
-    # the end (1.5 mm unreachable + 0.5 mm safety).  Safe area 27.5 × 12 mm.
-    feed_margin_mm=0.5,
-    feed_margin_end_mm=2.0,
-    feed_offset_px=12,
+    # Measured with the edge tests (2026-11-25): the printer ends every raster at
+    # the same place, 0.8-1.5 mm (on average 1.25 mm) before the end of the
+    # label, whatever its length; the whole print wanders ~0.5 mm from label to
+    # label.  The offset of 10 dots (1.25 mm) puts the design on the label on
+    # average and cuts the last 1.25 mm of the design, so a margin of 1.25 mm at
+    # both ends is the largest centred safe area: 27.5 × 12 mm.
+    feed_margin_mm=1.25,
+    feed_offset_px=10,
     name_prefixes=("FICHERO", "D11s_"),
     label_sizes=((30.0, 14.0), (40.0, 14.0), (50.0, 14.0), (22.0, 14.0), (40.0, 12.0),
                  (30.0, 12.0)),

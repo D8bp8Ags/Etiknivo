@@ -50,13 +50,13 @@ def test_raster_bytes_layout(engine: RenderEngine) -> None:
 def test_design_canvas_and_printable_band(engine: RenderEngine) -> None:
     assert engine.design_size == (240, 112)  # 30 × 14 mm at 8 dots/mm
     assert engine.head_band == (0, 8, 240, 104)  # central 96 dots
-    assert engine.printable_box == (4, 8, 224, 104)  # minus 0.5 mm at the start, 2 mm at the end
+    assert engine.printable_box == (10, 8, 230, 104)  # minus 1.25 mm at both ends
     r = engine.render(make_label("", "", "WWWWWWWWWWWW", "", layout=LayoutPreset.SINGLE))
     # nothing may be printed on paper outside the printhead or in the end margins
     assert ink_bbox(r.mono.crop((0, 0, 240, 8))) is None
     assert ink_bbox(r.mono.crop((0, 104, 240, 112))) is None
-    assert ink_bbox(r.mono.crop((0, 0, 4, 112))) is None
-    assert ink_bbox(r.mono.crop((224, 0, 240, 112))) is None
+    assert ink_bbox(r.mono.crop((0, 0, 10, 112))) is None
+    assert ink_bbox(r.mono.crop((230, 0, 240, 112))) is None
 
 
 def test_raster_preview_shows_position_on_label(engine: RenderEngine) -> None:
@@ -64,13 +64,13 @@ def test_raster_preview_shows_position_on_label(engine: RenderEngine) -> None:
     lbl.style.border = True
     shown = engine.raster_on_label(engine.render(lbl).raster)
     bb = ink_bbox(shown)
-    assert bb[0] == 4 and 240 - bb[2] == 16  # safe area: 0.5 mm at the start, 2 mm at the end
+    assert bb[0] == 10 and 240 - bb[2] == 10  # border centred: 1.25 mm at both ends
 
 
 def test_fichero_feed_offset_is_built_in(engine: RenderEngine) -> None:
     # measured on a real Fichero 5836; the user's calibration starts at 0
     assert Calibration().offset_feed_px == 0
-    assert engine.profile.feed_offset_px == 12
+    assert engine.profile.feed_offset_px == 10
 
 
 def test_mono_matches_raster_exactly(engine: RenderEngine) -> None:
@@ -270,8 +270,8 @@ def test_test_and_calibration_patterns(engine: RenderEngine) -> None:
     mono, raster = calibration_raster(engine)
     assert raster.size == (96, 240)
     # frame of the printable band is drawn
-    assert mono.getpixel((4, 8)) == 0 and mono.getpixel((223, 103)) == 0
-    assert ink_bbox(mono.crop((0, 0, 4, 112))) is None
+    assert mono.getpixel((10, 8)) == 0 and mono.getpixel((229, 103)) == 0
+    assert ink_bbox(mono.crop((0, 0, 10, 112))) is None
 
 
 def test_edge_test_covers_whole_band_without_offsets(engine: RenderEngine) -> None:
