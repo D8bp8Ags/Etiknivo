@@ -7,6 +7,7 @@ import json
 
 import pytest
 from PIL import ImageChops
+from PySide6.QtCore import Qt
 
 from etiknivo.model import (
     PICTOGRAM_FIELD,
@@ -300,3 +301,37 @@ def test_element_arrows_move_as_they_point(qtbot, window) -> None:  # noqa: ANN0
     assert dlg.work.elements[2].id == second.id and dlg.elements.list.currentRow() == 2
     dlg.undo()
     assert dlg.work.elements[1].id == second.id
+
+
+def test_dragging_lines_up_with_other_elements(qtbot, window) -> None:  # noqa: ANN001, F811
+    from PySide6.QtCore import QPoint
+
+    from etiknivo.gui.preview import snap
+    from etiknivo.gui.template_editor import TemplateEditor
+
+    assert snap([10.0, 12.0], [12.3, 30.0], 0.5) == (pytest.approx(0.3), 12.3)
+    assert snap([10.0], [11.0], 0.5) == (0.0, None)
+    dlg = TemplateEditor(window.library, window.engine, ["DejaVu Sans"], window)
+    qtbot.addWidget(dlg)
+    dlg.new_empty()
+    dlg.add_part(0)  # top line
+    dlg.add_part(3)  # tray ID
+    top, tray = dlg.work.elements
+    top.move_to(2.0, 1.0)
+    tray.move_to(15.0, 6.0)
+    dlg.show()
+    view = dlg.view
+    view.update()
+    qtbot.wait(10)
+    dpm = window.engine.profile.dots_per_mm
+    s = view._scale()
+    start = view.element_rect(tray).center().toPoint()
+    # drag the tray ID so its left edge comes 2 screen px right of the top line's
+    target_dx = (2.0 - 15.0) * dpm * s + 2
+    qtbot.mousePress(view, Qt.MouseButton.LeftButton, pos=start)
+    qtbot.mouseMove(view, start + QPoint(round(target_dx), 0))
+    assert tray.x_mm == pytest.approx(2.0)  # snapped onto the top line's left edge
+    assert ("v", pytest.approx(2.0)) in view.guides
+    qtbot.mouseRelease(view, Qt.MouseButton.LeftButton, pos=start + QPoint(round(target_dx), 0))
+    assert view.guides == []
+    dlg.ask_unsaved = lambda _name: "discard"
