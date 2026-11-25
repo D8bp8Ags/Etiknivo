@@ -69,6 +69,11 @@ TEMPLATE_STYLES: dict[LabelTemplate, tuple[tuple[float, bool, HAlign], ...]] = {
                              (6.5, False, HAlign.LEFT)),
     LabelTemplate.ZONES: ((6, True, HAlign.LEFT), (15, True, HAlign.LEFT),
                           (7, False, HAlign.LEFT)),
+    **{t: ((7, False, HAlign.LEFT), (15, True, HAlign.LEFT), (6.5, False, HAlign.LEFT))
+       for t in (LabelTemplate.BAR_CALM, LabelTemplate.BAR_TRAY)},
+    # beside the tray box or the QR code the text column is narrower
+    **{t: ((7, False, HAlign.LEFT), (14, True, HAlign.LEFT), (6, False, HAlign.LEFT))
+       for t in (LabelTemplate.BAR_LOCATION, LabelTemplate.BAR_QR)},
 }
 
 #: the parts of a line's look a template sets
@@ -212,8 +217,11 @@ class _Builder:
 
 
 #: templates built around a pictogram, and around the QR code's content
-PICTURE_TEMPLATES = (LabelTemplate.ICON, LabelTemplate.ZONES)
-CODE_TEMPLATES = (LabelTemplate.QR, LabelTemplate.ZONES)
+#: the templates with a black bar of the category and the pictogram
+BAR_TEMPLATES = (LabelTemplate.BAR_CALM, LabelTemplate.BAR_TRAY, LabelTemplate.BAR_LOCATION,
+                 LabelTemplate.BAR_QR)
+PICTURE_TEMPLATES = (LabelTemplate.ICON, LabelTemplate.ZONES, *BAR_TEMPLATES)
+CODE_TEMPLATES = (LabelTemplate.QR, LabelTemplate.ZONES, LabelTemplate.BAR_QR)
 #: templates that show the tray ID as a text of their own
 TRAY_TEMPLATES = tuple(t for t in LabelTemplate
                        if t not in (LabelTemplate.NONE, LabelTemplate.CUSTOM, *CODE_TEMPLATES))
@@ -480,6 +488,11 @@ def apply_template(label: Label, template: LabelTemplate, custom_id: str = "") -
         added.append("code_text")
 
 
+def category_field() -> str:
+    """``{Categorie}`` in the current language."""
+    return "{" + tr(BUILTIN_FIELDS["category"][0]) + "}"
+
+
 def tray_field() -> str:
     """``{Lade}`` in the current language, so the free layout shows it as typed."""
     return "{" + tr(BUILTIN_FIELDS["tray_id"][0]) + "}"
@@ -643,6 +656,106 @@ def _zones(b: _Builder) -> None:
             [(SLOT_MAIN, 5.5, 15, True), (SLOT_BOTTOM, 3.0, 7, False)])
 
 
+#: height of the category bar, at a printhead of 12 mm
+BAR_MM = 3.4
+
+
+def _category_bar(b: _Builder, tray: bool = False) -> float:
+    """The category and the pictogram (and with *tray* the tray ID) white on a
+    black bar over the full width; returns the height used."""
+    s, w = b.s, b.w
+    category = b.label.category.strip()
+    tray = tray and bool(b.tray)
+    if not category and not b.has_picture() and not tray:
+        return 0.0
+    bar = BAR_MM * s
+    right = w - 0.4 * s
+    if b.has_picture():
+        right = w - 3.8 * s
+        b.picture(right, 0.25 * s, 3.4 * s, bar - 0.5 * s)
+        right -= 0.4 * s
+    if tray:
+        tray_w = min(5.0 * s, w * 0.2)
+        b.text(right - tray_w, 0.15 * s, tray_w, bar - 0.3 * s, tray_field(), 7, bold=True,
+               align=HAlign.RIGHT, role="tray")
+        right -= tray_w + 0.6 * s
+    if category:
+        b.text(0.4 * s, 0.15 * s, right - 0.4 * s, bar - 0.3 * s, category_field(), 7,
+               bold=True, role="category")
+    b.element(ElementKind.INVERT, 0, 0, w, bar)
+    return bar
+
+
+def _bar_lines(b: _Builder, x: float, y: float, w: float, tray: bool = False) -> None:
+    """The lines below the bar: the top line small (with *tray* the tray ID on
+    its right), the main line large, the bottom line small."""
+    s, h = b.s, b.h
+    tray = tray and bool(b.tray)
+    top = b.line(SLOT_TOP)
+    if top or tray:
+        top_h = 2.4 * s
+        tray_w = min(6.0 * s, w * 0.35) if tray else 0.0
+        b.text(x, y + 0.1 * s, w - tray_w, top_h - 0.1 * s, top, 7, role="top", slot=SLOT_TOP)
+        b.text(x + w - tray_w, y + 0.1 * s, tray_w, top_h - 0.1 * s,
+               tray_field() if tray else "", 7, bold=True, align=HAlign.RIGHT, role="tray")
+        y += top_h
+    # the bottom line keeps a little room under it for descenders such as |
+    b.stack(x, y, w, h - y - 0.3 * s, [(SLOT_MAIN, 3.7, 15, True),
+                                      (SLOT_BOTTOM, 2.3, 6.5, False)])
+
+
+def _bar_calm(b: _Builder) -> None:
+    s = b.s
+    y = _category_bar(b)
+    _bar_lines(b, 0.3 * s, y, b.w - 0.6 * s, tray=True)
+
+
+#: below this width (at a 12 mm printhead) the tray ID does not fit in the bar
+#: next to the category, and goes to the right of the top line instead
+_BAR_TRAY_MIN_MM = 24.0
+
+
+def _bar_tray(b: _Builder) -> None:
+    s = b.s
+    in_bar = b.w / s >= _BAR_TRAY_MIN_MM
+    y = _category_bar(b, tray=in_bar)
+    _bar_lines(b, 0.3 * s, y, b.w - 0.6 * s, tray=not in_bar)
+
+
+def _bar_location(b: _Builder) -> None:
+    s, h = b.s, b.h
+    y = _category_bar(b)
+    x = 0.3 * s
+    if b.tray:
+        box_w = min(7.5 * s, b.w * 0.3)
+        top = y + 0.5 * s
+        b.element(ElementKind.BOX, 0, top, box_w, h - top)
+        b.text(0.4 * s, top + 0.3 * s, box_w - 0.8 * s, h - top - 0.6 * s, tray_field(), 14,
+               bold=True, align=HAlign.CENTER, role="tray")
+        x = box_w + 0.8 * s
+    _bar_lines(b, x, y, b.w - x - 0.2 * s)
+
+
+def _bar_qr(b: _Builder) -> None:
+    s, w, h = b.s, b.w, b.h
+    y = _category_bar(b)
+    x1 = w - 0.3 * s
+    if b.has_code():
+        content = b.label.code.text.strip() or tray_field()
+        cap = 2.2 * s if b.label.code.caption else 0.0
+        room = h - y - 0.4 * s - cap
+        q = min(b.column(room, "code"), room, w * 0.3)
+        col = max(q, 6.6 * s) if cap else q
+        cx = w - col
+        qy = y + 0.4 * s + (room - q) / 2
+        b.element(ElementKind.QR, cx + (col - q) / 2, qy, q, q, text=content)
+        if cap:
+            b.text(cx, h - cap, col, cap, content, 6.5, bold=True, align=HAlign.CENTER,
+                   role="code")
+        x1 = cx - 0.6 * s
+    _bar_lines(b, 0.3 * s, y, x1 - 0.3 * s)
+
+
 _BUILDERS = {
     LabelTemplate.LOCATION: _location,
     LabelTemplate.VALUE: _value,
@@ -652,6 +765,10 @@ _BUILDERS = {
     LabelTemplate.GRID: _grid,
     LabelTemplate.DISTANCE: _distance,
     LabelTemplate.ZONES: _zones,
+    LabelTemplate.BAR_CALM: _bar_calm,
+    LabelTemplate.BAR_TRAY: _bar_tray,
+    LabelTemplate.BAR_LOCATION: _bar_location,
+    LabelTemplate.BAR_QR: _bar_qr,
     LabelTemplate.CUSTOM: _custom,
 }
 
