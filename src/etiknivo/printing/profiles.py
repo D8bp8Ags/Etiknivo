@@ -30,6 +30,9 @@ class PrinterProfile:
     #: positions labels with a gap sensor, which is only accurate to about a
     #: millimetre, so content closer to the ends can be cut off.
     feed_margin_mm: float = 0.0
+    #: Margin at the end of the label (the right in the design) when it differs
+    #: from the start; ``None`` uses :attr:`feed_margin_mm` at both ends.
+    feed_margin_end_mm: float | None = None
     #: Built-in correction along the feed (dots, positive = later on the label),
     #: for printers that consistently start printing a little early or late.
     #: The user's calibration offset is applied on top of this.
@@ -68,7 +71,19 @@ class PrinterProfile:
 
     @property
     def feed_margin_px(self) -> int:
+        """Margin at the start of the label (left in the design), in dots."""
         return round(self.feed_margin_mm * self.dots_per_mm)
+
+    @property
+    def feed_margin_end_px(self) -> int:
+        """Margin at the end of the label (right in the design), in dots."""
+        end = self.feed_margin_mm if self.feed_margin_end_mm is None else self.feed_margin_end_mm
+        return round(end * self.dots_per_mm)
+
+    @property
+    def safe_length_mm(self) -> float:
+        """Length of the safe printable area along the feed."""
+        return (self.label_length_px - self.feed_margin_px - self.feed_margin_end_px) / self.dots_per_mm
 
     @property
     def label_across_px(self) -> int:
@@ -98,8 +113,13 @@ FICHERO_5836 = PrinterProfile(
     dots_per_mm=8,
     label_width_mm=30.0,
     label_height_mm=14.0,
-    feed_margin_mm=2.0,  # same safe area as the vendor app: 26 × 12 mm
-    feed_offset_px=8,  # measured: the print starts ~1 mm early on the label
+    # Measured with the edge test (2026-11-25): the raster starts ~1.5 mm before
+    # the label, so the last ~1.5 mm of the label cannot be reached.  The offset
+    # puts design dot 0 on the label edge; 0.5 mm safety at the start, 2 mm at
+    # the end (1.5 mm unreachable + 0.5 mm safety).  Safe area 27.5 × 12 mm.
+    feed_margin_mm=0.5,
+    feed_margin_end_mm=2.0,
+    feed_offset_px=12,
     name_prefixes=("FICHERO", "D11s_"),
     label_sizes=((30.0, 14.0), (40.0, 14.0), (50.0, 14.0), (22.0, 14.0), (40.0, 12.0),
                  (30.0, 12.0)),

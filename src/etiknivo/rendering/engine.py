@@ -268,8 +268,7 @@ class RenderEngine:
     def printable_box(self) -> tuple[int, int, int, int]:
         """Safe printable area in design dots: the head band minus the feed margins."""
         x0, y0, x1, y1 = self.head_band
-        m = self.profile.feed_margin_px
-        return x0 + m, y0, x1 - m, y1
+        return x0 + self.profile.feed_margin_px, y0, x1 - self.profile.feed_margin_end_px, y1
 
     def pt_to_px(self, pt: float) -> float:
         return pt * self.profile.dpi / 72.0
@@ -448,7 +447,9 @@ class RenderEngine:
 
         picture_box = picture[0] if picture is not None else None
         if style.rotation == 180:
-            hires = hires.rotate(180)
+            # turn the printable area in place (its margins need not be equal)
+            bx0, by0, bx1, by1 = (v * ss for v in self.printable_box)
+            hires.paste(hires.crop((bx0, by0, bx1, by1)).rotate(180), (bx0, by0))
             # the boxes turn along, so overlays (overflow marks) match the image
             line_boxes = [replace(lb, **dict(zip(("x0", "y0", "x1", "y1"),
                                                  self._turn_box((lb.x0, lb.y0, lb.x1, lb.y1)))))
@@ -469,9 +470,10 @@ class RenderEngine:
         return result
 
     def _turn_box(self, box: tuple) -> tuple:  # type: ignore[type-arg]
-        """*box* (x0, y0, x1, y1) on the label turned half a turn, in design
-        dots; whole numbers stay whole."""
-        w, h = self.design_size
+        """*box* (x0, y0, x1, y1) turned half a turn about the centre of the
+        printable area, in design dots; whole numbers stay whole."""
+        px0, py0, px1, py1 = self.printable_box
+        w, h = px0 + px1, py0 + py1
         x0, y0, x1, y1 = box
         return (w - x1, h - y1, w - x0, h - y0)
 
@@ -837,7 +839,8 @@ class RenderEngine:
         long_px, short_px = px1 - px0, py1 - py0
         dpm = self.profile.dots_per_mm
         upright = replace(self.profile, printhead_px=long_px, label_width_mm=short_px / dpm,
-                          label_height_mm=long_px / dpm, feed_margin_mm=0.0, feed_offset_px=0)
+                          label_height_mm=long_px / dpm, feed_margin_mm=0.0,
+                          feed_margin_end_mm=None, feed_offset_px=0)
         sub = RenderEngine(upright, self.calibration, self.fonts)
         flat = label.clone(new_id=False)
         flat.style.rotation = 0

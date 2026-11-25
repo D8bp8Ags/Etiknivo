@@ -19,6 +19,7 @@ MY_PRINTER = PrinterProfile(
     label_width_mm=40.0,             # in the feed direction
     label_height_mm=12.0,            # across the print head
     feed_margin_mm=1.5,              # safe margin at the start and end
+    feed_margin_end_mm=None,         # different margin at the end (None = the same)
     feed_offset_px=0,                # fixed correction if the printer starts too early/late
     name_prefixes=("BRAND_",),       # Bluetooth names when searching
     densities=("Licht", "Normaal", "Donker"),  # Dutch source texts, translated in the interface

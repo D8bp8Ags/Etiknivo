@@ -19,6 +19,7 @@ MIJN_PRINTER = PrinterProfile(
     label_width_mm=40.0,             # in de transportrichting
     label_height_mm=12.0,            # over de printkop
     feed_margin_mm=1.5,              # veilige marge aan begin en eind
+    feed_margin_end_mm=None,         # andere marge aan het eind (None = gelijk)
     feed_offset_px=0,                # vaste correctie als de printer te vroeg/laat begint
     name_prefixes=("MERK_",),        # Bluetooth-namen bij het zoeken
     densities=("Licht", "Normaal", "Donker"),
