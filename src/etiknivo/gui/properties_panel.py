@@ -50,6 +50,7 @@ from etiknivo.model import (
     CodeSize,
     HAlign,
     Label,
+    LabelStyle,
     LayoutPreset,
     PictureKind,
     VAlign,
@@ -230,6 +231,8 @@ class PropertiesPanel(QScrollArea):
         self.setFrameShape(QScrollArea.Shape.NoFrame)
         self.label: Label | None = None
         self._loading = False
+        #: set when the next change must be its own undo step
+        self.separate_step = False
         #: size of the printable area in mm (new elements are placed in it)
         self.area_mm: Callable[[], tuple[float, float]] = lambda: (26.0, 12.0)
         #: turns a label's lines, code and picture into loose elements
@@ -412,6 +415,15 @@ class PropertiesPanel(QScrollArea):
         f2.addRow(self.border)
         f2.addRow(self.separators)
         f2.addRow(self.invert)
+        self.style_reset = QPushButton(tr("Standaardwaarden herstellen"))
+        self.style_reset.setToolTip(tr(
+            "Zet de opmaak van dit label terug naar de standaard. De tekst, letters, "
+            "code en het pictogram blijven zoals ze zijn. Ongedaan maken zet het terug."))
+        self.style_reset.clicked.connect(self._reset_style)
+        reset_row = QHBoxLayout()
+        reset_row.addStretch(1)
+        reset_row.addWidget(self.style_reset)
+        f2.addRow(reset_row)
         self._style_form = f2
         lay.addWidget(st)
 
@@ -509,6 +521,7 @@ class PropertiesPanel(QScrollArea):
             self.border.setChecked(s.border)
             self.separators.setChecked(s.separators)
             self.invert.setChecked(s.invert)
+            self._update_style_reset()
             c = label.code
             self.code_kind.setCurrentIndex(self._code_index(c.kind))
             set_position(self.code_pos, c.side, c.valign)
@@ -664,6 +677,7 @@ class PropertiesPanel(QScrollArea):
         s.border = self.border.isChecked()
         s.separators = self.separators.isChecked()
         s.invert = self.invert.isChecked()
+        self._update_style_reset()
         lbl.code.kind = CODE_CHOICES[max(0, self.code_kind.currentIndex())][0]
         if lbl.code.kind == CodeKind.QR:  # a barcode keeps the QR code's place for later
             lbl.code.side, lbl.code.valign = chosen_position(self.code_pos)
@@ -680,6 +694,20 @@ class PropertiesPanel(QScrollArea):
         self.notes_hint.setVisible(bool(FIELD_RE.search(lbl.notes)))
         self._update_links(lbl.notes)
         self._emit(structural)
+
+    def _reset_style(self) -> None:
+        """Put the label-wide style back to the defaults, as one undo step."""
+        if self._loading or self.label is None or self.label.style == LabelStyle():
+            return
+        self.label.style = LabelStyle()
+        self.set_label(self.label)
+        self.separate_step = True  # not merged with the edits just before it
+        self._emit(False)
+
+    def _update_style_reset(self) -> None:
+        """Only offer the reset when something differs from the defaults."""
+        self.style_reset.setEnabled(self.label is not None
+                                    and self.label.style != LabelStyle())
 
     def _update_picture_widgets(self) -> None:
         kind = PICTURE_KINDS[max(0, self.pic_kind.currentIndex())][0]

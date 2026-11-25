@@ -207,6 +207,11 @@ EN: dict[str, str] = {
     "Marge horizontaal": "Horizontal margin",
     "Marge verticaal": "Vertical margin",
     "Rotatie": "Rotation",
+    "Standaardwaarden herstellen": "Restore defaults",
+    ("Zet de opmaak van dit label terug naar de standaard. De tekst, letters, "
+     "code en het pictogram blijven zoals ze zijn. Ongedaan maken zet het terug."):
+        ("Puts this label's style back to the defaults. The text, fonts, code and "
+         "pictogram stay as they are. Undo brings it back."),
     "Specificaties en notities": "Specifications and notes",
     "Specificaties": "Specifications",
     "Notities": "Notes",
