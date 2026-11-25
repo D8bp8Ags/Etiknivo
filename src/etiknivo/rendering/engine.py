@@ -419,8 +419,8 @@ class RenderEngine:
             y += room + spacing
 
         if style.separators:
-            for above, below in zip(line_boxes, line_boxes[1:]):
-                mid = round((above.y1 + below.y0) / 2 - 0.5)  # one dot, centred in the gap
+            for upper, lower in zip(line_boxes, line_boxes[1:]):
+                mid = round((upper.y1 + lower.y0) / 2 - 0.5)  # one dot, centred in the gap
                 separator_ys.append(mid)
                 draw.rectangle((round(area[0]) * ss, mid * ss, round(area[2]) * ss - 1,
                                 (mid + 1) * ss - 1), fill=0)
@@ -580,7 +580,7 @@ class RenderEngine:
                     continue
                 bx0, by0, bx1, by1 = self.element_box(el)
                 size = self._fit_in_box(p, el.font_size_pt, bx1 - bx0, by1 - by0)
-                hit[item.role] = min(hit.get(item.role, size), size)  # type: ignore[union-attr]
+                hit[item.role] = min(hit.get(item.role, size), size)  # type: ignore[union-attr,index,call-overload]
             self._own_fit[key] = hit  # type: ignore[assignment]
         return hit  # type: ignore[return-value]
 

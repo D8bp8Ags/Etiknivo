@@ -1,14 +1,10 @@
-# PyInstaller spec for macOS, Windows and Linux.
+# PyInstaller spec for macOS, Windows and Linux, used by scripts/build_app.py.
+# The apps are built on GitHub (.github/workflows/build.yml), see docs/en/development.md.
 #
-#   uv sync --group build
-#   uv run pyinstaller packaging/etiknivo.spec --noconfirm
-#
-# Result:
+# Result before zipping:
 #   macOS    dist/Etiknivo.app
-#   Windows  dist/Etiknivo/Etiknivo.exe (zip the folder to share it)
+#   Windows  dist/Etiknivo/Etiknivo.exe
 #   Linux    dist/Etiknivo/Etiknivo
-#
-# PyInstaller does not cross-compile: build on the system you build for.
 # -*- mode: python ; coding: utf-8 -*-
 import re
 import sys

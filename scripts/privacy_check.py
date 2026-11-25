@@ -3,7 +3,7 @@
     uv run python scripts/privacy_check.py                  # all tracked files
     uv run python scripts/privacy_check.py --commits A..B   # plus author/committer of those commits
     uv run python scripts/privacy_check.py --commit SHA     # idem for single commits (repeatable)
-    uv run python scripts/privacy_check.py --build dist/Etiknivo.app   # a built app or zip
+    uv run python scripts/privacy_check.py --build dist/Etiknivo-0.2.0-Windows.zip   # a build (build_app.py)
 
 Checks every file that git tracks (staged content included) for home folders
 with a user name (``/Users/naam``, ``/home/naam``, ``C:\\Users\\naam``), e-mail
@@ -168,7 +168,16 @@ def check_commits(*revs: str, walk: bool = True) -> list[Finding]:
 
 
 def _local_markers() -> list[bytes]:
-    """What identifies this computer: home folder, user name (as a path part) and host name."""
+    """What identifies this computer: home folder, user name (as a path part) and host name.
+
+    On a GitHub runner (where the app is built) the user name is the same for everybody and
+    also sits in libraries that other projects built there, so look for what this build
+    itself could leave behind: the checkout folder and a Python installed in the home folder."""
+    if os.environ.get("GITHUB_ACTIONS") == "true":
+        own = {str(ROOT)}
+        if Path(sys.base_prefix).is_relative_to(Path.home()):
+            own.add(sys.base_prefix)
+        return sorted({m.encode() for p in own for m in (p, p.replace("\\", "/")) if len(m) > 3})
     home = str(Path.home())
     marks = {home, home.replace("\\", "/")}
     user = getpass.getuser()
@@ -248,7 +257,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--commit", action="append", default=[], metavar="SHA",
                     help="controleer auteur/committer van deze ene commit (mag vaker)")
     ap.add_argument("--build", metavar="PAD",
-                    help="controleer alleen een gebouwde app of zip, bijv. dist/Etiknivo.app")
+                    help="controleer alleen een gebouwde app of zip, bijv. dist/Etiknivo-0.2.0-Windows.zip")
     args = ap.parse_args(argv)
     if args.build:
         found = check_build(args.build)

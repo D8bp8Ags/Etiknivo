@@ -1,0 +1,138 @@
+# Test and build Etiknivo on macOS and Windows: this is the only way the app is built.
+#
+# - Every push to main: the checks (lint, types, privacy, tests) on macOS and Windows, then the apps for
+#   macOS Apple Silicon, macOS Intel and Windows. Download them under Actions › (the run) › Artifacts.
+# - By hand: Actions › "Bouwen en testen" › Run workflow. Tick "Uitgave maken" to put the apps on the
+#   Releases page as version v<__version__>, where anyone can download them without a GitHub account.
+# - A tag like v0.2.0 (the same number as __version__) also makes a release.
+name: Bouwen en testen
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      release:
+        description: "Uitgave maken (op de Releases-pagina, voor iedereen te downloaden)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHONUTF8: "1"
+
+jobs:
+  test:
+    name: Checks (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.12"
+          enable-cache: true
+      - name: Install
+        run: uv sync --locked --group dev
+      - name: Checks (lint, types, privacy, tests)
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: uv run --no-sync python scripts/check.py
+
+  build:
+    name: App (${{ matrix.name }})
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS Apple Silicon
+            os: macos-latest
+          - name: macOS Intel
+            os: macos-15-intel
+          - name: Windows
+            os: windows-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.12"
+          enable-cache: true
+      - name: Install
+        run: uv sync --locked --no-dev --group build
+      - name: Build, zip and privacy check of the zip
+        run: uv run --no-sync python scripts/build_app.py
+      - name: Try the app (macOS)
+        if: runner.os == 'macOS'
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: dist/Etiknivo.app/Contents/MacOS/Etiknivo --self-test
+      - name: Try the app (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          $p = Start-Process -FilePath "dist\Etiknivo\Etiknivo.exe" -ArgumentList "--self-test" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "self-test failed: $($p.ExitCode)" }
+          Write-Output "self-test ok"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: Etiknivo ${{ matrix.name }}
+          path: dist/*.zip
+          if-no-files-found: error
+          retention-days: 30
+
+  release:
+    name: Uitgave
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.release)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          path: downloads
+          pattern: Etiknivo *
+          merge-multiple: true
+      - name: Put the apps on the Releases page
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(python3 -c "import re;print(re.search(r'__version__ = \"(.+?)\"', open('src/etiknivo/__init__.py').read()).group(1))")
+          tag="v$version"
+          if [ "$GITHUB_REF_TYPE" = "tag" ] && [ "$GITHUB_REF_NAME" != "$tag" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match __version__ $version"
+            exit 1
+          fi
+          if gh release view "$tag" >/dev/null 2>&1; then
+            if [ "$GITHUB_REF_TYPE" != "tag" ]; then
+              echo "::error::Release $tag already exists. Raise the version in src/etiknivo/__init__.py and pyproject.toml first."
+              exit 1
+            fi
+            gh release upload "$tag" downloads/*.zip --clobber
+            exit 0
+          fi
+          cat > notes.md <<'NOTES'
+          **Downloaden / Download**
+
+          - **Mac met Apple-chip (M1 of nieuwer)**: `Etiknivo-…-macOS-AppleSilicon.zip`. **Oudere Mac (Intel)**: `Etiknivo-…-macOS-Intel.zip`. Welke je hebt: Apple-menu › Over deze Mac. / **Mac with Apple chip (M1 or newer)**: `…-macOS-AppleSilicon.zip`. **Older Mac (Intel)**: `…-macOS-Intel.zip`. Which one: Apple menu › About This Mac.
+            Pak de zip uit en sleep *Etiknivo* naar *Apps*. De app is niet ondertekend, dus de eerste keer: open de app, sluit de waarschuwing, ga naar *Systeeminstellingen › Privacy en beveiliging* en klik onderaan op *Open toch*. (macOS 14 en ouder: Control-klik op de app › *Open*.) / Unzip and drag *Etiknivo* to *Applications*. The app is not signed, so the first time: open it, close the warning, go to *System Settings › Privacy & Security* and click *Open Anyway*. (macOS 14 and earlier: Control-click the app › *Open*.)
+          - **Windows**: `Etiknivo-…-Windows.zip`. Pak de zip uit en dubbelklik op `Etiknivo.exe` in de map *Etiknivo*. Zie je "Windows heeft uw pc beveiligd", klik dan op *Meer informatie* en *Toch uitvoeren*. / Unzip and double-click `Etiknivo.exe` in the *Etiknivo* folder. If you see "Windows protected your PC", click *More info*, then *Run anyway*.
+
+          Wat er nieuw is: [CHANGELOG.md](https://github.com/D8bp8Ags/Etiknivo/blob/main/CHANGELOG.md). / What's new: see [CHANGELOG.md](https://github.com/D8bp8Ags/Etiknivo/blob/main/CHANGELOG.md).
+          NOTES
+          gh release create "$tag" downloads/*.zip --title "Etiknivo $version" --notes-file notes.md --target "$GITHUB_SHA"

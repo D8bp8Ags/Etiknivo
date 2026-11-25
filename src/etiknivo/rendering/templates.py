@@ -416,7 +416,7 @@ def _set_looks(label: Label, looks: list[dict[str, object]]) -> None:
         for key in _LOOK:
             if key in look:
                 value = look[key]
-                setattr(line, key, HAlign(value) if key == "align" else value)
+                setattr(line, key, HAlign(str(value)) if key == "align" else value)
 
 
 def differs_from_template(label: Label) -> bool:

@@ -31,16 +31,26 @@ The app also runs without a printer, using a built-in simulated printer. New pri
 
 ## Download
 
-Download `Etiknivo-<version>-macOS.zip` from the [latest release](https://github.com/D8bp8Ags/Etiknivo/releases/latest), unzip it and drag **Etiknivo.app** to your Applications folder. The app is built for Macs with Apple Silicon.
+Download the zip for your computer from the [latest release](https://github.com/D8bp8Ags/Etiknivo/releases/latest):
 
-The app is not signed with an Apple developer certificate, so macOS blocks it the first time:
+| Computer | File |
+|---|---|
+| Mac with Apple chip (M1 or newer) | `Etiknivo-<version>-macOS-AppleSilicon.zip` |
+| Older Mac with Intel processor | `Etiknivo-<version>-macOS-Intel.zip` |
+| Windows 10/11 | `Etiknivo-<version>-Windows.zip` |
+
+Which Mac you have is under Apple menu → **About This Mac**.
+
+**macOS:** unzip it and drag **Etiknivo.app** to your Applications folder. The app is not signed with an Apple developer certificate, so macOS blocks it the first time:
 
 - **macOS 15 Sequoia and later:** open the app once and close the warning. Then go to **System Settings → Privacy & Security**, scroll down and click **Open Anyway** next to the message about Etiknivo.
 - **macOS 14 and earlier:** right-click (or Control-click) Etiknivo.app, choose **Open** and confirm.
 
 After that, the app opens normally. The first time you search for a printer, macOS asks for Bluetooth access.
 
-On Windows, Linux or an Intel Mac, run Etiknivo from source as described below.
+**Windows:** unzip it and double-click `Etiknivo.exe` in the `Etiknivo` folder. If you see "Windows protected your PC", click **More info** and then **Run anyway**.
+
+The apps are built and tested automatically on GitHub ([how](docs/en/development.md#building-the-app)). On Linux, run Etiknivo from source as described below.
 
 ## Installation from source
 

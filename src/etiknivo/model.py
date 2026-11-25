@@ -19,7 +19,7 @@ import uuid
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, date, datetime
 from enum import StrEnum
-from typing import Any, TypeVar
+from typing import Any
 
 from etiknivo.i18n import N_, format_date, tr
 
@@ -29,7 +29,6 @@ from etiknivo.i18n import N_, format_date, tr
 #: ``format`` is no longer used.
 SCHEMA_VERSION = 2
 
-E = TypeVar("E", bound=StrEnum)
 
 #: Slot indices.  Slot 0 is the small top line (usually the category),
 #: slot 1 the large main line, slot 2 the specification line.
@@ -278,7 +277,7 @@ def as_str(value: Any, default: str = "") -> str:
     return default
 
 
-def as_enum(cls: type[E], value: Any, default: E) -> E:
+def as_enum[E: StrEnum](cls: type[E], value: Any, default: E) -> E:
     try:
         return cls(value)
     except (TypeError, ValueError):
@@ -835,7 +834,7 @@ class Label:
         code = asdict(self.code)
         if code["caption"]:  # the default: keys made before it stay the same
             del code["caption"]
-        d = {"lines": [asdict(x) for x in self.lines], "code": code,
+        d: dict[str, object] = {"lines": [asdict(x) for x in self.lines], "code": code,
              "picture": asdict(self.picture)}
         if self.template != LabelTemplate.NONE:
             d["template"] = str(self.template)

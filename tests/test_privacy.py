@@ -103,6 +103,16 @@ def test_build_check_finds_this_computer(check, tmp_path, monkeypatch):
     assert len(check.check_build(str(zipped))) == 2
 
 
+def test_build_check_on_github_looks_for_the_checkout_and_python(check, monkeypatch):
+    monkeypatch.setenv("GITHUB_ACTIONS", "true")
+    marks = check._local_markers()
+    assert str(check.ROOT).encode() in marks
+    assert (sys.base_prefix.encode() in marks) == Path(sys.base_prefix).is_relative_to(Path.home())
+    monkeypatch.delenv("GITHUB_ACTIONS")
+    monkeypatch.setattr(Path, "home", classmethod(lambda cls: Path("/Users/naam")))
+    assert b"/Users/naam" in check._local_markers()
+
+
 def test_redact_hides_the_home_folder():
     home = str(Path.home())
     assert redact(f"kan {home}/Etiknivo/library.json niet lezen") == "kan ~/Etiknivo/library.json niet lezen"

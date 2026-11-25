@@ -82,15 +82,11 @@ uv run python scripts/privacy_check.py --commits origin/main..  # plus auteur/co
 
 Een regel die bewust zo is (bijvoorbeeld een testgeval), krijgt `privacy: ok` in een commentaar.
 
-**Gebouwde app.** Een build kan gegevens van de computer bevatten waarop hij gebouwd is. Een Python die uv installeert, schrijft bijvoorbeeld zijn installatiemap (in je thuismap, dus met je gebruikersnaam) in `_sysconfigdata*.py`, en PyInstaller pakt die module mee. `packaging/etiknivo.spec` vervangt de thuismap daarin door `~`. Controleer een build altijd voordat je hem deelt:
+**Gebouwde app.** Een build kan gegevens van de computer bevatten waarop hij gebouwd is. Een Python die uv installeert, schrijft bijvoorbeeld zijn installatiemap (in de thuismap) in `_sysconfigdata*.py`, en PyInstaller pakt die module mee; `packaging/etiknivo.spec` vervangt de thuismap daarin door `~`. De apps worden alleen op GitHub gebouwd (zie [De app bouwen](#de-app-bouwen)), nooit op je eigen computer, en `scripts/build_app.py` draait daar `scripts/privacy_check.py --build` op elke zip: de build faalt als de checkoutmap of de Python-installatie van de buildmachine erin staat. Paden naar de buildservers van anderen, die in meegeleverde bibliotheken staan, tellen niet mee.
 
-```bash
-uv run python scripts/privacy_check.py --build dist/Etiknivo.app   # of de zip
-```
+**Op GitHub.** Bij elke push naar `main` draait `scripts/check.py` (lint, types, privacycontrole en alle tests) op macOS en Windows; zie [De app bouwen](#de-app-bouwen).
 
-Die zoekt naar je eigen thuismap, gebruikersnaam en computernaam, ook in de Python-modules in het programma. Paden naar de buildservers van anderen, die in meegeleverde bibliotheken staan, tellen niet mee.
-
-**Git-hooks.** Er is geen GitHub Actions; de controle draait lokaal. Zet de hooks één keer aan per clone:
+**Git-hooks.** Zet de hooks één keer aan per clone, zodat de controle ook draait voordat een commit of push je computer verlaat:
 
 ```bash
 git config core.hooksPath scripts/hooks
@@ -127,40 +123,29 @@ De documentatie bestaat ook in beide talen: `docs/nl/` en `docs/en/`. Pas je de 
 
 ## De app bouwen
 
-Hetzelfde spec-bestand werkt op macOS, Windows en Linux. PyInstaller bouwt alleen voor het systeem waarop het draait.
+De app wordt op GitHub gebouwd door de workflow `.github/workflows/build.yml` (**Actions → Bouwen en testen**), niet op je eigen computer. Zo wordt elke build op dezelfde manier gemaakt en zit er niets van je computer in.
 
-```bash
-uv sync --group build
-uv run pyinstaller packaging/etiknivo.spec --noconfirm
-```
+Bij elke push naar `main`:
 
-| Systeem | Resultaat |
+1. **Controles** op macOS en Windows: `scripts/check.py` draait ruff, mypy, de privacycontrole en alle tests. Lokaal draai je hetzelfde met `uv run python scripts/check.py`.
+2. **App** op drie machines: `scripts/build_app.py` bouwt met PyInstaller (`packaging/etiknivo.spec`), pakt het resultaat in één zip en draait de privacycontrole op die zip. Daarna start de verpakte app één keer met `--self-test`: die opent het hoofdvenster met de simulatieprinter, rendert alle voorbeeldlabels en laadt de Bluetooth-backend, en faalt als er iets mist in het pakket.
+
+| Machine | Download |
 |---|---|
-| macOS | `dist/Etiknivo.app`, met app-icoon en de vereiste `NSBluetoothAlwaysUsageDescription` |
-| Windows | `dist/Etiknivo/Etiknivo.exe`; zip de map `dist/Etiknivo` om hem te delen |
-| Linux | `dist/Etiknivo/Etiknivo` |
+| macOS Apple Silicon | `Etiknivo-<versie>-macOS-AppleSilicon.zip` met `Etiknivo.app` |
+| macOS Intel | `Etiknivo-<versie>-macOS-Intel.zip` met `Etiknivo.app` |
+| Windows | `Etiknivo-<versie>-Windows.zip` met de map `Etiknivo` en daarin `Etiknivo.exe` |
 
-De app is niet ondertekend. Op macOS 14 en eerder start je hem de eerste keer met rechtermuisklik → **Open**. Vanaf macOS 15 werkt dat niet meer: open de app één keer, sluit de waarschuwing en klik dan in **Systeeminstellingen → Privacy en beveiliging** op **Toch openen**. Windows SmartScreen vraagt eenmalig om **Meer info → Toch uitvoeren**.
+De zips vind je onder **Actions → (de run) → Artifacts** (30 dagen bewaard; je moet ingelogd zijn op GitHub).
 
-PyInstaller bouwt voor de processor van de Mac waarop je bouwt: op Apple Silicon is de app alleen voor Apple Silicon.
+De app is niet ondertekend. Op macOS 15 en nieuwer: open de app één keer, sluit de waarschuwing en klik dan in **Systeeminstellingen → Privacy en beveiliging** op **Open toch**. Op macOS 14 en eerder: Control-klik op de app → **Open**. Windows SmartScreen vraagt eenmalig om **Meer informatie → Toch uitvoeren**.
 
 ## Een release maken
 
 1. Zet het versienummer in `src/etiknivo/__init__.py` en `pyproject.toml` gelijk (bijvoorbeeld `0.2.0`) en draai `uv lock`.
 2. Vul `CHANGELOG.md` aan met een nieuwe sectie met de datum.
-3. Draai `uv run pytest`, `uvx ruff check .` en `uvx mypy` (typecontrole van alles behalve de GUI), commit en push naar `main`.
-4. Bouw de app op een Mac vanaf die commit:
-
-   ```bash
-   git pull
-   rm -rf build dist
-   uv sync --group build
-   uv run pyinstaller packaging/etiknivo.spec --noconfirm
-   ditto -c -k --norsrc --noextattr --noqtn --keepParent dist/Etiknivo.app dist/Etiknivo-0.2.0-macOS.zip
-   uv run python scripts/privacy_check.py --build dist/Etiknivo-0.2.0-macOS.zip
-   ```
-
-   Gebruik `ditto` en niet `zip`: dat behoudt de symbolische links en de ad-hoc-handtekening in de bundel. De extra opties laten de macOS-kenmerken van je eigen schijf (zoals `com.apple.provenance`) weg. De privacycontrole kijkt in de zip, ook in de Python-modules die PyInstaller in het programma verpakt, of je thuismap, gebruikersnaam of computernaam erin staat. Start de app uit `dist` één keer en print een testlabel voordat je hem deelt.
-5. Maak op GitHub een release: **Releases → Draft a new release**, typ bij *Choose a tag* `v0.2.0` (de tag wordt dan bij het publiceren gemaakt op `main`), plak de sectie uit `CHANGELOG.md` als tekst en sleep het zip-bestand erin.
+3. Commit en push naar `main`, en wacht tot **Actions → Bouwen en testen** groen is.
+4. Ga naar **Actions → Bouwen en testen → Run workflow**, vink **Uitgave maken** aan en klik op **Run workflow**. De workflow bouwt de drie apps opnieuw en maakt de release `v0.2.0` op de commit waarvan hij bouwde, met downloadinstructies in het Nederlands en Engels. Een tag `v0.2.0` pushen doet hetzelfde. De workflow weigert een tag die niet bij `__version__` past, en een release met de hand voor een versie die al bestaat.
+5. Plak desgewenst daarna de sectie uit `CHANGELOG.md` in de releasetekst (**Releases → Edit**).
 
 De updatecontrole in de app leest de nieuwste release via de GitHub-API en vergelijkt het tagnummer met `__version__`; houd de tag dus in de vorm `vX.Y.Z`.

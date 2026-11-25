@@ -4,6 +4,9 @@ All notable changes to Etiknivo are listed here. Version numbers follow [Semanti
 
 ## [Unreleased]
 
+### Downloads
+- The apps are now built and tested automatically on GitHub for every change: macOS Apple Silicon, macOS Intel (new) and Windows (new). Each build is checked for personal data and started once before it can be downloaded. A release is made from the same workflow, with download instructions in Dutch and English.
+
 ### Designing labels
 - **Templates**: under *Sjabloon* pick a ready-made arrangement after professional bin, warehouse and 5S labels: Location first, Value large, Header bar, Pictogram column, QR box, Specification grid, Readable from a distance and Three zones (for long labels). The text keeps coming from the lines, the tray ID, the QR code and the pictogram; labels with the same template in a category share their font sizes. Choose *Vrij* afterwards for small changes; the elements are exactly the template's. *Labels bewerken* has a Template column to give many labels a template at once. A template is a starting point: it sets the lines' size, bold and alignment, which you can change afterwards, along with margins and the pictogram and QR size; *Sjabloonwaarden herstellen* goes back. A pictogram or QR content a template switched on by itself goes off again when the label goes back to a template that does not use it; what you set yourself stays.
 - Four new **header bar** templates: the category and the pictogram white on a black bar, with below it the lines and the tray ID top right (*rustig*), the tray ID in the bar (*lade in de balk*), the tray ID large in a frame (*lade groot*) or a QR code of the tray ID (*met QR-code*).

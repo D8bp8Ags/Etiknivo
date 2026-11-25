@@ -34,8 +34,10 @@ dev = [
     "pytest-asyncio>=0.23",
     "pytest-qt>=4.4",
     "zxing-cpp>=2.2",  # tests only: reads back the QR codes and barcodes
+    "ruff>=0.6",
+    "mypy>=1.10",
 ]
-build = [
+build = [  # scripts/build_app.py, run by GitHub (.github/workflows/build.yml)
     "pyinstaller>=6.6",
 ]
 
@@ -60,8 +62,7 @@ target-version = "py312"
 select = ["E", "F", "W", "I", "B", "UP"]
 ignore = ["B905", "E741"]
 
-# Type check of the parts without Qt (the GUI is not checked yet):
-#   uvx mypy
+# Type check of the parts without Qt (the GUI is not checked yet), part of scripts/check.py
 [tool.mypy]
 python_version = "3.12"
 files = [
