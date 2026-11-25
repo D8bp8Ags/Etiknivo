@@ -183,7 +183,7 @@ Under **Template** you pick, with one click, an arrangement like those of profes
 Good to know:
 
 - **Specification grid**: separate the cells in the bottom line with `|`, for example `Ø 3 mm | THT | 20 mA | 2.0 V`. Without `|` the whole bottom line is one cell.
-- **Pictogram column** and **Three zones** pick a fitting symbol themselves when the label had no pictogram yet. With **QR box** and **Three zones** the code's content starts as `{Tray}`.
+- **Pictogram column** and **Three zones** pick a fitting symbol themselves when the label had no pictogram yet. With **QR box** and **Three zones** the code's content starts as `{Tray}`. If you then pick a template that does not use them (for example *Lines under each other* again), what the template switched on by itself goes off again. A pictogram you had chosen yourself, or changed afterwards, stays.
 - With *Same font size within the category* on, labels with the same template in a category get the same font size per part, so the cabinet looks calm.
 - Margins, line spacing, rotation and the line between lines do not apply to a template; *White on black* and the border do. A line's font size follows the template.
 - **Small changes**: choose **Free** afterwards. You then get exactly the template's elements, to move or resize.

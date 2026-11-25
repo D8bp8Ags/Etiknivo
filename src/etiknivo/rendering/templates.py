@@ -152,20 +152,38 @@ class _Builder:
         return height
 
 
+#: templates built around a pictogram, and around the QR code's content
+PICTURE_TEMPLATES = (LabelTemplate.ICON, LabelTemplate.ZONES)
+CODE_TEMPLATES = (LabelTemplate.QR, LabelTemplate.ZONES)
+
+
 def apply_template(label: Label, template: LabelTemplate) -> None:
     """Give *label* *template*, with what that template is built around: a
-    pictogram (a fitting symbol) or the QR code's content (the tray ID)."""
+    pictogram (a fitting symbol) or the QR code's content (the tray ID).
+
+    What a template switched on by itself is switched off again when the
+    label goes to a template that does not need it (for example back to the
+    lines under each other); what the user set up stays."""
     from etiknivo.rendering.symbols import suggest_symbol
 
     label.template = template
     pic = label.picture
-    if template in (LabelTemplate.ICON, LabelTemplate.ZONES) and pic.kind == PictureKind.NONE:
+    added = label.template_added
+    if "picture" in added and template not in PICTURE_TEMPLATES:
+        pic.kind = PictureKind.NONE
+        added.remove("picture")
+    if "code" in added and template not in CODE_TEMPLATES:
+        label.code.text = ""
+        added.remove("code")
+    if template in PICTURE_TEMPLATES and pic.kind == PictureKind.NONE:
         pic.kind = PictureKind.SYMBOL
         # the most specific text first: "LED" says more than "Halfgeleiders"
         pic.symbol = suggest_symbol(label.top.text, label.name, label.main.text,
                                     label.category) or pic.symbol
-    if template in (LabelTemplate.QR, LabelTemplate.ZONES) and not label.code.text.strip():
+        added.append("picture")
+    if template in CODE_TEMPLATES and not label.code.text.strip():
         label.code.text = tray_field()
+        added.append("code")
 
 
 def tray_field() -> str:

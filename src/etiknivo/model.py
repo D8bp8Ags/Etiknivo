@@ -500,6 +500,9 @@ class Label:
     picture: LabelPicture = field(default_factory=LabelPicture)
     #: ready-made arrangement of the lines, used unless ``layout`` is FREE
     template: LabelTemplate = LabelTemplate.NONE
+    #: what a template switched on by itself ("picture", "code"), so it can be
+    #: switched off again when the label leaves that template
+    template_added: list[str] = field(default_factory=list)
     #: loose elements, used when ``layout`` is FREE
     elements: list[LabelElement] = field(default_factory=list)
     #: :meth:`lines_key` of the lines the elements were made from
@@ -690,6 +693,8 @@ class Label:
             layout=as_enum(LayoutPreset, data.get("layout"), LayoutPreset.CUSTOM),
             lines=lines,
             template=as_enum(LabelTemplate, data.get("template"), LabelTemplate.NONE),
+            template_added=[x for x in (data.get("template_added") if isinstance(
+                data.get("template_added"), list) else []) if x in ("picture", "code")],
             style=LabelStyle.from_dict(data.get("style")),
             format=LabelFormat.from_dict(data.get("format")),
             code=LabelCode.from_dict(data.get("code")),

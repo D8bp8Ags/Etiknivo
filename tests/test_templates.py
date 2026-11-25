@@ -205,3 +205,55 @@ def test_chooser_applies_a_template(qtbot, window) -> None:  # noqa: ANN001, F81
     window.undo()
     assert window.current.template == LabelTemplate.NONE
     assert props._style_form.isRowVisible(props.valign)
+
+
+def test_leaving_a_template_undoes_what_it_switched_on() -> None:
+    lbl = led()
+    lbl.picture.kind = PictureKind.NONE
+    lbl.code.text = ""
+    apply_template(lbl, LabelTemplate.ICON)
+    assert lbl.picture.kind == PictureKind.SYMBOL
+    apply_template(lbl, LabelTemplate.ZONES)  # still uses it
+    assert lbl.picture.kind == PictureKind.SYMBOL and lbl.code.text == "{Lade}"
+    back = Label.from_dict(lbl.to_dict())  # remembered across saving
+    apply_template(back, LabelTemplate.NONE)
+    assert back.picture.kind == PictureKind.NONE and back.code.text == ""
+    assert back.template_added == []
+    # a pictogram the label already had stays
+    mine = led()
+    apply_template(mine, LabelTemplate.ICON)
+    apply_template(mine, LabelTemplate.NONE)
+    assert mine.picture.kind == PictureKind.SYMBOL and mine.picture.symbol == "led"
+
+
+def test_a_pictogram_chosen_by_hand_stays(qtbot, window) -> None:  # noqa: ANN001, F811
+    props = window.properties
+    lbl = window.current
+    lbl.picture.kind = PictureKind.NONE
+    props.set_label(lbl)
+    box = props.template
+    for tpl in (LabelTemplate.ICON, LabelTemplate.NONE):
+        box.setCurrentIndex(box.findData(tpl.value))
+        box.activated.emit(box.currentIndex())
+    assert window.current.picture.kind == PictureKind.NONE  # switched on and off again
+    box.setCurrentIndex(box.findData(LabelTemplate.ICON.value))
+    box.activated.emit(box.currentIndex())
+    other = props.pic_symbol.findData("bolt")
+    props.pic_symbol.setCurrentIndex(other)  # the user picks a symbol: it is theirs now
+    box.setCurrentIndex(box.findData(LabelTemplate.NONE.value))
+    box.activated.emit(box.currentIndex())
+    assert window.current.picture.kind == PictureKind.SYMBOL
+    assert window.current.picture.symbol == "bolt"
+
+
+def test_chooser_keeps_one_height(qtbot, window) -> None:  # noqa: ANN001, F811
+    """The picture of every template shows whole: the chooser never changes height."""
+    props = window.properties
+    box = props.template
+    heights = set()
+    for tpl in LabelTemplate:
+        box.setCurrentIndex(box.findData(tpl.value))
+        box.activated.emit(box.currentIndex())
+        qtbot.wait(10)
+        heights.add(box.height())
+    assert len(heights) == 1 and heights.pop() >= box.iconSize().height() + 8
